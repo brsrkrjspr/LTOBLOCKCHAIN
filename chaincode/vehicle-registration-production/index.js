@@ -21,7 +21,7 @@ class VehicleRegistrationContract extends Contract {
     async RegisterVehicle(ctx, vehicleData) {
         try {
             const vehicle = JSON.parse(vehicleData);
-            
+
             // Validate required fields
             if (!vehicle.vin || !vehicle.make || !vehicle.model || !vehicle.year || !vehicle.owner) {
                 throw new Error('Missing required vehicle information');
@@ -46,7 +46,7 @@ class VehicleRegistrationContract extends Contract {
 
             // Extract officer information if provided (for traceability)
             const officerInfo = vehicle.officerInfo || {};
-            
+
             // Create vehicle record (CR - Certificate of Registration - permanent identity)
             const vehicleRecord = {
                 docType: 'CR', // Certificate of Registration
@@ -124,10 +124,10 @@ class VehicleRegistrationContract extends Contract {
                     blockchainTxId: txId,
                     createdBy: ctx.clientIdentity.getMSPID()
                 };
-                
+
                 // Store OR asset with OR number as key
                 await ctx.stub.putState(vehicle.orNumber, Buffer.from(JSON.stringify(orRecord)));
-                
+
                 // Create composite key for OR lookup by CR
                 const orCrKey = ctx.stub.createCompositeKey('or~cr', [vehicle.orNumber, vehicle.vin]);
                 await ctx.stub.putState(orCrKey, Buffer.from(vehicle.orNumber));
@@ -142,7 +142,7 @@ class VehicleRegistrationContract extends Contract {
                 const plateKey = ctx.stub.createCompositeKey('plate~vin', [vehicle.plateNumber, vehicle.vin]);
                 await ctx.stub.putState(plateKey, Buffer.from(vehicle.vin));
             }
-            
+
             // Create composite key for CR number lookup
             if (vehicle.crNumber) {
                 const crKey = ctx.stub.createCompositeKey('cr~vin', [vehicle.crNumber, vehicle.vin]);
@@ -183,15 +183,15 @@ class VehicleRegistrationContract extends Contract {
             }
 
             const vehicle = JSON.parse(vehicleBytes.toString());
-            
+
             // Apply MSP-based filtering for non-LTO organizations
             const clientMSPID = ctx.clientIdentity.getMSPID();
-            
+
             if (clientMSPID === 'HPGMSP' || clientMSPID === 'InsuranceMSP') {
                 // Return filtered view for HPG/Insurance
                 return JSON.stringify(this.filterVehicleForVerification(vehicle, clientMSPID));
             }
-            
+
             // LTO sees full record
             return JSON.stringify(vehicle);
 
@@ -211,7 +211,7 @@ class VehicleRegistrationContract extends Contract {
 
             const vehicle = JSON.parse(vehicleBytes.toString());
             const clientMSPID = ctx.clientIdentity.getMSPID();
-            
+
             // Apply filtering based on MSP
             const filteredVehicle = this.filterVehicleForVerification(vehicle, clientMSPID);
             return JSON.stringify(filteredVehicle);
@@ -228,7 +228,7 @@ class VehicleRegistrationContract extends Contract {
             // LTO sees full record
             return vehicle;
         }
-        
+
         if (mspId === 'HPGMSP') {
             // HPG needs: vehicle details, engine/chassis, owner name/email (minimal), HPG verification status
             return {
@@ -249,7 +249,7 @@ class VehicleRegistrationContract extends Contract {
                 verificationStatus: {
                     hpg: vehicle.verificationStatus?.hpg || 'PENDING'
                 },
-                certificates: (vehicle.certificates || []).filter(c => 
+                certificates: (vehicle.certificates || []).filter(c =>
                     c.type === 'or_cr' || c.type === 'hpg_clearance'
                 ),
                 status: vehicle.status,
@@ -258,7 +258,7 @@ class VehicleRegistrationContract extends Contract {
                 // NO pastOwners, NO full history, NO admin notes, NO officer info
             };
         }
-        
+
         if (mspId === 'InsuranceMSP') {
             // Insurance needs: vehicle details, owner name/email (minimal), insurance verification status
             return {
@@ -276,7 +276,7 @@ class VehicleRegistrationContract extends Contract {
                 verificationStatus: {
                     insurance: vehicle.verificationStatus?.insurance || 'PENDING'
                 },
-                certificates: (vehicle.certificates || []).filter(c => 
+                certificates: (vehicle.certificates || []).filter(c =>
                     c.type === 'insurance' || c.type === 'or_cr'
                 ),
                 status: vehicle.status,
@@ -285,7 +285,7 @@ class VehicleRegistrationContract extends Contract {
                 // NO engine/chassis (not needed for insurance), NO pastOwners, NO full history
             };
         }
-        
+
         // Unknown MSP - return minimal data
         return {
             vin: vehicle.vin,
@@ -323,7 +323,7 @@ class VehicleRegistrationContract extends Contract {
             // Organization-based authorization (Permissioned Network)
             // CRITICAL FIX: Each MSP can ONLY set its own verification type to prevent LTO from forging external approvals
             const clientMSPID = ctx.clientIdentity.getMSPID();
-            
+
             // Enforce strict MSP-to-verifier mapping: each MSP can only set its corresponding verification
             if (verifierType === 'insurance' && clientMSPID !== 'InsuranceMSP') {
                 throw new Error(`Unauthorized: Only InsuranceMSP can set insurance verification. Current MSP: ${clientMSPID}`);
@@ -601,7 +601,7 @@ class VehicleRegistrationContract extends Contract {
             }
 
             const vehicle = JSON.parse(vehicleBytes.toString());
-            
+
             // Return comprehensive ownership history
             return JSON.stringify({
                 currentOwner: vehicle.owner,
@@ -624,9 +624,9 @@ class VehicleRegistrationContract extends Contract {
             }
 
             const vehicle = JSON.parse(vehicleBytes.toString());
-            
+
             // Filter history for entries with officer information
-            const officerActions = vehicle.history.filter(h => 
+            const officerActions = vehicle.history.filter(h =>
                 h.officerInfo && (h.officerInfo.userId || h.officerInfo.email || h.officerInfo.name)
             );
 
@@ -644,20 +644,33 @@ class VehicleRegistrationContract extends Contract {
     // Query vehicles by status
     async QueryVehiclesByStatus(ctx, status) {
         try {
-            const queryString = {
-                selector: {
-                    status: status
-                }
-            };
-
-            const results = await ctx.stub.getQueryResult(JSON.stringify(queryString));
+            // Use getStateByRange and filter by status to avoid async iterable issues
+            const startKey = '';
+            const endKey = '\uffff';
+            const resultsIterator = await ctx.stub.getStateByRange(startKey, endKey);
             const vehicles = [];
 
-            for await (const result of results) {
-                const vehicle = JSON.parse(result.value.toString());
-                vehicles.push(vehicle);
+            while (true) {
+                const result = await resultsIterator.next();
+
+                if (result.value) {
+                    try {
+                        const vehicle = JSON.parse(result.value.value.toString());
+                        // Only include vehicles matching the status
+                        if ((vehicle.docType === 'CR' || vehicle.vin) && vehicle.status === status) {
+                            vehicles.push(vehicle);
+                        }
+                    } catch (parseError) {
+                        // Skip non-vehicle entries
+                    }
+                }
+
+                if (result.done) {
+                    break;
+                }
             }
 
+            await resultsIterator.close();
             return JSON.stringify(vehicles);
 
         } catch (error) {
@@ -669,22 +682,35 @@ class VehicleRegistrationContract extends Contract {
     // Query vehicles by verification status
     async QueryVehiclesByVerificationStatus(ctx, verifierType, status) {
         try {
-            const queryString = {
-                selector: {
-                    verificationStatus: {
-                        [verifierType]: status
-                    }
-                }
-            };
-
-            const results = await ctx.stub.getQueryResult(JSON.stringify(queryString));
+            // Use getStateByRange and filter by verification status to avoid async iterable issues
+            const startKey = '';
+            const endKey = '\uffff';
+            const resultsIterator = await ctx.stub.getStateByRange(startKey, endKey);
             const vehicles = [];
 
-            for await (const result of results) {
-                const vehicle = JSON.parse(result.value.toString());
-                vehicles.push(vehicle);
+            while (true) {
+                const result = await resultsIterator.next();
+
+                if (result.value) {
+                    try {
+                        const vehicle = JSON.parse(result.value.value.toString());
+                        // Only include vehicles matching the verification status
+                        if ((vehicle.docType === 'CR' || vehicle.vin) &&
+                            vehicle.verificationStatus &&
+                            vehicle.verificationStatus[verifierType] === status) {
+                            vehicles.push(vehicle);
+                        }
+                    } catch (parseError) {
+                        // Skip non-vehicle entries
+                    }
+                }
+
+                if (result.done) {
+                    break;
+                }
             }
 
+            await resultsIterator.close();
             return JSON.stringify(vehicles);
 
         } catch (error) {
@@ -701,7 +727,7 @@ class VehicleRegistrationContract extends Contract {
             // Using empty string to high value to get all keys
             const startKey = '';
             const endKey = '\uffff'; // Unicode high value to get all keys
-            
+
             const resultsIterator = await ctx.stub.getStateByRange(startKey, endKey);
             const vehicles = [];
             const clientMSPID = ctx.clientIdentity.getMSPID();
@@ -709,11 +735,11 @@ class VehicleRegistrationContract extends Contract {
             // Iterate through all results
             while (true) {
                 const result = await resultsIterator.next();
-                
+
                 if (result.value) {
                     try {
                         const vehicle = JSON.parse(result.value.value.toString());
-                        
+
                         // Only include vehicles with docType 'CR' (skip composite keys, OR records, etc.)
                         if (vehicle.docType === 'CR' || vehicle.vin) {
                             // Apply MSP-based filtering
@@ -725,7 +751,7 @@ class VehicleRegistrationContract extends Contract {
                         console.warn('Skipping non-vehicle entry:', result.value.key);
                     }
                 }
-                
+
                 if (result.done) {
                     break;
                 }
@@ -753,18 +779,18 @@ class VehicleRegistrationContract extends Contract {
 
             while (true) {
                 const result = await resultsIterator.next();
-                
+
                 if (result.value) {
                     try {
                         const vehicle = JSON.parse(result.value.value.toString());
-                        
+
                         // Only include vehicles with docType 'CR'
                         if (vehicle.docType === 'CR' || vehicle.vin) {
                             // Filter by status if provided
                             if (status && vehicle.status !== status) {
                                 continue;
                             }
-                            
+
                             // Apply MSP-based filtering
                             const filteredVehicle = this.filterVehicleForVerification(vehicle, clientMSPID);
                             vehicles.push(filteredVehicle);
@@ -774,7 +800,7 @@ class VehicleRegistrationContract extends Contract {
                         console.warn('Skipping non-vehicle entry:', result.value.key);
                     }
                 }
-                
+
                 if (result.done) {
                     break;
                 }
@@ -804,7 +830,7 @@ class VehicleRegistrationContract extends Contract {
 
             // Update allowed fields (LTO-compliant)
             const allowedFields = ['color', 'engineNumber', 'chassisNumber', 'vehicleType', 'vehicleCategory', 'passengerCapacity', 'grossVehicleWeight', 'netWeight', 'classification'];
-            
+
             for (const field of allowedFields) {
                 if (updates[field] !== undefined) {
                     vehicle[field] = updates[field];
@@ -960,29 +986,52 @@ class VehicleRegistrationContract extends Contract {
     // Get system statistics
     async GetSystemStats(ctx) {
         try {
-            const queryString = {
-                selector: {}
-            };
+            // Use getStateByRange instead of getQueryResult to avoid async iterable issues
+            const startKey = '';
+            const endKey = '\uffff';
+            const resultsIterator = await ctx.stub.getStateByRange(startKey, endKey);
 
-            const results = await ctx.stub.getQueryResult(JSON.stringify(queryString));
             let totalVehicles = 0;
             let statusCounts = {};
             let verificationCounts = {};
 
-            for await (const result of results) {
-                const vehicle = JSON.parse(result.value.toString());
-                totalVehicles++;
+            // Use while loop pattern (more compatible across Fabric versions)
+            while (true) {
+                const result = await resultsIterator.next();
 
-                // Count by status
-                statusCounts[vehicle.status] = (statusCounts[vehicle.status] || 0) + 1;
+                if (result.value) {
+                    try {
+                        const vehicle = JSON.parse(result.value.value.toString());
 
-                // Count by verification status
-                Object.keys(vehicle.verificationStatus).forEach(verifier => {
-                    const status = vehicle.verificationStatus[verifier];
-                    const key = `${verifier}_${status}`;
-                    verificationCounts[key] = (verificationCounts[key] || 0) + 1;
-                });
+                        // Only count actual vehicle records (with docType 'CR' or vin)
+                        if (vehicle.docType === 'CR' || vehicle.vin) {
+                            totalVehicles++;
+
+                            // Count by status
+                            if (vehicle.status) {
+                                statusCounts[vehicle.status] = (statusCounts[vehicle.status] || 0) + 1;
+                            }
+
+                            // Count by verification status
+                            if (vehicle.verificationStatus) {
+                                Object.keys(vehicle.verificationStatus).forEach(verifier => {
+                                    const status = vehicle.verificationStatus[verifier];
+                                    const key = `${verifier}_${status}`;
+                                    verificationCounts[key] = (verificationCounts[key] || 0) + 1;
+                                });
+                            }
+                        }
+                    } catch (parseError) {
+                        // Skip non-vehicle entries (composite keys, etc.)
+                    }
+                }
+
+                if (result.done) {
+                    break;
+                }
             }
+
+            await resultsIterator.close();
 
             return JSON.stringify({
                 totalVehicles: totalVehicles,
@@ -1150,7 +1199,7 @@ class VehicleRegistrationContract extends Contract {
             }
 
             const vehicle = JSON.parse(vehicleBytes.toString());
-            
+
             if (vehicle.status !== 'STOLEN') {
                 throw new Error(`Vehicle ${vin} is not marked as stolen`);
             }
@@ -1216,7 +1265,7 @@ class VehicleRegistrationContract extends Contract {
     async MintVehicle(ctx, vehicleData) {
         try {
             const vehicle = JSON.parse(vehicleData);
-            
+
             // Validate required fields (no owner required for minting)
             if (!vehicle.vin || !vehicle.make || !vehicle.model || !vehicle.year) {
                 throw new Error('Missing required vehicle information (VIN, make, model, year)');
@@ -1304,7 +1353,7 @@ class VehicleRegistrationContract extends Contract {
                 const plateKey = ctx.stub.createCompositeKey('plate~vin', [vehicle.plateNumber, vehicle.vin]);
                 await ctx.stub.putState(plateKey, Buffer.from(vehicle.vin));
             }
-            
+
             // Create composite key for CR number lookup (if provided)
             if (vehicle.crNumber) {
                 const crKey = ctx.stub.createCompositeKey('cr~vin', [vehicle.crNumber, vehicle.vin]);
@@ -1343,7 +1392,7 @@ class VehicleRegistrationContract extends Contract {
             }
 
             const vehicle = JSON.parse(vehicleBytes.toString());
-            
+
             // Validate vehicle is in MINTED state and has no owner
             if (vehicle.status !== 'MINTED') {
                 throw new Error(`Vehicle with VIN ${vin} is not in MINTED state. Current status: ${vehicle.status}`);
@@ -1354,7 +1403,7 @@ class VehicleRegistrationContract extends Contract {
 
             const newOwner = JSON.parse(ownerData);
             const registration = JSON.parse(registrationData || '{}');
-            
+
             // Only LTO can attach owners
             const clientMSPID = ctx.clientIdentity.getMSPID();
             if (clientMSPID !== 'LTOMSP') {
@@ -1512,7 +1561,7 @@ class VehicleRegistrationContract extends Contract {
             }
 
             const vehicle = JSON.parse(vehicleBytes.toString());
-            
+
             if (!vehicle.certificates || vehicle.certificates.length === 0) {
                 return JSON.stringify({ found: false });
             }

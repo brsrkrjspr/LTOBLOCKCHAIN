@@ -21,6 +21,24 @@
       "certificateAuthorities": [
         "ca-lto"
       ]
+    },
+    "HPG": {
+      "mspid": "HPGMSP",
+      "peers": [
+        "peer0.hpg.gov.ph"
+      ],
+      "certificateAuthorities": [
+        "ca-hpg"
+      ]
+    },
+    "Insurance": {
+      "mspid": "InsuranceMSP",
+      "peers": [
+        "peer0.insurance.gov.ph"
+      ],
+      "certificateAuthorities": [
+        "ca-insurance"
+      ]
     }
   },
   "peers": {
@@ -32,6 +50,26 @@
       },
       "tlsCACerts": {
         "path": "fabric-network/crypto-config/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt"
+      }
+    },
+    "peer0.hpg.gov.ph": {
+      "url": "grpcs://peer0.hpg.gov.ph:8051",
+      "grpcOptions": {
+        "ssl-target-name-override": "peer0.hpg.gov.ph",
+        "grpc.keepalive_time_ms": 600000
+      },
+      "tlsCACerts": {
+        "path": "fabric-network/crypto-config/peerOrganizations/hpg.gov.ph/peers/peer0.hpg.gov.ph/tls/ca.crt"
+      }
+    },
+    "peer0.insurance.gov.ph": {
+      "url": "grpcs://peer0.insurance.gov.ph:9051",
+      "grpcOptions": {
+        "ssl-target-name-override": "peer0.insurance.gov.ph",
+        "grpc.keepalive_time_ms": 600000
+      },
+      "tlsCACerts": {
+        "path": "fabric-network/crypto-config/peerOrganizations/insurance.gov.ph/peers/peer0.insurance.gov.ph/tls/ca.crt"
       }
     }
   },
@@ -57,6 +95,26 @@
       "httpOptions": {
         "verify": false
       }
+    },
+    "ca-hpg": {
+      "url": "https://ca-hpg:7054",
+      "caName": "ca-hpg",
+      "tlsCACerts": {
+        "path": "fabric-network/crypto-config/peerOrganizations/hpg.gov.ph/ca/ca.hpg.gov.ph-cert.pem"
+      },
+      "httpOptions": {
+        "verify": false
+      }
+    },
+    "ca-insurance": {
+      "url": "https://ca-insurance:7054",
+      "caName": "ca-insurance",
+      "tlsCACerts": {
+        "path": "fabric-network/crypto-config/peerOrganizations/insurance.gov.ph/ca/ca.insurance.gov.ph-cert.pem"
+      },
+      "httpOptions": {
+        "verify": false
+      }
     }
   },
   "channels": {
@@ -66,6 +124,18 @@
       ],
       "peers": {
         "peer0.lto.gov.ph": {
+          "endorsingPeer": true,
+          "chaincodeQuery": true,
+          "ledgerQuery": true,
+          "eventSource": true
+        },
+        "peer0.hpg.gov.ph": {
+          "endorsingPeer": true,
+          "chaincodeQuery": true,
+          "ledgerQuery": true,
+          "eventSource": true
+        },
+        "peer0.insurance.gov.ph": {
           "endorsingPeer": true,
           "chaincodeQuery": true,
           "ledgerQuery": true,

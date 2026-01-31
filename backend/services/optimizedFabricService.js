@@ -1581,7 +1581,7 @@ class OptimizedFabricService {
 
         try {
             console.log(`🔍 Querying Fabric for vehicles with status: ${status}`);
-            const results = await this.contract.evaluateTransaction('GetVehiclesByStatus', status);
+            const results = await this.contract.evaluateTransaction('QueryVehiclesByStatus', status);
 
             if (!results || results.length === 0) {
                 return [];
@@ -1616,7 +1616,8 @@ class OptimizedFabricService {
             console.log('🔍 Querying Fabric for PRE_MINTED vehicles...');
 
             // Use the existing getVehiclesByStatus method
-            const vehicles = await this.getVehiclesByStatus('PRE_MINTED');
+            // Note: Chaincode stores minted vehicles with status "MINTED"
+            const vehicles = await this.getVehiclesByStatus('MINTED');
 
             // Format vehicles for the frontend
             const formattedVehicles = vehicles.map(vehicle => ({

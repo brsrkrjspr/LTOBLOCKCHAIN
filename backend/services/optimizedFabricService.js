@@ -101,11 +101,17 @@ class OptimizedFabricService {
             // Disconnect existing connection if any
             if (this.isConnected) {
                 try {
+                    console.log('🔄 Disconnecting previous Fabric connection...');
                     await this.gateway.disconnect();
+                    // Wait briefly for sockets to close
+                    await new Promise(resolve => setTimeout(resolve, 100));
                 } catch (disconnectError) {
-                    // Ignore disconnect errors
+                    console.warn('⚠️ Warning during disconnect:', disconnectError.message);
                 }
             }
+
+            // Create a NEW gateway instance to ensure clean state
+            this.gateway = new Gateway();
 
             await this.gateway.connect(connectionProfile, {
                 wallet: this.wallet,
@@ -135,6 +141,12 @@ class OptimizedFabricService {
         } catch (error) {
             this.isConnected = false;
             this.currentIdentity = null;
+
+            // Try to force disconnect if connection failed halfway
+            try {
+                if (this.gateway) await this.gateway.disconnect();
+            } catch (ignored) { }
+
             console.error('❌ Failed to connect to Fabric network:', error.message);
             throw new Error(`Fabric connection failed: ${error.message}. Ensure Fabric network is running and properly configured.`);
         }

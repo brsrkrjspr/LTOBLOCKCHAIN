@@ -1542,6 +1542,26 @@ class OptimizedFabricService {
 
         try {
             const transaction = this.contract.createTransaction('UpdateCertificateHash');
+
+            // Set explicit endorsing peers to bypass Discovery Service issues
+            const channel = this.channel;
+            const endorsers = [];
+            const peerNames = ['peer0.lto.gov.ph', 'peer0.hpg.gov.ph'];
+            for (const peerName of peerNames) {
+                try {
+                    const endorser = channel.getEndorser(peerName);
+                    if (endorser) {
+                        endorsers.push(endorser);
+                    }
+                } catch (e) {
+                    console.warn(`Warning: Could not get endorser ${peerName}: ${e.message}`);
+                }
+            }
+
+            if (endorsers.length > 0) {
+                transaction.setEndorsingPeers(endorsers);
+            }
+
             const result = await transaction.submit(vin, certificateType, pdfHash, ipfsCid);
             const transactionId = transaction.getTransactionId();
 

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,20 +10,20 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script>
         // Apply sidebar state immediately to prevent flash and disable transitions on page load
-        (function() {
+        (function () {
             function initSidebar() {
                 const sidebar = document.querySelector('.dashboard-sidebar');
                 if (sidebar) {
                     // Disable transitions during page load
                     sidebar.classList.add('no-transition');
-                    
+
                     const savedState = localStorage.getItem('adminSidebarCollapsed');
                     if (savedState === 'true') {
                         sidebar.classList.add('collapsed');
                     }
-                    
+
                     // Re-enable transitions after page loads
-                    setTimeout(function() {
+                    setTimeout(function () {
                         sidebar.classList.remove('no-transition');
                     }, 100);
                 } else {
@@ -43,13 +44,15 @@
     <script src="js/utils.js"></script>
     <script src="js/mobile-nav.js"></script>
     <script src="js/toast-notification.js"></script>
+
 <body>
     <div class="dashboard">
         <!-- Sidebar Navigation -->
         <aside class="dashboard-sidebar">
             <div class="sidebar-header">
                 <div class="logo">
-                    <div class="logo-icon" id="sidebarToggleIcon" role="button" tabindex="0" aria-label="Toggle sidebar">
+                    <div class="logo-icon" id="sidebarToggleIcon" role="button" tabindex="0"
+                        aria-label="Toggle sidebar">
                         <img src="css/logo.png" alt="LTO Logo">
                     </div>
                     <div class="logo-text">
@@ -86,7 +89,7 @@
                     <span>Vehicle Inspection</span>
                 </a>
             </nav>
-            
+
             <!-- Sidebar Footer with User Info -->
             <div class="sidebar-footer">
                 <div class="sidebar-user-profile">
@@ -125,10 +128,12 @@
                 <div class="container">
                     <!-- Tab Navigation -->
                     <div class="tabs-container" style="margin-bottom: 2rem; border-bottom: 2px solid #e0f2fe;">
-                        <button class="tab-button active" data-tab="preMinted" style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 3px solid #0284c7; color: #0284c7; font-weight: 600; cursor: pointer; font-size: 1rem;">
+                        <button class="tab-button active" data-tab="preMinted"
+                            style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 3px solid #0284c7; color: #0284c7; font-weight: 600; cursor: pointer; font-size: 1rem;">
                             <i class="fas fa-coins"></i> Pre-Minted Vehicles
                         </button>
-                        <button class="tab-button" data-tab="inspection" style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 3px solid transparent; color: #64748b; font-weight: 500; cursor: pointer; font-size: 1rem;">
+                        <button class="tab-button" data-tab="inspection"
+                            style="padding: 0.75rem 1.5rem; background: none; border: none; border-bottom: 3px solid transparent; color: #64748b; font-weight: 500; cursor: pointer; font-size: 1rem;">
                             <i class="fas fa-clipboard-check"></i> Vehicle Inspection
                         </button>
                     </div>
@@ -142,42 +147,52 @@
                             </div>
                             <div class="card-body">
                                 <form id="mintVehicleForm">
-                                    <div class="vehicle-details-grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                                    <div class="vehicle-details-grid"
+                                        style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
                                         <div class="detail-item">
                                             <label>VIN <span class="required">*</span></label>
-                                            <input type="text" id="mintVin" class="form-control" required placeholder="Vehicle Identification Number">
+                                            <input type="text" id="mintVin" class="form-control" required
+                                                placeholder="Vehicle Identification Number">
                                         </div>
                                         <div class="detail-item">
                                             <label>Make <span class="required">*</span></label>
-                                            <input type="text" id="mintMake" class="form-control" required placeholder="e.g., Toyota">
+                                            <input type="text" id="mintMake" class="form-control" required
+                                                placeholder="e.g., Toyota">
                                         </div>
                                         <div class="detail-item">
                                             <label>Model <span class="required">*</span></label>
-                                            <input type="text" id="mintModel" class="form-control" required placeholder="e.g., Vios">
+                                            <input type="text" id="mintModel" class="form-control" required
+                                                placeholder="e.g., Vios">
                                         </div>
                                         <div class="detail-item">
                                             <label>Year <span class="required">*</span></label>
-                                            <input type="number" id="mintYear" class="form-control" required placeholder="e.g., 2024" min="1900" max="2100">
+                                            <input type="number" id="mintYear" class="form-control" required
+                                                placeholder="e.g., 2024" min="1900" max="2100">
                                         </div>
                                         <div class="detail-item">
                                             <label>Color</label>
-                                            <input type="text" id="mintColor" class="form-control" placeholder="e.g., White">
+                                            <input type="text" id="mintColor" class="form-control"
+                                                placeholder="e.g., White">
                                         </div>
                                         <div class="detail-item">
                                             <label>Plate Number</label>
-                                            <input type="text" id="mintPlateNumber" class="form-control" placeholder="Optional">
+                                            <input type="text" id="mintPlateNumber" class="form-control"
+                                                placeholder="Optional">
                                         </div>
                                         <div class="detail-item">
                                             <label>CR Number</label>
-                                            <input type="text" id="mintCrNumber" class="form-control" placeholder="Certificate of Registration Number">
+                                            <input type="text" id="mintCrNumber" class="form-control"
+                                                placeholder="Certificate of Registration Number">
                                         </div>
                                         <div class="detail-item">
                                             <label>Engine Number</label>
-                                            <input type="text" id="mintEngineNumber" class="form-control" placeholder="Engine Serial Number">
+                                            <input type="text" id="mintEngineNumber" class="form-control"
+                                                placeholder="Engine Serial Number">
                                         </div>
                                         <div class="detail-item">
                                             <label>Chassis Number</label>
-                                            <input type="text" id="mintChassisNumber" class="form-control" placeholder="Chassis Serial Number">
+                                            <input type="text" id="mintChassisNumber" class="form-control"
+                                                placeholder="Chassis Serial Number">
                                         </div>
                                         <div class="detail-item">
                                             <label>Vehicle Type</label>
@@ -191,7 +206,8 @@
                                         </div>
                                         <div class="detail-item">
                                             <label>Vehicle Category</label>
-                                            <input type="text" id="mintVehicleCategory" class="form-control" placeholder="e.g., Private, Commercial">
+                                            <input type="text" id="mintVehicleCategory" class="form-control"
+                                                placeholder="e.g., Private, Commercial">
                                         </div>
                                         <div class="detail-item">
                                             <label>Classification</label>
@@ -201,12 +217,29 @@
                                                 <option value="Government">Government</option>
                                             </select>
                                         </div>
+                                        <div class="detail-item">
+                                            <label>Passenger Capacity</label>
+                                            <input type="number" id="mintPassengerCapacity" class="form-control"
+                                                placeholder="e.g., 5" min="1">
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Gross Vehicle Weight (kg)</label>
+                                            <input type="number" id="mintGrossVehicleWeight" class="form-control"
+                                                placeholder="e.g., 2500" min="1">
+                                        </div>
+                                        <div class="detail-item">
+                                            <label>Net Weight (kg)</label>
+                                            <input type="number" id="mintNetWeight" class="form-control"
+                                                placeholder="e.g., 1800" min="1">
+                                        </div>
                                     </div>
                                     <div class="form-actions" style="margin-top: 1.5rem;">
-                                        <button type="button" class="btn-secondary" onclick="autoFillMintFormRandom()" title="Fill form with random CSR-verified vehicle data">
+                                        <button type="button" class="btn-secondary" onclick="autoFillMintFormRandom()"
+                                            title="Fill form with random CSR-verified vehicle data">
                                             <i class="fas fa-dice"></i> Auto-fill random
                                         </button>
-                                        <button type="button" class="btn-secondary" onclick="resetMintForm()">Clear</button>
+                                        <button type="button" class="btn-secondary"
+                                            onclick="resetMintForm()">Clear</button>
                                         <button type="submit" class="btn-primary">
                                             <i class="fas fa-coins"></i> Mint Vehicle on Blockchain
                                         </button>
@@ -217,9 +250,11 @@
 
                         <!-- Pre-Minted Vehicles List -->
                         <div class="dashboard-card">
-                            <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div class="card-header"
+                                style="display: flex; justify-content: space-between; align-items: center;">
                                 <h3><i class="fas fa-list"></i> Pre-Minted Vehicles (CSR-Verified, Ownerless)</h3>
-                                <button class="btn-secondary" onclick="loadPreMintedVehicles()" style="padding: 0.5rem 1rem;">
+                                <button class="btn-secondary" onclick="loadPreMintedVehicles()"
+                                    style="padding: 0.5rem 1rem;">
                                     <i class="fas fa-sync-alt"></i> Refresh
                                 </button>
                             </div>
@@ -232,23 +267,40 @@
                                     <table id="preMintedVehiclesTable" style="width: 100%; border-collapse: collapse;">
                                         <thead>
                                             <tr style="background: #f0f9ff; border-bottom: 2px solid #e0f2fe;">
-                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">VIN</th>
-                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">Make/Model</th>
-                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">Year</th>
-                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">Plate Number</th>
-                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">Status</th>
-                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">Minted Date</th>
-                                                <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">Actions</th>
+                                                <th
+                                                    style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">
+                                                    VIN</th>
+                                                <th
+                                                    style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">
+                                                    Make/Model</th>
+                                                <th
+                                                    style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">
+                                                    Year</th>
+                                                <th
+                                                    style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">
+                                                    Plate Number</th>
+                                                <th
+                                                    style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">
+                                                    Status</th>
+                                                <th
+                                                    style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">
+                                                    Minted Date</th>
+                                                <th
+                                                    style="padding: 0.75rem; text-align: left; font-weight: 600; color: #0c4a6e;">
+                                                    Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody id="preMintedVehiclesTableBody">
                                             <!-- Vehicle rows will be inserted here -->
                                         </tbody>
                                     </table>
-                                    <div id="preMintedVehiclesEmpty" style="text-align: center; padding: 3rem; color: #64748b; display: none;">
-                                        <i class="fas fa-inbox" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
+                                    <div id="preMintedVehiclesEmpty"
+                                        style="text-align: center; padding: 3rem; color: #64748b; display: none;">
+                                        <i class="fas fa-inbox"
+                                            style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;"></i>
                                         <p style="font-size: 1.1rem;">No pre-minted vehicles found</p>
-                                        <p style="font-size: 0.9rem; margin-top: 0.5rem;">Create a new pre-minted vehicle using the form above</p>
+                                        <p style="font-size: 0.9rem; margin-top: 0.5rem;">Create a new pre-minted
+                                            vehicle using the form above</p>
                                     </div>
                                 </div>
                             </div>
@@ -273,171 +325,193 @@
                             </div>
                         </div>
 
-                    <!-- Vehicle Information (Read-only) -->
-                    <div class="dashboard-card vehicle-info-card" id="vehicleInfoCard" style="display: none;">
-                        <div class="card-header">
-                            <h3>
-                                <i class="fas fa-info-circle"></i>
-                                Vehicle Information
-                                <span class="vehicle-tag">Linked from registration</span>
-                            </h3>
-                        </div>
-                        <div class="card-body vehicle-info-body">
-                            <div class="vehicle-summary">
-                                <div class="vehicle-summary-main">
-                                    <div class="vehicle-plate" id="vehiclePlateDisplay">—</div>
-                                    <div class="vehicle-meta">
-                                        <span id="vehicleMakeModelDisplay">Make / Model</span>
-                                        <span id="vehicleYearDisplay">Year</span>
+                        <!-- Vehicle Information (Read-only) -->
+                        <div class="dashboard-card vehicle-info-card" id="vehicleInfoCard" style="display: none;">
+                            <div class="card-header">
+                                <h3>
+                                    <i class="fas fa-info-circle"></i>
+                                    Vehicle Information
+                                    <span class="vehicle-tag">Linked from registration</span>
+                                </h3>
+                            </div>
+                            <div class="card-body vehicle-info-body">
+                                <div class="vehicle-summary">
+                                    <div class="vehicle-summary-main">
+                                        <div class="vehicle-plate" id="vehiclePlateDisplay">—</div>
+                                        <div class="vehicle-meta">
+                                            <span id="vehicleMakeModelDisplay">Make / Model</span>
+                                            <span id="vehicleYearDisplay">Year</span>
+                                        </div>
+                                    </div>
+                                    <div class="vehicle-owner">
+                                        <span class="owner-label">Owner</span>
+                                        <span class="owner-name" id="ownerNameDisplay">—</span>
                                     </div>
                                 </div>
-                                <div class="vehicle-owner">
-                                    <span class="owner-label">Owner</span>
-                                    <span class="owner-name" id="ownerNameDisplay">—</span>
+                                <div class="vehicle-details-grid">
+                                    <div class="detail-item">
+                                        <label>Owner Name</label>
+                                        <input type="text" id="ownerName" readonly class="readonly-field">
+                                    </div>
+                                    <div class="detail-item">
+                                        <label>Plate Number</label>
+                                        <input type="text" id="plateNumber" readonly class="readonly-field">
+                                    </div>
+                                    <div class="detail-item">
+                                        <label>VIN</label>
+                                        <input type="text" id="vin" readonly class="readonly-field">
+                                    </div>
+                                    <div class="detail-item">
+                                        <label>Make/Model</label>
+                                        <input type="text" id="makeModel" readonly class="readonly-field">
+                                    </div>
+                                    <div class="detail-item">
+                                        <label>Year</label>
+                                        <input type="text" id="year" readonly class="readonly-field">
+                                    </div>
+                                    <div class="detail-item">
+                                        <label>Engine Number</label>
+                                        <input type="text" id="engineNumber" readonly class="readonly-field">
+                                    </div>
+                                    <div class="detail-item">
+                                        <label>Chassis Number</label>
+                                        <input type="text" id="chassisNumber" readonly class="readonly-field">
+                                    </div>
                                 </div>
                             </div>
-                            <div class="vehicle-details-grid">
-                                <div class="detail-item">
-                                    <label>Owner Name</label>
-                                    <input type="text" id="ownerName" readonly class="readonly-field">
-                                </div>
-                                <div class="detail-item">
-                                    <label>Plate Number</label>
-                                    <input type="text" id="plateNumber" readonly class="readonly-field">
-                                </div>
-                                <div class="detail-item">
-                                    <label>VIN</label>
-                                    <input type="text" id="vin" readonly class="readonly-field">
-                                </div>
-                                <div class="detail-item">
-                                    <label>Make/Model</label>
-                                    <input type="text" id="makeModel" readonly class="readonly-field">
-                                </div>
-                                <div class="detail-item">
-                                    <label>Year</label>
-                                    <input type="text" id="year" readonly class="readonly-field">
-                                </div>
-                                <div class="detail-item">
-                                    <label>Engine Number</label>
-                                    <input type="text" id="engineNumber" readonly class="readonly-field">
-                                </div>
-                                <div class="detail-item">
-                                    <label>Chassis Number</label>
-                                    <input type="text" id="chassisNumber" readonly class="readonly-field">
+                        </div>
+
+                        <!-- Inspection Form -->
+                        <div class="dashboard-card" id="inspectionFormCard" style="display: none;">
+                            <div class="card-header inspection-header">
+                                <div class="inspection-header-main">
+                                    <h3><i class="fas fa-clipboard-check"></i> Inspection Details</h3>
+                                    <p class="inspection-header-subtitle">Record the official on-site findings for this
+                                        vehicle.</p>
                                 </div>
                             </div>
-                        </div>
-                    </div>
+                            <div class="card-body inspection-card-body">
+                                <form id="inspectionForm">
+                                    <!-- Primary inspection decisions -->
+                                    <div class="inspection-grid-2col">
+                                        <div class="form-group inspection-field">
+                                            <div class="inspection-field-header">
+                                                <label>Inspection Result <span class="required">*</span></label>
+                                                <span class="inspection-field-hint">Overall outcome of the physical
+                                                    inspection</span>
+                                            </div>
+                                            <div class="radio-group">
+                                                <label class="radio-label radio-positive">
+                                                    <input type="radio" name="inspectionResult" value="PASS" required>
+                                                    <span>PASS</span>
+                                                </label>
+                                                <label class="radio-label radio-negative">
+                                                    <input type="radio" name="inspectionResult" value="FAIL" required>
+                                                    <span>FAIL</span>
+                                                </label>
+                                            </div>
+                                        </div>
 
-                    <!-- Inspection Form -->
-                    <div class="dashboard-card" id="inspectionFormCard" style="display: none;">
-                        <div class="card-header inspection-header">
-                            <div class="inspection-header-main">
-                                <h3><i class="fas fa-clipboard-check"></i> Inspection Details</h3>
-                                <p class="inspection-header-subtitle">Record the official on-site findings for this vehicle.</p>
-                            </div>
-                        </div>
-                        <div class="card-body inspection-card-body">
-                            <form id="inspectionForm">
-                                <!-- Primary inspection decisions -->
-                                <div class="inspection-grid-2col">
-                                    <div class="form-group inspection-field">
-                                        <div class="inspection-field-header">
-                                            <label>Inspection Result <span class="required">*</span></label>
-                                            <span class="inspection-field-hint">Overall outcome of the physical inspection</span>
+                                        <div class="form-group inspection-field">
+                                            <div class="inspection-field-header">
+                                                <label>Roadworthiness Status <span class="required">*</span></label>
+                                                <span class="inspection-field-hint">Is the vehicle safe and fit for road
+                                                    use?</span>
+                                            </div>
+                                            <div class="radio-group">
+                                                <label class="radio-label radio-positive">
+                                                    <input type="radio" name="roadworthinessStatus" value="ROADWORTHY"
+                                                        required>
+                                                    <span>ROADWORTHY</span>
+                                                </label>
+                                                <label class="radio-label radio-negative">
+                                                    <input type="radio" name="roadworthinessStatus"
+                                                        value="NOT_ROADWORTHY" required>
+                                                    <span>NOT ROADWORTHY</span>
+                                                </label>
+                                            </div>
                                         </div>
-                                        <div class="radio-group">
-                                            <label class="radio-label radio-positive">
-                                                <input type="radio" name="inspectionResult" value="PASS" required>
-                                                <span>PASS</span>
-                                            </label>
-                                            <label class="radio-label radio-negative">
-                                                <input type="radio" name="inspectionResult" value="FAIL" required>
-                                                <span>FAIL</span>
-                                            </label>
-                                        </div>
-                                    </div>
 
-                                    <div class="form-group inspection-field">
-                                        <div class="inspection-field-header">
-                                            <label>Roadworthiness Status <span class="required">*</span></label>
-                                            <span class="inspection-field-hint">Is the vehicle safe and fit for road use?</span>
-                                        </div>
-                                        <div class="radio-group">
-                                            <label class="radio-label radio-positive">
-                                                <input type="radio" name="roadworthinessStatus" value="ROADWORTHY" required>
-                                                <span>ROADWORTHY</span>
-                                            </label>
-                                            <label class="radio-label radio-negative">
-                                                <input type="radio" name="roadworthinessStatus" value="NOT_ROADWORTHY" required>
-                                                <span>NOT ROADWORTHY</span>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <div class="form-group inspection-full-width inspection-field">
-                                        <div class="inspection-field-header">
-                                            <label>Emission Compliance <span class="required">*</span></label>
-                                            <span class="inspection-field-hint">Verify that the vehicle meets emission standards.</span>
-                                        </div>
-                                        <div class="radio-group">
-                                            <label class="radio-label radio-positive">
-                                                <input type="radio" name="emissionCompliance" value="COMPLIANT" required>
-                                                <span>COMPLIANT</span>
-                                            </label>
-                                            <label class="radio-label radio-negative">
-                                                <input type="radio" name="emissionCompliance" value="NON_COMPLIANT" required>
-                                                <span>NON-COMPLIANT</span>
-                                            </label>
+                                        <div class="form-group inspection-full-width inspection-field">
+                                            <div class="inspection-field-header">
+                                                <label>Emission Compliance <span class="required">*</span></label>
+                                                <span class="inspection-field-hint">Verify that the vehicle meets
+                                                    emission standards.</span>
+                                            </div>
+                                            <div class="radio-group">
+                                                <label class="radio-label radio-positive">
+                                                    <input type="radio" name="emissionCompliance" value="COMPLIANT"
+                                                        required>
+                                                    <span>COMPLIANT</span>
+                                                </label>
+                                                <label class="radio-label radio-negative">
+                                                    <input type="radio" name="emissionCompliance" value="NON_COMPLIANT"
+                                                        required>
+                                                    <span>NON-COMPLIANT</span>
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <!-- Officer + notes -->
-                                <div class="form-group">
-                                    <label for="inspectionOfficer">Inspection Officer <span class="required">*</span></label>
-                                    <input type="text" id="inspectionOfficer" class="form-control" required placeholder="Enter inspecting officer's full name">
-                                    <small class="form-text text-muted">Name of the LTO officer performing the inspection</small>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="inspectionNotes">Inspection Notes</label>
-                                    <textarea id="inspectionNotes" class="form-control" rows="4" placeholder="Additional notes or remarks about the inspection..."></textarea>
-                                </div>
-
-                                <hr style="margin: 2rem 0; border-color: #e0e0e0;">
-
-                                <!-- Uploads -->
-                                <div class="inspection-upload-grid">
+                                    <!-- Officer + notes -->
                                     <div class="form-group">
-                                        <label for="mvirDocument"><i class="fas fa-file-pdf"></i> MVIR Document <span class="required">*</span></label>
-                                        <input type="file" id="mvirDocument" name="mvirDocument" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
-                                        <small class="form-text text-muted">Upload MVIR/Roadworthiness certificate (PDF or image)</small>
+                                        <label for="inspectionOfficer">Inspection Officer <span
+                                                class="required">*</span></label>
+                                        <input type="text" id="inspectionOfficer" class="form-control" required
+                                            placeholder="Enter inspecting officer's full name">
+                                        <small class="form-text text-muted">Name of the LTO officer performing the
+                                            inspection</small>
                                     </div>
 
                                     <div class="form-group">
-                                        <label for="vehiclePhotos"><i class="fas fa-images"></i> Vehicle Photos <span class="required">*</span></label>
-                                        <input type="file" id="vehiclePhotos" name="vehiclePhotos" class="form-control" accept=".jpg,.jpeg,.png,.gif" multiple required>
-                                        <small class="form-text text-muted">Upload photos of the vehicle (at least 1 photo required)</small>
-                                        <div id="photoPreview"></div>
+                                        <label for="inspectionNotes">Inspection Notes</label>
+                                        <textarea id="inspectionNotes" class="form-control" rows="4"
+                                            placeholder="Additional notes or remarks about the inspection..."></textarea>
                                     </div>
-                                </div>
 
-                                <div class="form-group">
-                                    <label for="additionalDocuments"><i class="fas fa-paperclip"></i> Additional Documents</label>
-                                    <input type="file" id="additionalDocuments" name="additionalDocuments" class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx" multiple>
-                                    <small class="form-text text-muted">Optional: Upload additional inspection documents</small>
-                                </div>
+                                    <hr style="margin: 2rem 0; border-color: #e0e0e0;">
 
-                                <div class="form-actions">
-                                    <button type="button" class="btn-secondary" onclick="resetForm()">Reset</button>
-                                    <button type="submit" class="btn-primary">
-                                        <i class="fas fa-check"></i> Submit Inspection
-                                    </button>
-                                </div>
-                            </form>
+                                    <!-- Uploads -->
+                                    <div class="inspection-upload-grid">
+                                        <div class="form-group">
+                                            <label for="mvirDocument"><i class="fas fa-file-pdf"></i> MVIR Document
+                                                <span class="required">*</span></label>
+                                            <input type="file" id="mvirDocument" name="mvirDocument"
+                                                class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
+                                            <small class="form-text text-muted">Upload MVIR/Roadworthiness certificate
+                                                (PDF or image)</small>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="vehiclePhotos"><i class="fas fa-images"></i> Vehicle Photos
+                                                <span class="required">*</span></label>
+                                            <input type="file" id="vehiclePhotos" name="vehiclePhotos"
+                                                class="form-control" accept=".jpg,.jpeg,.png,.gif" multiple required>
+                                            <small class="form-text text-muted">Upload photos of the vehicle (at least 1
+                                                photo required)</small>
+                                            <div id="photoPreview"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="additionalDocuments"><i class="fas fa-paperclip"></i> Additional
+                                            Documents</label>
+                                        <input type="file" id="additionalDocuments" name="additionalDocuments"
+                                            class="form-control" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xlsx"
+                                            multiple>
+                                        <small class="form-text text-muted">Optional: Upload additional inspection
+                                            documents</small>
+                                    </div>
+
+                                    <div class="form-actions">
+                                        <button type="button" class="btn-secondary" onclick="resetForm()">Reset</button>
+                                        <button type="submit" class="btn-primary">
+                                            <i class="fas fa-check"></i> Submit Inspection
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
-                    </div>
 
                         <!-- Success Message -->
                         <div class="dashboard-card" id="successCard" style="display: none;">
@@ -447,7 +521,8 @@
                                 </div>
                                 <h3 style="color: #27ae60; margin-bottom: 1rem;">Inspection Completed Successfully!</h3>
                                 <p style="font-size: 1.1rem; margin-bottom: 0.5rem;"><strong>MVIR Number:</strong></p>
-                                <p style="font-size: 1.5rem; font-weight: bold; color: #2c3e50; margin-bottom: 2rem;" id="mvirNumberDisplay">-</p>
+                                <p style="font-size: 1.5rem; font-weight: bold; color: #2c3e50; margin-bottom: 2rem;"
+                                    id="mvirNumberDisplay">-</p>
                                 <button type="button" class="btn-primary" onclick="resetForm()">
                                     <i class="fas fa-plus"></i> Inspect Another Vehicle
                                 </button>
@@ -464,18 +539,18 @@
         /* ============================================
            LIGHT THEME ADMIN SIDEBAR - MATCH ADMIN DASHBOARD
            ============================================ */
-        
+
         /* Light Sidebar - White with Subtle Blue Gradient */
         .dashboard-sidebar {
             background: linear-gradient(180deg, #f0f9ff 0%, #ffffff 40%, #ffffff 100%) !important;
             border-right: 1px solid #e0f2fe;
-            box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
         }
-        
+
         .dashboard-sidebar .sidebar-header {
             border-bottom: 1px solid #e0f2fe;
         }
-        
+
         .dashboard-sidebar .logo-icon {
             background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
             color: #ffffff;
@@ -487,163 +562,163 @@
             overflow: hidden;
             padding: 0;
         }
-        
+
         .dashboard-sidebar .logo-icon img {
             width: 100%;
             height: 100%;
             object-fit: contain;
             transition: opacity 0.2s ease, transform 0.2s ease;
         }
-        
+
         .dashboard-sidebar .logo-icon:hover {
             opacity: 0.9;
             transform: scale(1.05);
             background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
         }
-        
+
         .dashboard-sidebar .logo-icon:hover img {
             opacity: 0.95;
             transform: scale(1.05);
         }
-        
+
         .dashboard-sidebar .logo-icon:active {
             transform: scale(0.95);
         }
-        
+
         .dashboard-sidebar .logo-icon:active img {
             transform: scale(0.95);
         }
-        
+
         .dashboard-sidebar .logo-text h2 {
             color: #0c4a6e;
         }
-        
+
         .dashboard-sidebar .logo-text p {
             color: #64748b;
         }
-        
+
         .dashboard-sidebar .nav-item {
             color: #475569;
             transition: all 0.2s ease;
         }
-        
+
         .dashboard-sidebar .nav-item:hover {
             background: #f0f9ff;
             color: #0284c7;
         }
-        
+
         .dashboard-sidebar .nav-item.active {
             background: #87ceeb;
             color: #0284c7;
             border-left: 3px solid #0ea5e9;
         }
-        
+
         .dashboard-sidebar .nav-item.active i {
             color: #0284c7;
         }
-        
+
         .dashboard-sidebar .nav-item i {
             color: #64748b;
         }
-        
+
         .dashboard-sidebar .nav-item:hover i {
             color: #0284c7;
         }
-        
+
         .dashboard-sidebar .nav-item span {
             color: inherit;
         }
-        
+
         .dashboard-sidebar .sidebar-footer {
             border-top: 1px solid #e0f2fe;
         }
-        
+
         .dashboard-sidebar .sidebar-user-profile {
             color: #1e293b;
         }
-        
+
         .dashboard-sidebar .sidebar-user-name {
             color: #000000 !important;
             font-weight: 600;
         }
-        
+
         .dashboard-sidebar .sidebar-user-avatar {
             color: #000000 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-user-role {
             color: #000000 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item {
             color: #000000;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item span {
             color: inherit;
         }
-        
+
         /* Logout button - solid red */
         .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn {
             color: #ff0000 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn span {
             color: #ff0000 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn i {
             color: #ff0000 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn:hover {
             background: #fee2e2;
             color: #dc2626 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn:hover span {
             color: #dc2626 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item#sidebarLogoutBtn:hover i {
             color: #dc2626 !important;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item {
             color: #475569;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item span {
             color: inherit;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item:hover {
             background: #f0f9ff;
             color: #0284c7;
         }
-        
+
         .dashboard-sidebar .sidebar-action-item:hover span {
             color: #0284c7;
         }
-        
+
         /* Main Content - Light Background */
         .dashboard-main {
             background: #f8fafc;
         }
-        
+
         /* White Header */
         .dashboard-header {
             background: #ffffff;
             border-bottom: 1px solid #e0f2fe;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
         }
-        
+
         .dashboard-header .logo {
             display: flex;
             align-items: center;
             height: 100%;
         }
-        
+
         .dashboard-header .logo h1 {
             margin: 0;
             font-size: 1.25rem;
@@ -651,17 +726,17 @@
             color: #0c4a6e;
             letter-spacing: -0.01em;
         }
-        
+
         .dashboard-content {
             padding: 2rem;
             max-width: 100%;
         }
-        
+
         .dashboard-content .container {
             max-width: 100%;
             padding: 0;
         }
-        
+
         .vehicle-info-card .card-header h3 {
             display: flex;
             align-items: center;
@@ -762,11 +837,13 @@
             padding: 0.55rem 0.7rem;
             font-size: 0.9rem;
         }
+
         .radio-group {
             display: flex;
             gap: 0.75rem;
             margin-top: 0.5rem;
         }
+
         .radio-label {
             position: relative;
             display: inline-flex;
@@ -781,12 +858,14 @@
             color: #111827;
             transition: border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease, color 0.16s ease;
         }
+
         .radio-label input[type="radio"] {
             cursor: pointer;
             position: absolute;
             opacity: 0;
             inset: 0;
         }
+
         .form-actions {
             display: flex;
             gap: 1rem;
@@ -867,13 +946,14 @@
         }
 
         /* Fallback: slight emphasis when checked (without color semantics) */
-        #inspectionForm .radio-label input[type="radio"]:checked + span {
+        #inspectionForm .radio-label input[type="radio"]:checked+span {
             color: #0b1120;
             font-weight: 600;
         }
 
         /* Use :has where supported to highlight selected pill with semantic colors */
         @supports(selector(.radio-label:has(input[type="radio"]:checked))) {
+
             /* Positive selections */
             #inspectionForm .radio-label.radio-positive:has(input[type="radio"]:checked) {
                 border-color: #22c55e;
@@ -1130,34 +1210,34 @@
     </style>
     <script>
         // Initialize sidebar toggle and user info
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Sidebar toggle via AD icon
             const sidebar = document.querySelector('.dashboard-sidebar');
             const sidebarToggleIcon = document.getElementById('sidebarToggleIcon');
-            
+
             if (sidebarToggleIcon && sidebar) {
-                const toggleSidebar = function(e) {
+                const toggleSidebar = function (e) {
                     e.preventDefault();
                     e.stopPropagation();
                     sidebar.classList.toggle('collapsed');
-                    
+
                     // Save state to localStorage
                     const isCollapsed = sidebar.classList.contains('collapsed');
                     localStorage.setItem('adminSidebarCollapsed', isCollapsed ? 'true' : 'false');
                 };
-                
+
                 sidebarToggleIcon.addEventListener('click', toggleSidebar);
-                sidebarToggleIcon.addEventListener('keydown', function(e) {
+                sidebarToggleIcon.addEventListener('keydown', function (e) {
                     if (e.key === 'Enter' || e.key === ' ') {
                         toggleSidebar(e);
                     }
                 });
             }
-            
+
             // Handle sidebar logout button
             const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
             if (sidebarLogoutBtn) {
-                sidebarLogoutBtn.addEventListener('click', function(e) {
+                sidebarLogoutBtn.addEventListener('click', function (e) {
                     e.preventDefault();
                     if (confirm('Are you sure you want to logout?')) {
                         if (typeof window.authManager !== 'undefined') {
@@ -1177,7 +1257,7 @@
                     }
                 });
             }
-            
+
             // Update sidebar user info
             if (typeof AuthUtils !== 'undefined') {
                 const user = AuthUtils.getCurrentUser();
@@ -1185,7 +1265,7 @@
                     const sidebarUserNameEl = document.getElementById('sidebarUserName');
                     const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
                     const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
-                    
+
                     if (sidebarUserNameEl) {
                         sidebarUserNameEl.textContent = 'ADMIN';
                     }
@@ -1206,5 +1286,5 @@
         });
     </script>
 </body>
-</html>
 
+</html>

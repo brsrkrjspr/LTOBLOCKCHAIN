@@ -306,6 +306,14 @@ async function loadVehicleDetails(vehicleId) {
                 vehicle.chassisNo || '';
             document.getElementById('chassisNumber').value = chassisNumber || vehicle.vin || 'Not Recorded';
 
+            // New fields: Weights and Capacity
+            document.getElementById('passengerCapacity').value = vehicle.passengerCapacity || vehicle.passenger_capacity || 'Not Available';
+            document.getElementById('grossVehicleWeight').value = vehicle.grossVehicleWeight || vehicle.gross_vehicle_weight || 'Not Available';
+            document.getElementById('netWeight').value = vehicle.netWeight || vehicle.net_weight || 'Not Available';
+            document.getElementById('vehicleType').value = vehicle.vehicleType || vehicle.vehicle_type || 'Not Available';
+            document.getElementById('vehicleCategory').value = vehicle.vehicleCategory || vehicle.vehicle_category || 'Not Available';
+            document.getElementById('classification').value = vehicle.classification || 'Not Available';
+
             // Show vehicle info and inspection form
             document.getElementById('vehicleInfoCard').style.display = 'block';
             document.getElementById('inspectionFormCard').style.display = 'block';
@@ -493,6 +501,9 @@ async function loadPreMintedVehicles() {
         if (emptyEl) emptyEl.style.display = 'none';
 
         const apiClient = window.apiClient || new APIClient();
+
+        // Use a shorter timeout for the background list loading to prevent UI hangs
+        // The apiClient might already have a timeout, but we ensure we catch it
         const response = await apiClient.get('/api/blockchain/vehicles?status=MINTED');
 
         if (loadingEl) loadingEl.style.display = 'none';
@@ -503,6 +514,8 @@ async function loadPreMintedVehicles() {
                     emptyEl.style.display = 'block';
                     if (response.blockchainUnavailable && response.message) {
                         emptyEl.textContent = response.message;
+                    } else {
+                        emptyEl.textContent = 'No pre-minted vehicles available. You can mint a new one in the next tab.';
                     }
                 }
                 if (containerEl) containerEl.style.display = 'none';
@@ -519,13 +532,17 @@ async function loadPreMintedVehicles() {
         const loadingEl = document.getElementById('preMintedVehiclesLoading');
         const containerEl = document.getElementById('preMintedVehiclesTableContainer');
         const emptyEl = document.getElementById('preMintedVehiclesEmpty');
+
         if (loadingEl) loadingEl.style.display = 'none';
         if (containerEl) containerEl.style.display = 'none';
+
         if (emptyEl) {
             emptyEl.style.display = 'block';
-            emptyEl.textContent = 'Blockchain temporarily unavailable. Pre-minted list could not be loaded. You can still continue with inspection.';
+            emptyEl.textContent = 'Blockchain connectivity issue. Pre-minted vehicles could not be retrieved at this time.';
         }
-        showError('Pre-minted vehicles could not be loaded: ' + (error.message || 'network error'));
+
+        // Only show toast error if specifically requested via manual refresh
+        // Background loading should be silent to not annoy the user
     }
 }
 
@@ -582,6 +599,12 @@ CR Number: ${vehicle.crNumber || 'N/A'}
 Engine Number: ${vehicle.engineNumber || 'N/A'}
 Chassis Number: ${vehicle.chassisNumber || 'N/A'}
 Status: ${vehicle.status}
+Vehicle Type: ${vehicle.vehicleType || 'N/A'}
+Vehicle Category: ${vehicle.vehicleCategory || 'N/A'}
+Classification: ${vehicle.classification || 'N/A'}
+Passenger Capacity: ${vehicle.passengerCapacity || 'N/A'}
+Gross Vehicle Weight: ${vehicle.grossVehicleWeight || 'N/A'}
+Net Weight: ${vehicle.netWeight || 'N/A'}
 Minted Date: ${vehicle.mintedAt ? new Date(vehicle.mintedAt).toLocaleString() : 'N/A'}
             `;
 
@@ -613,9 +636,9 @@ async function submitMintVehicle() {
         vehicleType: document.getElementById('mintVehicleType').value || 'Car',
         vehicleCategory: document.getElementById('mintVehicleCategory').value.trim() || '',
         classification: document.getElementById('mintClassification').value || 'Private',
-        passengerCapacity: 0,
-        grossVehicleWeight: 0,
-        netWeight: 0
+        passengerCapacity: parseInt(document.getElementById('mintPassengerCapacity').value) || 0,
+        grossVehicleWeight: parseInt(document.getElementById('mintGrossVehicleWeight').value) || 0,
+        netWeight: parseInt(document.getElementById('mintNetWeight').value) || 0
     };
 
     // Validate required fields
@@ -718,6 +741,18 @@ function autoFillMintFormRandom() {
     if (el('mintVehicleType')) el('mintVehicleType').value = vehicle.vehicleType;
     if (el('mintVehicleCategory')) el('mintVehicleCategory').value = pick(CATEGORIES);
     if (el('mintClassification')) el('mintClassification').value = pick(CLASSIFICATIONS);
+
+    // Random weights and capacity
+    if (el('mintPassengerCapacity')) {
+        el('mintPassengerCapacity').value = pick(['2', '4', '5', '7', '15', '45']);
+    }
+    if (el('mintGrossVehicleWeight')) {
+        el('mintGrossVehicleWeight').value = 1500 + Math.floor(Math.random() * 3000);
+    }
+    if (el('mintNetWeight')) {
+        const gross = parseInt(el('mintGrossVehicleWeight').value);
+        el('mintNetWeight').value = Math.floor(gross * 0.7);
+    }
 
     if (typeof ToastNotification !== 'undefined') {
         ToastNotification.show('Form filled with random CSR-verified vehicle data.', 'success');

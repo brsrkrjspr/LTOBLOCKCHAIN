@@ -1534,6 +1534,32 @@ class OptimizedFabricService {
             throw new Error(`Certificate hash query failed: ${error.message}`);
         }
     }
+
+    // Get vehicles by status (e.g., MINTED)
+    async getVehiclesByStatus(status) {
+        if (!this.isConnected || this.mode !== 'fabric') {
+            throw new Error('Not connected to Fabric network. Cannot query by status.');
+        }
+
+        try {
+            console.log(`🔍 Querying Fabric for vehicles with status: ${status}`);
+            const results = await this.contract.evaluateTransaction('GetVehiclesByStatus', status);
+
+            if (!results || results.length === 0) {
+                return [];
+            }
+
+            const vehicles = JSON.parse(results.toString());
+            return Array.isArray(vehicles) ? vehicles : [];
+        } catch (error) {
+            console.error(`❌ Failed to get vehicles by status (${status}):`, error);
+            // Don't throw if it's just "no vehicles found" logic in chaincode
+            if (error.message.includes('not found') || error.message.includes('no vehicles')) {
+                return [];
+            }
+            throw new Error(`Fabric query failed: ${error.message}`);
+        }
+    }
 }
 
 // Create singleton instance

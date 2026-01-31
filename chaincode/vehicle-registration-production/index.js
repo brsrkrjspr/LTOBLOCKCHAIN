@@ -11,6 +11,18 @@ class VehicleRegistrationContract extends Contract {
         super('VehicleRegistrationContract');
     }
 
+    // Helper: Get deterministic timestamp from transaction context
+    // CRITICAL: Using new Date() causes non-determinism across peers, breaking multi-org endorsement
+    // ctx.stub.getTxTimestamp() returns the same value on all peers for the same transaction
+    _getTxTimestamp(ctx) {
+        const txTimestamp = ctx.stub.getTxTimestamp();
+        // Convert protobuf Timestamp to ISO string
+        const seconds = txTimestamp.seconds.low || txTimestamp.seconds;
+        const nanos = txTimestamp.nanos || 0;
+        const milliseconds = seconds * 1000 + Math.floor(nanos / 1000000);
+        return new Date(milliseconds).toISOString();
+    }
+
     // Initialize the chaincode
     async Init(ctx) {
         console.log('Vehicle Registration Chaincode initialized');
@@ -42,7 +54,7 @@ class VehicleRegistrationContract extends Contract {
 
             // Generate unique transaction ID
             const txId = ctx.stub.getTxID();
-            const timestamp = new Date().toISOString();
+            const timestamp = this._getTxTimestamp(ctx);
 
             // Extract officer information if provided (for traceability)
             const officerInfo = vehicle.officerInfo || {};
@@ -306,7 +318,7 @@ class VehicleRegistrationContract extends Contract {
 
             const vehicle = JSON.parse(vehicleBytes.toString());
             const txId = ctx.stub.getTxID();
-            const timestamp = new Date().toISOString();
+            const timestamp = this._getTxTimestamp(ctx);
 
             // Validate verifier type (FIXED: removed 'emission', added 'hpg')
             const validVerifiers = ['insurance', 'hpg', 'admin'];
@@ -446,7 +458,7 @@ class VehicleRegistrationContract extends Contract {
             const newOwner = JSON.parse(newOwnerData);
             const transfer = JSON.parse(transferData);
             const txId = ctx.stub.getTxID();
-            const timestamp = new Date().toISOString();
+            const timestamp = this._getTxTimestamp(ctx);
 
             // Organization-based authorization (Permissioned Network)
             // Only LTO organization can transfer ownership
@@ -826,7 +838,7 @@ class VehicleRegistrationContract extends Contract {
             const vehicle = JSON.parse(vehicleBytes.toString());
             const updates = JSON.parse(updateData);
             const txId = ctx.stub.getTxID();
-            const timestamp = new Date().toISOString();
+            const timestamp = this._getTxTimestamp(ctx);
 
             // Update allowed fields (LTO-compliant)
             const allowedFields = ['color', 'engineNumber', 'chassisNumber', 'vehicleType', 'vehicleCategory', 'passengerCapacity', 'grossVehicleWeight', 'netWeight', 'classification'];
@@ -884,7 +896,7 @@ class VehicleRegistrationContract extends Contract {
 
             const vehicle = JSON.parse(vehicleBytes.toString());
             const txId = ctx.stub.getTxID();
-            const timestamp = new Date().toISOString();
+            const timestamp = this._getTxTimestamp(ctx);
 
             // Delete vehicle from world state
             await ctx.stub.deleteState(vin);
@@ -931,7 +943,7 @@ class VehicleRegistrationContract extends Contract {
 
             const vehicle = JSON.parse(vehicleBytes.toString());
             const txId = ctx.stub.getTxID();
-            const timestamp = new Date().toISOString();
+            const timestamp = this._getTxTimestamp(ctx);
 
             // Only LTO can scrap vehicles
             const clientMSPID = ctx.clientIdentity.getMSPID();
@@ -1037,7 +1049,7 @@ class VehicleRegistrationContract extends Contract {
                 totalVehicles: totalVehicles,
                 statusCounts: statusCounts,
                 verificationCounts: verificationCounts,
-                timestamp: new Date().toISOString()
+                timestamp: this._getTxTimestamp(ctx)
             });
 
         } catch (error) {
@@ -1057,7 +1069,7 @@ class VehicleRegistrationContract extends Contract {
             const vehicle = JSON.parse(vehicleBytes.toString());
             const violation = JSON.parse(violationData);
             const txId = ctx.stub.getTxID();
-            const timestamp = new Date().toISOString();
+            const timestamp = this._getTxTimestamp(ctx);
 
             // Organization-based authorization
             const clientMSPID = ctx.clientIdentity.getMSPID();
@@ -1133,7 +1145,7 @@ class VehicleRegistrationContract extends Contract {
             const vehicle = JSON.parse(vehicleBytes.toString());
             const report = JSON.parse(reportData);
             const txId = ctx.stub.getTxID();
-            const timestamp = new Date().toISOString();
+            const timestamp = this._getTxTimestamp(ctx);
 
             // Organization-based authorization
             const clientMSPID = ctx.clientIdentity.getMSPID();
@@ -1206,7 +1218,7 @@ class VehicleRegistrationContract extends Contract {
 
             const recovery = JSON.parse(recoveryData || '{}');
             const txId = ctx.stub.getTxID();
-            const timestamp = new Date().toISOString();
+            const timestamp = this._getTxTimestamp(ctx);
 
             // Organization-based authorization
             const clientMSPID = ctx.clientIdentity.getMSPID();
@@ -1294,7 +1306,7 @@ class VehicleRegistrationContract extends Contract {
             }
 
             const txId = ctx.stub.getTxID();
-            const timestamp = new Date().toISOString();
+            const timestamp = this._getTxTimestamp(ctx);
 
             // Create minted vehicle record (ownerless, CSR-verified state)
             const vehicleRecord = {
@@ -1416,7 +1428,7 @@ class VehicleRegistrationContract extends Contract {
             }
 
             const txId = ctx.stub.getTxID();
-            const timestamp = new Date().toISOString();
+            const timestamp = this._getTxTimestamp(ctx);
 
             // Attach owner and transition status
             vehicle.owner = newOwner;
@@ -1482,7 +1494,7 @@ class VehicleRegistrationContract extends Contract {
 
             const vehicle = JSON.parse(vehicleBytes.toString());
             const txId = ctx.stub.getTxID();
-            const timestamp = new Date().toISOString();
+            const timestamp = this._getTxTimestamp(ctx);
 
             // Only LTO can update certificate hashes
             const clientMSPID = ctx.clientIdentity.getMSPID();

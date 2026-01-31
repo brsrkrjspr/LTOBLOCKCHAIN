@@ -1463,6 +1463,32 @@ class OptimizedFabricService {
         try {
             const vehicleJson = JSON.stringify(vehicleData);
             const transaction = this.contract.createTransaction('MintVehicle');
+
+            // IMPORTANT: Set explicit endorsing peers to bypass Discovery Service issues
+            // The endorsement policy AND('LTOMSP.peer', OR('HPGMSP.peer', 'InsuranceMSP.peer'))
+            // requires LTO + one of HPG/Insurance. Setting peers explicitly avoids Discovery failures.
+            const network = this.gateway.getNetwork('ltochannel');
+            const channel = network.getChannel();
+
+            // Get peer endorsers from the channel
+            const endorsers = [];
+            const peerNames = ['peer0.lto.gov.ph', 'peer0.hpg.gov.ph'];
+            for (const peerName of peerNames) {
+                try {
+                    const endorser = channel.getEndorser(peerName);
+                    if (endorser) {
+                        endorsers.push(endorser);
+                    }
+                } catch (e) {
+                    console.warn(`Warning: Could not get endorser ${peerName}: ${e.message}`);
+                }
+            }
+
+            if (endorsers.length > 0) {
+                transaction.setEndorsingPeers(endorsers);
+                console.log(`🔗 Using explicit endorsers: ${endorsers.map(e => e.name).join(', ')}`);
+            }
+
             const fabricResult = await transaction.submit(vehicleJson);
             const transactionId = transaction.getTransactionId();
 

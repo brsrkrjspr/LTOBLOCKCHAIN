@@ -588,33 +588,47 @@ async function viewPreMintedVehicle(vin) {
         if (response.success && response.vehicle) {
             const vehicle = response.vehicle;
 
-            // Show vehicle details in a modal or alert
-            const details = `
-VIN: ${vehicle.vin}
-Make/Model: ${vehicle.make} ${vehicle.model}
-Year: ${vehicle.year}
-Color: ${vehicle.color || 'N/A'}
-Plate Number: ${vehicle.plateNumber || 'Pending'}
-CR Number: ${vehicle.crNumber || 'N/A'}
-Engine Number: ${vehicle.engineNumber || 'N/A'}
-Chassis Number: ${vehicle.chassisNumber || 'N/A'}
-Status: ${vehicle.status}
-Vehicle Type: ${vehicle.vehicleType || 'N/A'}
-Vehicle Category: ${vehicle.vehicleCategory || 'N/A'}
-Classification: ${vehicle.classification || 'N/A'}
-Passenger Capacity: ${vehicle.passengerCapacity || 'N/A'}
-Gross Vehicle Weight: ${vehicle.grossVehicleWeight || 'N/A'}
-Net Weight: ${vehicle.netWeight || 'N/A'}
-Minted Date: ${vehicle.mintedAt ? new Date(vehicle.mintedAt).toLocaleString() : 'N/A'}
-            `;
+            // Populate Modal
+            document.getElementById('modalVin').textContent = vehicle.vin || 'N/A';
+            document.getElementById('modalPlate').textContent = vehicle.plateNumber || 'Pending';
+            document.getElementById('modalMakeModel').textContent = `${vehicle.make || ''} ${vehicle.model || ''}`;
+            document.getElementById('modalYear').textContent = vehicle.year || 'N/A';
+            document.getElementById('modalColor').textContent = vehicle.color || 'N/A';
+            document.getElementById('modalType').textContent = vehicle.vehicleType || 'N/A';
+            document.getElementById('modalEngine').textContent = vehicle.engineNumber || 'N/A';
+            document.getElementById('modalChassis').textContent = vehicle.chassisNumber || 'N/A';
+            document.getElementById('modalClass').textContent = vehicle.classification || 'N/A';
+            document.getElementById('modalStatus').textContent = vehicle.status || 'N/A';
 
-            alert(details);
+            const mintedDate = vehicle.mintedAt || vehicle.createdAt || vehicle.lastUpdated;
+            document.getElementById('modalDate').textContent = mintedDate ? new Date(mintedDate).toLocaleString() : 'N/A';
+
+            document.getElementById('modalWeight').textContent = vehicle.grossVehicleWeight ? `${vehicle.grossVehicleWeight} kg` : 'N/A';
+
+            // Show Modal
+            const modal = document.getElementById('vehicleDetailModal');
+            if (modal) {
+                modal.classList.add('active');
+                // Close on overlay click
+                modal.onclick = function (e) {
+                    if (e.target === modal) {
+                        closeVehicleModal();
+                    }
+                };
+            }
         } else {
             throw new Error(response.error || 'Vehicle not found');
         }
     } catch (error) {
         console.error('Error viewing pre-minted vehicle:', error);
         showError('Failed to load vehicle details: ' + error.message);
+    }
+}
+
+function closeVehicleModal() {
+    const modal = document.getElementById('vehicleDetailModal');
+    if (modal) {
+        modal.classList.remove('active');
     }
 }
 

@@ -1285,6 +1285,73 @@
             }
         });
     </script>
+
+    <!-- Vehicle Detail Modal -->
+    <div class="modal-overlay" id="vehicleDetailModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h3><i class="fas fa-car-side"></i> Vehicle Details</h3>
+                <button class="modal-close-btn" onclick="closeVehicleModal()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="vehicle-detail-grid">
+                    <div class="detail-group">
+                        <span class="detail-label">VIN</span>
+                        <span class="detail-value highlight" id="modalVin">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <span class="detail-label">Plate Number</span>
+                        <span class="detail-value" id="modalPlate">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <span class="detail-label">Make & Model</span>
+                        <span class="detail-value" id="modalMakeModel">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <span class="detail-label">Year</span>
+                        <span class="detail-value" id="modalYear">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <span class="detail-label">Color</span>
+                        <span class="detail-value" id="modalColor">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <span class="detail-label">Vehicle Type</span>
+                        <span class="detail-value" id="modalType">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <span class="detail-label">Engine Number</span>
+                        <span class="detail-value" id="modalEngine">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <span class="detail-label">Chassis Number</span>
+                        <span class="detail-value" id="modalChassis">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <span class="detail-label">Classification</span>
+                        <span class="detail-value" id="modalClass">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <span class="detail-label">Status</span>
+                        <span class="detail-value" id="modalStatus">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <span class="detail-label">Minted Date</span>
+                        <span class="detail-value" id="modalDate">-</span>
+                    </div>
+                    <div class="detail-group">
+                        <span class="detail-label">Gross Weight</span>
+                        <span class="detail-value" id="modalWeight">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" onclick="closeVehicleModal()">Close</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

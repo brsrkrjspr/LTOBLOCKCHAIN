@@ -2591,18 +2591,6 @@ function showApplicationModal(application) {
                             ${application.lastUpdated ? `<p><strong>Last Updated:</strong> ${new Date(application.lastUpdated).toLocaleString()}</p>` : ''}
                         </div>
                     </div>
-                    
-                    <div class="detail-section">
-                        <h4>Certificates</h4>
-                        <div id="certificates-section-${application.id}" style="margin-top: 10px;">
-                            <button class="btn-primary" onclick="generateCertificates('${application.id}')" style="margin-right: 10px;">
-                                <i class="fas fa-certificate"></i> Generate Certificates
-                            </button>
-                            <div id="certificates-list-${application.id}" style="margin-top: 15px;">
-                                <p style="color: #999; font-style: italic;">Loading certificates...</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
                 </div>
                 
@@ -3797,13 +3785,11 @@ function renderOrgStatusIndicators(vehicle) {
     const verificationStatus = vehicle.verificationStatus || {};
     const hpg = verificationStatus.hpg || vehicle.hpg_clearance_status || vehicle.hpg_status || 'NOT_STARTED';
     const insurance = verificationStatus.insurance || vehicle.insurance_status || 'NOT_STARTED';
-    const emission = verificationStatus.emission || vehicle.emission_status || 'NOT_STARTED';
 
     return `
         <div class="org-status-indicators">
             <span class="org-indicator ${getOrgStatusClass(hpg)}" title="HPG: ${hpg}">H</span>
             <span class="org-indicator ${getOrgStatusClass(insurance)}" title="Insurance: ${insurance}">I</span>
-            <span class="org-indicator ${getOrgStatusClass(emission)}" title="Emission: ${emission}">E</span>
         </div>
     `;
 }

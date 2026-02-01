@@ -880,7 +880,7 @@ router.get('/id/:id', authenticateToken, async (req, res) => {
 
         // CRITICAL: Verify blockchain transaction ID against Fabric
         // This ensures the transaction ID from PostgreSQL actually exists on Fabric
-        await verifyBlockchainTransactionId(vehicle);
+        await verifyBlockchainTransactionId(vehicle, req.user);
 
         // Generate QR code server-side
         vehicle.qr_code_base64 = await generateVehicleQRCode(vehicle);
@@ -947,7 +947,7 @@ router.get('/:vin', authenticateToken, async (req, res) => {
 
         // CRITICAL: Verify blockchain transaction ID against Fabric
         // This ensures the transaction ID from PostgreSQL actually exists on Fabric
-        await verifyBlockchainTransactionId(vehicle);
+        await verifyBlockchainTransactionId(vehicle, req.user);
 
         // Apply additional filtering based on role (application-level privacy)
         let responseVehicle = vehicle;
@@ -2694,7 +2694,7 @@ router.put('/:vin/transfer', authenticateToken, authorizeRole(['vehicle_owner', 
 
 // Helper function to verify blockchain transaction ID against Fabric
 // This ensures the transaction ID from PostgreSQL actually exists on Fabric
-async function verifyBlockchainTransactionId(vehicle) {
+async function verifyBlockchainTransactionId(vehicle, userContext = null) {
     // Only verify if we have a valid transaction ID format
     if (!vehicle.blockchain_tx_id ||
         vehicle.blockchain_tx_id.includes('-') ||
@@ -2707,10 +2707,10 @@ async function verifyBlockchainTransactionId(vehicle) {
     try {
         const fabricService = require('../services/optimizedFabricService');
 
-        // Initialize Fabric service with current user context (if available) for dynamic identity selection
-        await fabricService.initialize(req.user ? {
-            role: req.user.role,
-            email: req.user.email
+        // Initialize Fabric service with user context (if available) for dynamic identity selection
+        await fabricService.initialize(userContext ? {
+            role: userContext.role,
+            email: userContext.email
         } : {});
 
         // Verify transaction exists on Fabric

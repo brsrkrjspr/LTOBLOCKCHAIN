@@ -13,9 +13,9 @@
 const DISABLE_AUTH = false; // ✅ Authentication enabled for production
 
 // Production safeguard: Force disable auth bypass in production environments
-const isProduction = window.location.hostname !== 'localhost' && 
-                     window.location.hostname !== '127.0.0.1' && 
-                     !window.location.hostname.includes('.local');
+const isProduction = window.location.hostname !== 'localhost' &&
+    window.location.hostname !== '127.0.0.1' &&
+    !window.location.hostname.includes('.local');
 if (isProduction && DISABLE_AUTH) {
     console.error('%c🚨 SECURITY WARNING: Authentication bypass is enabled in production!', 'color: #e74c3c; font-weight: bold; font-size: 14px;');
     console.error('%cThis is a security risk. Authentication bypass has been automatically disabled.', 'color: #e74c3c; font-size: 12px;');
@@ -35,7 +35,7 @@ if (DISABLE_AUTH && !isProduction) {
 class AuthUtils {
     // Session ID for current tab (prevents multiple accounts in same browser)
     static _sessionId = null;
-    
+
     // Generate unique session ID for this tab
     static getSessionId() {
         if (!this._sessionId) {
@@ -48,31 +48,31 @@ class AuthUtils {
         }
         return this._sessionId;
     }
-    
+
     // Validate that current session matches stored session
     static validateSession() {
         const storedSessionId = localStorage.getItem('activeSessionId');
         const currentSessionId = this.getSessionId();
-        
+
         // If there's already an active session from a different tab
         if (storedSessionId && storedSessionId !== currentSessionId) {
             // Check if that session is still active (within 30 seconds heartbeat)
             const lastHeartbeat = parseInt(localStorage.getItem('sessionHeartbeat') || '0');
             const now = Date.now();
-            
+
             // If last heartbeat was within 5 seconds, another tab is active
             if (now - lastHeartbeat < 5000) {
                 console.warn('⚠️ Another session is active in a different tab');
                 return false;
             }
         }
-        
+
         // Claim this session
         localStorage.setItem('activeSessionId', currentSessionId);
         localStorage.setItem('sessionHeartbeat', Date.now().toString());
         return true;
     }
-    
+
     // Start session heartbeat (call this on page load)
     static startSessionHeartbeat() {
         // Update heartbeat every 3 seconds
@@ -83,12 +83,12 @@ class AuthUtils {
             }
         }, 3000);
     }
-    
+
     // Check if user is authenticated
     static isAuthenticated() {
         // If auth is disabled, always return true
         if (DISABLE_AUTH) return true;
-        
+
         // First check if user exists in localStorage
         const user = this.getCurrentUser();
         if (!user) return false;
@@ -113,15 +113,15 @@ class AuthUtils {
                 // Not a valid JWT format, but if user exists, allow access for demo
                 return true;
             }
-            
+
             const payload = JSON.parse(atob(parts[1]));
             const expiration = payload.exp * 1000;
-            
+
             if (Date.now() >= expiration) {
                 this.clearAuth();
                 return false;
             }
-            
+
             return true;
         } catch (error) {
             // If token parsing fails but user exists, allow access for demo purposes
@@ -139,7 +139,7 @@ class AuthUtils {
             let mockRole = 'admin';
             let mockName = 'ADMIN';
             let mockInitials = 'AD';
-            
+
             if (path.includes('insurance')) {
                 mockRole = 'insurance_verifier';
                 mockName = 'Insurance Verifier';
@@ -157,7 +157,7 @@ class AuthUtils {
                 mockName = 'Vehicle Owner';
                 mockInitials = 'VO';
             }
-            
+
             return {
                 id: 'dev-user',
                 email: 'dev@example.com',
@@ -165,9 +165,9 @@ class AuthUtils {
                 firstName: mockName.split(' ')[0] || 'Dev',
                 lastName: mockName.split(' ')[1] || 'User',
                 name: mockName,
-                organization: mockRole === 'admin' ? 'Land Transportation Office' : 
-                            mockRole === 'insurance_verifier' ? 'Insurance Verification Office' :
-                            mockRole === 'hpg_admin' ? 'Highway Patrol Group' :
+                organization: mockRole === 'admin' ? 'Land Transportation Office' :
+                    mockRole === 'insurance_verifier' ? 'Insurance Verification Office' :
+                        mockRole === 'hpg_admin' ? 'Highway Patrol Group' :
                             mockRole === 'emission_verifier' ? 'Emission Testing Center' : 'Individual',
                 phone: '+63 912 345 6789',
                 isActive: true,
@@ -175,7 +175,7 @@ class AuthUtils {
                 _devMode: true // Flag to indicate this is a dev user
             };
         }
-        
+
         const userStr = localStorage.getItem('currentUser');
         if (!userStr) return null;
 
@@ -193,7 +193,7 @@ class AuthUtils {
         if (DISABLE_AUTH) {
             return 'dev-token-bypass';
         }
-        
+
         // Check AuthManager first (memory), then localStorage (backward compatibility)
         if (typeof window !== 'undefined' && window.authManager) {
             const token = window.authManager.getAccessToken();
@@ -201,7 +201,7 @@ class AuthUtils {
                 return token;
             }
         }
-        
+
         const token = localStorage.getItem('authToken');
         if (!token) return null;
 
@@ -217,15 +217,15 @@ class AuthUtils {
                 // Not a valid JWT format, return token anyway for demo
                 return token;
             }
-            
+
             const payload = JSON.parse(atob(parts[1]));
             const expiration = payload.exp * 1000;
-            
+
             if (Date.now() >= expiration) {
                 this.clearAuth();
                 return null;
             }
-            
+
             return token;
         } catch (error) {
             // If token parsing fails, return token anyway for demo purposes
@@ -240,7 +240,7 @@ class AuthUtils {
         if (typeof window !== 'undefined' && window.authManager) {
             window.authManager.accessToken = null;
         }
-        
+
         localStorage.removeItem('authToken');
         localStorage.removeItem('currentUser');
     }
@@ -252,7 +252,7 @@ class AuthUtils {
             console.log('[DEV MODE] Authentication bypassed');
             return true;
         }
-        
+
         if (!this.isAuthenticated()) {
             const currentPath = window.location.pathname;
             window.location.href = `login-signup.html?redirect=${encodeURIComponent(currentPath)}`;
@@ -282,11 +282,11 @@ class AuthUtils {
     static getUserDisplayName() {
         const user = this.getCurrentUser();
         if (!user) return 'Guest';
-        
+
         if (user.firstName && user.lastName) {
             return `${user.firstName} ${user.lastName}`;
         }
-        
+
         return user.email || 'User';
     }
 
@@ -294,15 +294,15 @@ class AuthUtils {
     static getUserInitials() {
         const user = this.getCurrentUser();
         if (!user) return 'GU';
-        
+
         if (user.firstName && user.lastName) {
             return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
         }
-        
+
         if (user.email) {
             return user.email.substring(0, 2).toUpperCase();
         }
-        
+
         return 'US';
     }
 
@@ -314,7 +314,13 @@ class AuthUtils {
             return;
         }
 
-        switch(user.role) {
+        // Special case: Certificate Generator account
+        if (user.email?.toLowerCase() === 'certificategenerator@generator.com') {
+            window.location.href = 'certificate-generator.html';
+            return;
+        }
+
+        switch (user.role) {
             case 'hpg_admin':
                 window.location.href = 'hpg-admin-dashboard.html';
                 break;
@@ -352,9 +358,10 @@ class AuthUtils {
         localStorage.removeItem('sessionHeartbeat');
         sessionStorage.removeItem('tabSessionId');
         this._sessionId = null;
-        window.location.href = 'index.html';
+        // Use replace() to prevent back button from showing authenticated pages
+        window.location.replace('login-signup.html');
     }
-    
+
     // Check if another account is logged in (call before login)
     static checkExistingSession() {
         const existingUser = this.getCurrentUser();
@@ -367,7 +374,7 @@ class AuthUtils {
         }
         return { hasExisting: false };
     }
-    
+
     // Force logout (for switching accounts)
     static forceLogout() {
         this.clearAuth();
@@ -423,7 +430,7 @@ class AuthUtils {
         localStorage.setItem('currentUser', JSON.stringify(userData));
         localStorage.setItem('authToken', 'demo-token-' + Date.now());
         localStorage.setItem('token', 'demo-token-' + Date.now());
-        
+
         return userData;
     }
 }
@@ -432,7 +439,7 @@ class AuthUtils {
 window.AuthUtils = AuthUtils;
 
 // Helper function to quickly login as vehicle owner (for testing)
-window.quickLoginAsOwner = function() {
+window.quickLoginAsOwner = function () {
     AuthUtils.setDemoCredentials('owner@example.com', 'owner123');
     window.location.href = 'owner-dashboard.html';
 };

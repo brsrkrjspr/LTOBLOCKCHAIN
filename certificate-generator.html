@@ -4,6 +4,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Certificate Generator - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/mobile.css">
@@ -13,6 +16,12 @@
     <script src="js/api-client.js"></script>
     <script src="js/toast-notification.js"></script>
     <script src="js/mobile-nav.js"></script>
+    <script>
+        // Auth check at page load to prevent back button access after logout
+        if (typeof AuthUtils !== 'undefined' && !AuthUtils.isAuthenticated()) {
+            window.location.replace('login-signup.html');
+        }
+    </script>
     <style>
         /* Form Specific Styles */
         .form-tabs {
@@ -99,6 +108,16 @@
             border-color: #0ea5e9;
             box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
         }
+
+        /* Main Section Toggle */
+        .main-section {
+            display: none;
+        }
+
+        .main-section.active {
+            display: block;
+        }
+
 
         /* Badges */
         .info-badge {
@@ -207,10 +226,6 @@
                     <i class="fas fa-certificate"></i>
                     <span>Certificate Gen</span>
                 </a>
-                <a href="transfer-certificate-generator.html" class="nav-item">
-                    <i class="fas fa-exchange-alt"></i>
-                    <span>Transfer Gen</span>
-                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -248,145 +263,313 @@
                     <div class="welcome-section-admin" style="margin-bottom: 2rem;">
                         <div class="welcome-content">
                             <h1 class="welcome-title">Certificate Generator</h1>
-                            <p class="welcome-subtitle">Generate Insurance, Emission, HPG, and CSR certificates in one
-                                go</p>
+                            <p class="welcome-subtitle">Generate certificates for new vehicle registration or ownership
+                                transfers</p>
                         </div>
                     </div>
 
-                    <!-- Generator Interface -->
-                    <div class="dashboard-card-modern">
+                    <!-- Main Tabs: New Vehicle vs Transfer -->
+                    <div class="form-tabs" style="margin-bottom: 0; border-bottom: none;">
+                        <button class="form-tab active" id="mainTabNew" onclick="switchMainTab('newVehicle')">
+                            <i class="fas fa-car"></i> New Vehicle Certificates
+                        </button>
+                        <button class="form-tab" id="mainTabTransfer" onclick="switchMainTab('transfer')">
+                            <i class="fas fa-exchange-alt"></i> Transfer Certificates
+                        </button>
+                    </div>
 
-                        <div class="form-tabs">
-                            <button class="form-tab active" onclick="switchTab('auto')">Auto-Fill Mode</button>
-                            <button class="form-tab" onclick="switchTab('manual')">Manual Mode</button>
-                        </div>
+                    <!-- ==================== NEW VEHICLE SECTION ==================== -->
+                    <div id="newVehicleSection" class="main-section active">
+                        <div class="dashboard-card-modern">
 
-                        <!-- Auto Mode Form -->
-                        <div id="autoForm" class="form-container active">
-                            <div class="info-badge success"
-                                style="background: #e0f2fe; color: #0284c7; border-left-color: #0284c7;">
-                                <i class="fas fa-info-circle"></i>
-                                <div>
-                                    <strong>How it works:</strong> Enter an owner's email address. The system will
-                                    auto-generate all required certificates using mock data compatible with the owner's
-                                    profile.
+
+                            <!-- Auto Mode Form -->
+                            <div id="autoForm" class="form-container active">
+                                <div class="info-badge success"
+                                    style="background: #e0f2fe; color: #0284c7; border-left-color: #0284c7;">
+                                    <i class="fas fa-info-circle"></i>
+                                    <div>
+                                        <strong>How it works:</strong> Select a pre-minted vehicle from Fabric, enter
+                                        the
+                                        owner's email. The system will generate HPG Clearance and CTPL Insurance
+                                        certificates.
+                                    </div>
                                 </div>
-                            </div>
 
-                            <form onsubmit="handleGenerate(event, 'auto')">
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label>Owner Email <span style="color:red">*</span></label>
-                                        <div style="display: flex; gap: 10px;">
-                                            <input type="email" id="ownerEmail" name="ownerEmail" class="form-control"
-                                                placeholder="Enter owner's registered email" required>
-                                            <button type="button" class="btn-primary"
-                                                onclick="verifyOwner('ownerEmail')"
-                                                style="padding: 0 1.5rem;">Verify</button>
+                                <form onsubmit="handleGenerate(event, 'auto')">
+                                    <div class="form-section">
+                                        <h4>Vehicle Selection (from Fabric Blockchain)</h4>
+                                        <div class="form-group">
+                                            <label>Select Pre-Minted Vehicle <span style="color:red">*</span></label>
+                                            <select id="vehicleSelect" name="vehicleVin" class="form-control" required
+                                                onchange="fillVehicleDetails()">
+                                                <option value="">-- Loading vehicles from Fabric... --</option>
+                                            </select>
+                                        </div>
+                                        <div id="vehiclePreview" class="info-badge"
+                                            style="display: none; background: #f8fafc; color: #475569;">
+                                            <i class="fas fa-car"></i>
+                                            <div id="vehiclePreviewContent"></div>
                                         </div>
                                     </div>
-                                    <div class="form-group">
-                                        <label>Vehicle Type</label>
-                                        <select name="vehicleType" class="form-control">
-                                            <option value="Car">Car</option>
-                                            <option value="SUV">SUV</option>
-                                            <option value="Motorcycle">Motorcycle</option>
-                                            <option value="Truck">Truck</option>
-                                            <option value="Van">Van</option>
-                                        </select>
-                                    </div>
-                                </div>
 
-                                <div id="autoOwnerPreview" class="info-badge"
-                                    style="display: none; background: #f0fdf4; color: #15803d; border-left-color: #22c55e;">
-                                    <i class="fas fa-check-circle"></i>
-                                    <div>
-                                        <strong>Owner Verified:</strong> <span id="autoOwnerName"></span>
-                                    </div>
-                                </div>
+                                    <div class="form-section">
+                                        <h4>Owner Information</h4>
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label>Owner Email <span style="color:red">*</span></label>
+                                                <div style="display: flex; gap: 10px;">
+                                                    <input type="email" id="ownerEmail" name="ownerEmail"
+                                                        class="form-control"
+                                                        placeholder="Enter owner's registered email" required>
+                                                    <button type="button" class="btn-primary"
+                                                        onclick="verifyOwner('ownerEmail')"
+                                                        style="padding: 0 1.5rem;">Verify</button>
+                                                </div>
+                                            </div>
 
-                                <button type="submit" class="btn-primary"
-                                    style="width: 100%; padding: 1rem; font-size: 1.1rem;">
-                                    <i class="fas fa-magic"></i> Generate All Certificates
-                                </button>
-                            </form>
-                        </div>
+                                            <div id="autoOwnerPreview" class="info-badge"
+                                                style="display: none; background: #f0fdf4; color: #15803d; border-left-color: #22c55e;">
+                                                <i class="fas fa-check-circle"></i>
+                                                <div>
+                                                    <strong>Owner Verified:</strong> <span id="autoOwnerName"></span>
+                                                </div>
+                                            </div>
+                                        </div>
 
-                        <!-- Manual Mode Form -->
-                        <div id="manualForm" class="form-container">
-                            <form onsubmit="handleGenerate(event, 'manual')">
-                                <div class="form-section">
-                                    <h4>Owner Information</h4>
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>Owner Email <span style="color:red">*</span></label>
-                                            <div style="display: flex; gap: 10px;">
-                                                <input type="email" id="manualOwnerEmail" name="ownerEmail"
-                                                    class="form-control" required>
-                                                <button type="button" class="btn-primary"
-                                                    onclick="verifyOwner('manualOwnerEmail')">Verify</button>
+
+                                        <button type="submit" class="btn-primary" id="generateBtn"
+                                            style="width: 100%; padding: 1rem; font-size: 1.1rem;">
+                                            <i class="fas fa-certificate"></i> Generate HPG & CTPL Certificates
+                                        </button>
+                                </form>
+                            </div>
+
+                            <!-- Manual Mode Form -->
+                            <div id="manualForm" class="form-container">
+                                <form onsubmit="handleGenerate(event, 'manual')">
+                                    <div class="form-section">
+                                        <h4>Owner Information</h4>
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label>Owner Email <span style="color:red">*</span></label>
+                                                <div style="display: flex; gap: 10px;">
+                                                    <input type="email" id="manualOwnerEmail" name="ownerEmail"
+                                                        class="form-control" required>
+                                                    <button type="button" class="btn-primary"
+                                                        onclick="verifyOwner('manualOwnerEmail')">Verify</button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div id="manualOwnerPreview" class="info-badge"
+                                            style="display: none; background: #f0fdf4; color: #15803d; border-left-color: #22c55e;">
+                                            <i class="fas fa-check-circle"></i>
+                                            <div>
+                                                <strong>Owner Verified:</strong> <span id="manualOwnerName"></span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div id="manualOwnerPreview" class="info-badge"
-                                        style="display: none; background: #f0fdf4; color: #15803d; border-left-color: #22c55e;">
-                                        <i class="fas fa-check-circle"></i>
-                                        <div>
-                                            <strong>Owner Verified:</strong> <span id="manualOwnerName"></span>
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <div class="form-section">
-                                    <h4>Vehicle Details</h4>
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>VIN <span style="color:red">*</span></label>
-                                            <input type="text" name="vin" class="form-control" required
-                                                placeholder="17-digit VIN">
+                                    <div class="form-section">
+                                        <h4>Vehicle Details</h4>
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label>VIN <span style="color:red">*</span></label>
+                                                <input type="text" name="vin" class="form-control" required
+                                                    placeholder="17-digit VIN">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Plate Number <span style="color:red">*</span></label>
+                                                <input type="text" name="plate" class="form-control" required
+                                                    placeholder="ABC-1234">
+                                            </div>
                                         </div>
-                                        <div class="form-group">
-                                            <label>Plate Number <span style="color:red">*</span></label>
-                                            <input type="text" name="plate" class="form-control" required
-                                                placeholder="ABC-1234">
+                                        <div class="form-row">
+                                            <div class="form-group">
+                                                <label>Make</label>
+                                                <input type="text" name="vehicleMake" class="form-control"
+                                                    placeholder="e.g. Toyota">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Model</label>
+                                                <input type="text" name="vehicleModel" class="form-control"
+                                                    placeholder="e.g. Vios">
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Year</label>
+                                                <input type="number" name="vehicleYear" class="form-control"
+                                                    placeholder="2024">
+                                            </div>
                                         </div>
                                     </div>
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>Make</label>
-                                            <input type="text" name="vehicleMake" class="form-control"
-                                                placeholder="e.g. Toyota">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Model</label>
-                                            <input type="text" name="vehicleModel" class="form-control"
-                                                placeholder="e.g. Vios">
-                                        </div>
-                                        <div class="form-group">
-                                            <label>Year</label>
-                                            <input type="number" name="vehicleYear" class="form-control"
-                                                placeholder="2024">
-                                        </div>
-                                    </div>
-                                </div>
 
-                                <button type="submit" class="btn-primary"
-                                    style="width: 100%; padding: 1rem; font-size: 1.1rem;">
-                                    <i class="fas fa-cog"></i> Generate Certificates Manually
-                                </button>
-                            </form>
+                                    <button type="submit" class="btn-primary"
+                                        style="width: 100%; padding: 1rem; font-size: 1.1rem;">
+                                        <i class="fas fa-cog"></i> Generate Certificates Manually
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Results Section -->
+                        <div id="certificateStatus" class="dashboard-card-modern" style="display: none;">
+                            <!-- Results injected here -->
                         </div>
                     </div>
-
-                    <!-- Results Section -->
-                    <div id="certificateStatus" class="dashboard-card-modern" style="display: none;">
-                        <!-- Results injected here -->
-                    </div>
-
                 </div>
+                <!-- END NEW VEHICLE SECTION -->
+
+                <!-- ==================== TRANSFER SECTION ==================== -->
+                <div id="transferSection" class="main-section" style="display: none;">
+                    <div class="dashboard-card-modern">
+                        <div class="info-badge primary"
+                            style="background: #e0f2fe; color: #0369a1; border-left: 4px solid #0ea5e9;">
+                            <i class="fas fa-info-circle"></i>
+                            <div>
+                                <strong>Transfer Certificates:</strong> Generate Deed of Sale, HPG Clearance, CTPL
+                                Insurance, and MVIR
+                                for ownership transfers.
+                            </div>
+                        </div>
+
+                        <form id="transferCertificateForm" onsubmit="handleTransferGenerate(event)">
+                            <!-- Vehicle Selection -->
+                            <div class="form-section">
+                                <h4><i class="fas fa-car"></i> Select Vehicle</h4>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Registered Vehicle</label>
+                                        <select id="transferVehicleSelect" name="vehicleId" class="form-control"
+                                            required onchange="loadTransferVehicleDetails()">
+                                            <option value="">-- Loading registered vehicles... --</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Transfer Request (Optional)</label>
+                                        <select id="transferRequestSelect" name="transferRequestId" class="form-control"
+                                            onchange="loadTransferRequestContext()">
+                                            <option value="">-- None (Standalone) --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div id="transferVehiclePreview" class="info-badge"
+                                    style="display: none; background: #f8fafc; color: #475569;">
+                                    <i class="fas fa-car"></i>
+                                    <div id="transferVehiclePreviewContent"></div>
+                                </div>
+                            </div>
+
+                            <!-- Buyer Information -->
+                            <div class="form-section">
+                                <h4><i class="fas fa-user"></i> Buyer Information</h4>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Buyer Email (Must be registered) <span style="color:red">*</span></label>
+                                        <div style="display: flex; gap: 10px;">
+                                            <input type="email" id="buyerEmail" name="buyerEmail" class="form-control"
+                                                placeholder="Enter buyer's email" required>
+                                            <button type="button" class="btn-primary" onclick="verifyBuyer()"
+                                                style="padding: 0 1.5rem;">Verify</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="buyerPreview" class="info-badge"
+                                    style="display: none; background: #f0fdf4; color: #15803d; border-left-color: #22c55e;">
+                                    <i class="fas fa-check-circle"></i>
+                                    <div id="buyerPreviewContent"></div>
+                                </div>
+                            </div>
+
+                            <!-- Deed of Sale -->
+                            <div class="form-section">
+                                <h4><i class="fas fa-file-signature"></i> Deed of Sale Details</h4>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Purchase Price (PHP)</label>
+                                        <input type="number" id="purchasePrice" name="purchasePrice"
+                                            class="form-control" placeholder="e.g. 500000">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Date of Sale</label>
+                                        <input type="date" id="saleDate" name="saleDate" class="form-control">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Odometer Reading (km)</label>
+                                        <input type="number" id="odometerReading" name="odometerReading"
+                                            class="form-control" placeholder="e.g. 50000">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Compliance Documents -->
+                            <div class="form-section">
+                                <h4><i class="fas fa-clipboard-check"></i> Compliance Documents</h4>
+
+                                <h5 style="color: #475569; margin-top: 1rem;">HPG Clearance</h5>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Clearance Number (Auto if empty)</label>
+                                        <input type="text" id="hpgClearanceNumber" name="hpgClearanceNumber"
+                                            class="form-control" placeholder="Generated if blank">
+                                    </div>
+                                </div>
+
+                                <h5 style="color: #475569; margin-top: 1rem;">CTPL Insurance</h5>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Policy Number (Auto if empty)</label>
+                                        <input type="text" id="ctplPolicyNumber" name="ctplPolicyNumber"
+                                            class="form-control" placeholder="Generated if blank">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Coverage Amount</label>
+                                        <input type="text" id="ctplCoverageAmount" name="ctplCoverageAmount"
+                                            class="form-control" value="PHP 200,000 / PHP 50,000">
+                                    </div>
+                                </div>
+
+                                <h5 style="color: #475569; margin-top: 1rem;">MVIR Inspection</h5>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>MVIR Number (Auto if empty)</label>
+                                        <input type="text" id="mvirNumber" name="mvirNumber" class="form-control"
+                                            placeholder="Generated if blank">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Result</label>
+                                        <select id="mvirResult" name="mvirResult" class="form-control">
+                                            <option value="PASS">PASS</option>
+                                            <option value="FAIL">FAIL</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem;">
+                                <button type="reset" class="btn btn-secondary"
+                                    style="background: #f1f5f9; color: #475569; padding: 0.75rem 1.5rem; border: none; border-radius: 6px; cursor: pointer;">
+                                    <i class="fas fa-undo"></i> Reset
+                                </button>
+                                <button type="submit" class="btn-primary" style="padding: 0.75rem 2rem;">
+                                    <i class="fas fa-certificate"></i> Generate Transfer Certificates
+                                </button>
+                            </div>
+                        </form>
+
+                        <!-- Transfer Results -->
+                        <div id="transferCertificateStatus" class="dashboard-card-modern"
+                            style="display: none; margin-top: 2rem;">
+                            <!-- Results injected here -->
+                        </div>
+                    </div>
+                </div>
+                <!-- END TRANSFER SECTION -->
+
             </div>
-        </main>
     </div>
+    </main>
+    </div>
+
 
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loadingOverlay">
@@ -398,9 +581,282 @@
     </div>
 
     <script>
+        // Store fetched vehicles for reference
+        let preMintedVehicles = [];
+        let registeredVehicles = [];
+
         // Init Mobile Nav
         if (typeof MobileNav !== 'undefined') {
             MobileNav.init();
+        }
+
+        // Load pre-minted vehicles on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPreMintedVehicles();
+            loadRegisteredVehicles();
+        });
+
+        // Switch between main tabs: New Vehicle vs Transfer
+        function switchMainTab(tab) {
+            // Toggle tab buttons
+            document.getElementById('mainTabNew').classList.toggle('active', tab === 'newVehicle');
+            document.getElementById('mainTabTransfer').classList.toggle('active', tab === 'transfer');
+
+            // Toggle sections
+            document.getElementById('newVehicleSection').classList.toggle('active', tab === 'newVehicle');
+            document.getElementById('newVehicleSection').style.display = tab === 'newVehicle' ? 'block' : 'none';
+            document.getElementById('transferSection').style.display = tab === 'transfer' ? 'block' : 'none';
+        }
+
+        // Load registered vehicles for transfer section
+        async function loadRegisteredVehicles() {
+            const vehicleSelect = document.getElementById('transferVehicleSelect');
+            if (!vehicleSelect) return;
+
+            try {
+                const apiClient = window.apiClient || new APIClient();
+                const response = await apiClient.get('/api/vehicles');
+
+                if (response.success && response.vehicles && response.vehicles.length > 0) {
+                    registeredVehicles = response.vehicles;
+                    vehicleSelect.innerHTML = '<option value="">-- Select a Registered Vehicle --</option>';
+
+                    response.vehicles.forEach(vehicle => {
+                        const option = document.createElement('option');
+                        option.value = vehicle.id || vehicle.vin;
+                        option.textContent = `${vehicle.make || 'Unknown'} ${vehicle.model || ''} (${vehicle.plate_number || vehicle.vin})`;
+                        option.dataset.vehicle = JSON.stringify(vehicle);
+                        vehicleSelect.appendChild(option);
+                    });
+                } else {
+                    vehicleSelect.innerHTML = '<option value="">-- No registered vehicles available --</option>';
+                }
+            } catch (error) {
+                console.error('Failed to load registered vehicles:', error);
+                vehicleSelect.innerHTML = '<option value="">-- Error loading vehicles --</option>';
+            }
+        }
+
+        function loadTransferVehicleDetails() {
+            const vehicleSelect = document.getElementById('transferVehicleSelect');
+            const previewDiv = document.getElementById('transferVehiclePreview');
+            const previewContent = document.getElementById('transferVehiclePreviewContent');
+
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+
+            if (selectedOption && selectedOption.dataset.vehicle) {
+                try {
+                    const vehicle = JSON.parse(selectedOption.dataset.vehicle);
+                    previewDiv.style.display = 'flex';
+                    previewContent.innerHTML = `
+                        <strong>VIN:</strong> ${vehicle.vin}<br>
+                        <strong>Plate:</strong> ${vehicle.plate_number || 'N/A'}<br>
+                        <strong>Make/Model:</strong> ${vehicle.make || 'N/A'} ${vehicle.model || ''}
+                    `;
+                } catch (e) {
+                    previewDiv.style.display = 'none';
+                }
+            } else {
+                previewDiv.style.display = 'none';
+            }
+        }
+
+        function loadTransferRequestContext() {
+            // Placeholder - could load transfer request details if a request is selected
+            const requestSelect = document.getElementById('transferRequestSelect');
+            // For now, no additional action needed
+        }
+
+        async function verifyBuyer() {
+            const emailInput = document.getElementById('buyerEmail');
+            const previewDiv = document.getElementById('buyerPreview');
+            const previewContent = document.getElementById('buyerPreviewContent');
+
+            if (!emailInput || !emailInput.value) {
+                if (typeof ToastNotification !== 'undefined') {
+                    ToastNotification.show('Please enter buyer email', 'error');
+                }
+                return;
+            }
+
+            const email = emailInput.value.trim();
+
+            try {
+                const apiClient = window.apiClient || new APIClient();
+                const response = await apiClient.get(`/api/users/lookup?email=${encodeURIComponent(email)}`);
+
+                if (response.success && response.user) {
+                    previewDiv.style.display = 'flex';
+                    previewContent.innerHTML = `<strong>Verified Buyer:</strong> ${response.user.name || email}`;
+                    if (typeof ToastNotification !== 'undefined') {
+                        ToastNotification.show('Buyer verified successfully', 'success');
+                    }
+                } else {
+                    throw new Error('User not found');
+                }
+            } catch (error) {
+                // Fallback to basic validation for demo
+                if (email.includes('@')) {
+                    previewDiv.style.display = 'flex';
+                    previewContent.innerHTML = `<strong>Buyer:</strong> ${email}`;
+                    if (typeof ToastNotification !== 'undefined') {
+                        ToastNotification.show('Email format verified', 'info');
+                    }
+                } else {
+                    previewDiv.style.display = 'none';
+                    if (typeof ToastNotification !== 'undefined') {
+                        ToastNotification.show('Invalid email format', 'error');
+                    }
+                }
+            }
+        }
+
+        async function handleTransferGenerate(event) {
+            event.preventDefault();
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.classList.add('show');
+            const statusDiv = document.getElementById('transferCertificateStatus');
+            statusDiv.style.display = 'none';
+
+            try {
+                const form = event.target;
+                const vehicleSelect = document.getElementById('transferVehicleSelect');
+                const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+                let vehicleData = {};
+
+                if (selectedOption && selectedOption.dataset.vehicle) {
+                    vehicleData = JSON.parse(selectedOption.dataset.vehicle);
+                }
+
+                const formData = {
+                    vehicleId: form.vehicleId.value,
+                    vehicleVin: vehicleData.vin,
+                    buyerEmail: form.buyerEmail.value.trim(),
+                    purchasePrice: form.purchasePrice.value || undefined,
+                    saleDate: form.saleDate.value || undefined,
+                    odometerReading: form.odometerReading.value || undefined,
+                    hpgClearanceNumber: form.hpgClearanceNumber.value || undefined,
+                    ctplPolicyNumber: form.ctplPolicyNumber.value || undefined,
+                    ctplCoverageAmount: form.ctplCoverageAmount.value,
+                    mvirNumber: form.mvirNumber.value || undefined,
+                    mvirResult: form.mvirResult.value
+                };
+
+                // Call transfer certificate generation API
+                const apiClient = window.apiClient || new APIClient();
+                const response = await apiClient.post('/api/certificate-generation/transfer/generate', formData);
+
+                loadingOverlay.classList.remove('show');
+                displayTransferResults(response, formData);
+
+            } catch (error) {
+                console.error('Error:', error);
+                loadingOverlay.classList.remove('show');
+                if (typeof ToastNotification !== 'undefined') {
+                    ToastNotification.show(error.message || 'Generation failed', 'error');
+                }
+            }
+        }
+
+        function displayTransferResults(response, formData) {
+            const statusDiv = document.getElementById('transferCertificateStatus');
+            statusDiv.style.display = 'block';
+
+            const certs = response.certificates || {};
+            const hasSuccess = Object.keys(certs).length > 0;
+
+            let html = `
+                <h3 style="margin-top:0; color:#1e293b;">Transfer Certificates Generated</h3>
+                <div class="info-badge ${hasSuccess ? 'success' : 'error'}" style="background: ${hasSuccess ? '#ecfccb' : '#fee2e2'}; color: ${hasSuccess ? '#3f6212' : '#dc2626'};">
+                    <i class="fas fa-${hasSuccess ? 'check-circle' : 'times-circle'}"></i>
+                    ${hasSuccess ? 'Certificates generated successfully' : 'Generation failed'}
+                </div>
+                <div class="form-row">
+            `;
+
+            // Deed of Sale
+            if (certs.deedOfSale) {
+                html += `<div class="certificate-item success"><h5><i class="fas fa-file-signature"></i> Deed of Sale</h5><small>Generated</small></div>`;
+            }
+
+            // HPG
+            if (certs.hpg) {
+                html += `<div class="certificate-item success"><h5><i class="fas fa-shield-alt"></i> HPG Clearance</h5><small>${certs.hpg.clearanceNumber}</small></div>`;
+            }
+
+            // CTPL
+            if (certs.ctpl) {
+                html += `<div class="certificate-item success"><h5><i class="fas fa-file-contract"></i> CTPL Insurance</h5><small>${certs.ctpl.policyNumber}</small></div>`;
+            }
+
+            // MVIR
+            if (certs.mvir) {
+                html += `<div class="certificate-item success"><h5><i class="fas fa-clipboard-check"></i> MVIR</h5><small>${certs.mvir.mvirNumber}</small></div>`;
+            }
+
+            html += `</div>`;
+            statusDiv.innerHTML = html;
+            statusDiv.scrollIntoView({ behavior: 'smooth' });
+        }
+
+
+        async function loadPreMintedVehicles() {
+            const vehicleSelect = document.getElementById('vehicleSelect');
+            if (!vehicleSelect) return;
+
+            try {
+                const apiClient = window.apiClient || new APIClient();
+                const response = await apiClient.get('/api/vehicles/pre-minted');
+
+                if (response.success && response.vehicles && response.vehicles.length > 0) {
+                    preMintedVehicles = response.vehicles;
+                    vehicleSelect.innerHTML = '<option value="">-- Select a Pre-Minted Vehicle --</option>';
+
+                    response.vehicles.forEach(vehicle => {
+                        const option = document.createElement('option');
+                        option.value = vehicle.vin;
+                        option.textContent = `${vehicle.make || 'Unknown'} ${vehicle.model || ''} (${vehicle.vin})`;
+                        option.dataset.vehicle = JSON.stringify(vehicle);
+                        vehicleSelect.appendChild(option);
+                    });
+
+                    if (typeof ToastNotification !== 'undefined') {
+                        ToastNotification.show(`Loaded ${response.vehicles.length} pre-minted vehicles from Fabric`, 'success');
+                    }
+                } else {
+                    vehicleSelect.innerHTML = '<option value="">-- No pre-minted vehicles available --</option>';
+                }
+            } catch (error) {
+                console.error('Failed to load pre-minted vehicles:', error);
+                vehicleSelect.innerHTML = '<option value="">-- Error loading vehicles --</option>';
+                if (typeof ToastNotification !== 'undefined') {
+                    ToastNotification.show('Failed to load vehicles from Fabric', 'error');
+                }
+            }
+        }
+
+        function fillVehicleDetails() {
+            const vehicleSelect = document.getElementById('vehicleSelect');
+            const vehiclePreview = document.getElementById('vehiclePreview');
+            const vehiclePreviewContent = document.getElementById('vehiclePreviewContent');
+
+            const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+
+            if (selectedOption && selectedOption.dataset.vehicle) {
+                try {
+                    const vehicle = JSON.parse(selectedOption.dataset.vehicle);
+                    vehiclePreview.style.display = 'flex';
+                    vehiclePreviewContent.innerHTML = `
+                        <strong>VIN:</strong> ${vehicle.vin}<br>
+                        <strong>Make/Model:</strong> ${vehicle.make || 'N/A'} ${vehicle.model || ''}<br>
+                        <strong>Year:</strong> ${vehicle.year || 'N/A'} | <strong>Type:</strong> ${vehicle.vehicleType || vehicle.bodyType || 'N/A'}
+                    `;
+                } catch (e) {
+                    vehiclePreview.style.display = 'none';
+                }
+            } else {
+                vehiclePreview.style.display = 'none';
+            }
         }
 
         function switchTab(tab) {
@@ -432,24 +888,32 @@
             const nameEl = document.getElementById(nameId);
 
             try {
-                // Mock verification or use API if available
-                // Ideally this calls /api/users?email=...
-                // For now, we'll simulate success if email looks valid
-                if (email.includes('@')) {
+                // Call user lookup API
+                const apiClient = window.apiClient || new APIClient();
+                const response = await apiClient.get(`/api/users/lookup?email=${encodeURIComponent(email)}`);
+
+                if (response.success && response.user) {
                     previewEl.style.display = 'flex';
-                    nameEl.textContent = 'Verified User'; // Placeholder
+                    nameEl.textContent = response.user.name || response.user.email;
                     if (typeof ToastNotification !== 'undefined') {
-                        ToastNotification.show('User verified successfully', 'success');
+                        ToastNotification.show('Owner verified successfully', 'success');
                     }
                 } else {
-                    throw new Error('Invalid email format');
+                    throw new Error('User not found');
                 }
             } catch (error) {
-                previewEl.style.display = 'none';
-                if (typeof ToastNotification !== 'undefined') {
-                    ToastNotification.show('User not found', 'error');
+                // Fallback to basic validation for demo
+                if (email.includes('@')) {
+                    previewEl.style.display = 'flex';
+                    nameEl.textContent = email;
+                    if (typeof ToastNotification !== 'undefined') {
+                        ToastNotification.show('Email format verified (user lookup pending)', 'info');
+                    }
                 } else {
-                    alert('User not found');
+                    previewEl.style.display = 'none';
+                    if (typeof ToastNotification !== 'undefined') {
+                        ToastNotification.show('Invalid email format', 'error');
+                    }
                 }
             }
         }
@@ -463,38 +927,59 @@
 
             try {
                 const form = event.target;
-                const formData = {
-                    type: formType,
-                    ownerEmail: form.ownerEmail.value.trim()
-                };
 
-                if (formType === 'manual') {
-                    Object.assign(formData, {
-                        vin: form.vin.value.trim(),
-                        plate: form.plate.value.trim(),
-                        vehicleMake: form.vehicleMake.value.trim() || undefined,
-                        vehicleModel: form.vehicleModel.value.trim() || undefined,
-                        vehicleYear: form.vehicleYear.value ? parseInt(form.vehicleYear.value) : undefined,
-                    });
+                // Build form data based on form type
+                let formData;
+
+                if (formType === 'auto') {
+                    // Get selected vehicle data
+                    const vehicleSelect = document.getElementById('vehicleSelect');
+                    const selectedOption = vehicleSelect.options[vehicleSelect.selectedIndex];
+                    let vehicleData = {};
+
+                    if (selectedOption && selectedOption.dataset.vehicle) {
+                        vehicleData = JSON.parse(selectedOption.dataset.vehicle);
+                    }
+
+                    formData = {
+                        vehicleVin: form.vehicleVin.value,
+                        ownerEmail: form.ownerEmail.value.trim(),
+                        vehiclePlate: vehicleData.plateNumber || vehicleData.plate_number,
+                        vehicleMake: vehicleData.make,
+                        vehicleModel: vehicleData.model,
+                        vehicleYear: vehicleData.year,
+                        engineNumber: vehicleData.engineNumber || vehicleData.engine_number,
+                        chassisNumber: vehicleData.chassisNumber || vehicleData.chassis_number,
+                        vehicleType: vehicleData.vehicleType || vehicleData.vehicle_type || vehicleData.bodyType,
+                        color: vehicleData.color
+                    };
                 } else {
-                    formData.vehicleType = form.vehicleType.value;
+                    // Manual mode
+                    formData = {
+                        vehicleVin: form.vin.value.trim(),
+                        ownerEmail: form.ownerEmail.value.trim(),
+                        vehiclePlate: form.plate.value.trim(),
+                        vehicleMake: form.vehicleMake?.value?.trim() || undefined,
+                        vehicleModel: form.vehicleModel?.value?.trim() || undefined,
+                        vehicleYear: form.vehicleYear?.value ? parseInt(form.vehicleYear.value) : undefined
+                    };
                 }
 
-                // Call API
+                // Call new HPG+CTPL endpoint
                 const apiClient = window.apiClient || new APIClient();
-                // Note: Ensure /api/certificate-generation/batch/generate-all exists or mock it
-
-                // Call API
-                const apiClient = window.apiClient || new APIClient();
-                const response = await apiClient.post('/api/certificate-generation/batch/generate-all', formData);
+                const response = await apiClient.post('/api/certificate-generation/batch/generate-hpg-ctpl', formData);
 
                 // Check for success
-                if (!response.success) {
+                if (!response.success && response.errors?.length > 0) {
+                    // Partial success (207 response)
+                    loadingOverlay.classList.remove('show');
+                    displayResults(response, formData);
+                } else if (!response.success) {
                     throw new Error(response.error || 'Generation failed');
+                } else {
+                    loadingOverlay.classList.remove('show');
+                    displayResults(response, formData);
                 }
-
-                loadingOverlay.classList.remove('show');
-                displayResults(response, formData);
 
             } catch (error) {
                 console.error('Error:', error);
@@ -509,54 +994,95 @@
             const statusDiv = document.getElementById('certificateStatus');
             statusDiv.style.display = 'block';
 
-            if (!response.success) {
-                statusDiv.innerHTML = `<div class="info-badge error">Generation Failed</div>`;
-                return;
-            }
+            const certs = response.certificates || {};
+            const veh = response.vehicleData || {};
+            const errors = response.errors || [];
 
-            const certs = response.certificates;
-            const veh = response.vehicleData;
+            const hasSuccess = Object.keys(certs).length > 0;
+            const hasErrors = errors.length > 0;
+
+            let statusBadge = '';
+            if (hasSuccess && !hasErrors) {
+                statusBadge = `<div class="info-badge success" style="background: #ecfccb; color: #3f6212; border-left-color: #65a30d;">
+                    <i class="fas fa-check-circle"></i> All certificates generated successfully
+                </div>`;
+            } else if (hasSuccess && hasErrors) {
+                statusBadge = `<div class="info-badge" style="background: #fef3c7; color: #92400e; border-left-color: #f59e0b;">
+                    <i class="fas fa-exclamation-triangle"></i> Partial success - some certificates failed
+                </div>`;
+            } else {
+                statusBadge = `<div class="info-badge error" style="background: #fee2e2; color: #dc2626; border-left-color: #ef4444;">
+                    <i class="fas fa-times-circle"></i> Generation failed
+                </div>`;
+            }
 
             let html = `
                 <h3 style="margin-top:0; color:#1e293b;">Generation Complete</h3>
-                <div class="info-badge success" style="background: #ecfccb; color: #3f6212; border-left-color: #65a30d;">
-                     <i class="fas fa-check-circle"></i> Result: Success
-                </div>
+                ${statusBadge}
                 
                 <div class="form-section">
                     <h4>Vehicle Summary</h4>
-                    <p><strong>VIN:</strong> ${veh.vin} | <strong>Plate:</strong> ${veh.plate}</p>
+                    <p><strong>VIN:</strong> ${veh.vin || 'N/A'} | <strong>Plate:</strong> ${veh.plate || 'N/A'}</p>
+                    <p><strong>Owner:</strong> ${veh.ownerName || 'N/A'} (${veh.ownerEmail || 'N/A'})</p>
                 </div>
 
-                <div class="form-row">
+                <div class="form-section">
+                    <h4>Generated Certificates</h4>
+                    <div class="form-row">
             `;
 
-            const items = [
-                { name: 'Insurance', icon: 'shield-alt', data: certs.insurance, num: certs.insurance?.certificateNumber },
-                { name: 'Emission', icon: 'leaf', data: certs.emission, num: certs.emission?.certificateNumber },
-                { name: 'HPG', icon: 'id-badge', data: certs.hpg, num: certs.hpg?.clearanceNumber },
-                { name: 'CSR', icon: 'file-contract', data: certs.csr, num: certs.csr?.csrNumber }
-            ];
+            // HPG Clearance
+            if (certs.hpg) {
+                html += `
+                    <div class="certificate-item success">
+                        <h5 style="margin:0 0 0.5rem 0"><i class="fas fa-shield-alt"></i> HPG Clearance</h5>
+                        <small>No. ${certs.hpg.clearanceNumber}</small><br>
+                        <small style="color:#666;">Hash: ${certs.hpg.fileHash?.substring(0, 16)}...</small>
+                    </div>
+                `;
+            } else {
+                const hpgError = errors.find(e => e.type === 'hpg');
+                html += `
+                    <div class="certificate-item error">
+                        <h5 style="margin:0 0 0.5rem 0"><i class="fas fa-shield-alt"></i> HPG Clearance</h5>
+                        <small style="color:#dc2626;">${hpgError?.error || 'Failed'}</small>
+                    </div>
+                `;
+            }
 
-            items.forEach(item => {
-                if (item.data) {
-                    html += `
-                        <div class="certificate-item success">
-                            <h5 style="margin:0 0 0.5rem 0"><i class="fas fa-${item.icon}"></i> ${item.name}</h5>
-                            <small>${item.num}</small>
-                        </div>
-                    `;
-                } else {
-                    html += `
-                        <div class="certificate-item error">
-                            <h5 style="margin:0 0 0.5rem 0"><i class="fas fa-${item.icon}"></i> ${item.name}</h5>
-                            <small>Failed</small>
-                        </div>
-                    `;
-                }
-            });
+            // CTPL Insurance
+            if (certs.ctpl) {
+                html += `
+                    <div class="certificate-item success">
+                        <h5 style="margin:0 0 0.5rem 0"><i class="fas fa-file-contract"></i> CTPL Insurance</h5>
+                        <small>Policy No. ${certs.ctpl.policyNumber}</small><br>
+                        <small style="color:#666;">Hash: ${certs.ctpl.fileHash?.substring(0, 16)}...</small>
+                    </div>
+                `;
+            } else {
+                const ctplError = errors.find(e => e.type === 'ctpl');
+                html += `
+                    <div class="certificate-item error">
+                        <h5 style="margin:0 0 0.5rem 0"><i class="fas fa-file-contract"></i> CTPL Insurance</h5>
+                        <small style="color:#dc2626;">${ctplError?.error || 'Failed'}</small>
+                    </div>
+                `;
+            }
 
-            html += `</div>`;
+            html += `
+                    </div>
+                </div>
+            `;
+
+            if (hasSuccess) {
+                html += `
+                    <div class="info-badge" style="background: #e0f2fe; color: #0284c7;">
+                        <i class="fas fa-envelope"></i>
+                        Certificates have been emailed to ${veh.ownerEmail || 'the owner'}
+                    </div>
+                `;
+            }
+
             statusDiv.innerHTML = html;
 
             // Scroll to results

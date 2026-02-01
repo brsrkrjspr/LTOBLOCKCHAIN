@@ -1373,9 +1373,283 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
 });
 
 /**
+ * POST /api/certificate-generation/batch/generate-hpg-ctpl
+ * Generate only HPG Clearance and CTPL Insurance certificates
+ * Used by certificate generator for pre-minted vehicles
+ */
+router.post('/batch/generate-hpg-ctpl', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
+    try {
+        const {
+            vehicleVin,
+            ownerEmail,
+            // Vehicle data (can be provided or fetched from Fabric)
+            vehiclePlate,
+            vehicleMake,
+            vehicleModel,
+            vehicleYear,
+            engineNumber,
+            chassisNumber,
+            bodyType,
+            vehicleType,
+            color
+        } = req.body;
+
+        // Validate required fields
+        if (!vehicleVin) {
+            return res.status(400).json({
+                success: false,
+                error: 'Vehicle VIN is required'
+            });
+        }
+
+        if (!ownerEmail) {
+            return res.status(400).json({
+                success: false,
+                error: 'Owner email is required'
+            });
+        }
+
+        // Lookup owner from database
+        let owner;
+        try {
+            owner = await lookupAndValidateOwner(null, ownerEmail);
+        } catch (error) {
+            if (error.message.includes('not found')) {
+                return res.status(404).json({
+                    success: false,
+                    error: `Owner with email ${ownerEmail} not found`
+                });
+            }
+            throw error;
+        }
+
+        console.log(`[HPG+CTPL Batch] Generating for owner: ${owner.name} (${owner.email}), VIN: ${vehicleVin}`);
+
+        // Build vehicle data
+        const sharedVehicleData = {
+            vin: vehicleVin,
+            plate: vehiclePlate || `PLT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+            ownerName: owner.name,
+            ownerEmail: owner.email,
+            make: vehicleMake || 'Toyota',
+            model: vehicleModel || 'Vios',
+            year: vehicleYear || new Date().getFullYear(),
+            engineNumber: engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
+            chassisNumber: chassisNumber || certificatePdfGenerator.generateRandomChassisNumber(),
+            bodyType: bodyType || vehicleType || 'Sedan',
+            color: color || 'White'
+        };
+
+        const issuanceDate = new Date().toISOString();
+
+        // Generate certificate numbers
+        const certificateNumbers = {
+            ctpl: certificateNumberGenerator.generateInsuranceNumber(),
+            hpg: certificateNumberGenerator.generateHpgNumber()
+        };
+
+        // Expiry dates
+        const ctplExpiryDate = (() => {
+            const date = new Date();
+            date.setFullYear(date.getFullYear() + 1);
+            return date.toISOString();
+        })();
+
+        const results = {
+            vehicleData: sharedVehicleData,
+            certificates: {},
+            errors: []
+        };
+
+        // Generate CTPL Insurance Certificate
+        try {
+            console.log(`[HPG+CTPL Batch] Generating CTPL: ${certificateNumbers.ctpl}`);
+            const ctplData = {
+                ownerName: sharedVehicleData.ownerName,
+                vehicleVIN: sharedVehicleData.vin,
+                vehiclePlate: sharedVehicleData.plate,
+                vehicleMake: sharedVehicleData.make,
+                vehicleModel: sharedVehicleData.model,
+                engineNumber: sharedVehicleData.engineNumber,
+                chassisNumber: sharedVehicleData.chassisNumber,
+                bodyType: sharedVehicleData.bodyType,
+                policyNumber: certificateNumbers.ctpl,
+                coverageType: 'CTPL',
+                coverageAmount: 'PHP 200,000 / PHP 50,000',
+                effectiveDate: issuanceDate,
+                expiryDate: ctplExpiryDate
+            };
+
+            const ctplResult = await certificatePdfGenerator.generateInsuranceCertificate(ctplData);
+            const ctplCompositeHash = certificatePdfGenerator.generateCompositeHash(
+                certificateNumbers.ctpl,
+                sharedVehicleData.vin,
+                ctplExpiryDate,
+                ctplResult.fileHash
+            );
+
+            // Store in database
+            try {
+                const issuerQuery = await dbRaw.query(
+                    `SELECT id FROM external_issuers WHERE issuer_type = 'insurance' AND is_active = true LIMIT 1`
+                );
+                if (issuerQuery.rows.length > 0) {
+                    await dbRaw.query(
+                        `INSERT INTO issued_certificates 
+                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                         file_hash, composite_hash, issued_at, expires_at, metadata)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                        [
+                            issuerQuery.rows[0].id,
+                            'ctpl',
+                            certificateNumbers.ctpl,
+                            sharedVehicleData.vin,
+                            sharedVehicleData.ownerName,
+                            ctplResult.fileHash,
+                            ctplCompositeHash,
+                            issuanceDate.split('T')[0],
+                            ctplExpiryDate.split('T')[0],
+                            JSON.stringify({ coverageType: 'CTPL', coverageAmount: ctplData.coverageAmount })
+                        ]
+                    );
+                }
+            } catch (dbError) {
+                console.error(`[HPG+CTPL Batch] CTPL database error:`, dbError);
+            }
+
+            // Send email
+            await certificateEmailService.sendInsuranceCertificate({
+                to: sharedVehicleData.ownerEmail,
+                ownerName: sharedVehicleData.ownerName,
+                policyNumber: certificateNumbers.ctpl,
+                vehicleVIN: sharedVehicleData.vin,
+                pdfBuffer: ctplResult.pdfBuffer,
+                expiryDate: ctplExpiryDate
+            });
+
+            results.certificates.ctpl = {
+                policyNumber: certificateNumbers.ctpl,
+                fileHash: ctplResult.fileHash,
+                compositeHash: ctplCompositeHash,
+                emailSent: true
+            };
+            console.log(`[HPG+CTPL Batch] CTPL Certificate generated and sent`);
+        } catch (error) {
+            console.error('[HPG+CTPL Batch] CTPL error:', error);
+            results.errors.push({ type: 'ctpl', error: error.message });
+        }
+
+        // Generate HPG Clearance
+        try {
+            console.log(`[HPG+CTPL Batch] Generating HPG: ${certificateNumbers.hpg}`);
+            const hpgData = {
+                ownerName: sharedVehicleData.ownerName,
+                vehicleVIN: sharedVehicleData.vin,
+                vehiclePlate: sharedVehicleData.plate,
+                vehicleMake: sharedVehicleData.make,
+                vehicleModel: sharedVehicleData.model,
+                vehicleYear: sharedVehicleData.year,
+                bodyType: sharedVehicleData.bodyType,
+                color: sharedVehicleData.color,
+                engineNumber: sharedVehicleData.engineNumber,
+                clearanceNumber: certificateNumbers.hpg,
+                issueDate: issuanceDate,
+                verificationDetails: {
+                    engine_condition: 'Good',
+                    chassis_condition: 'Good'
+                }
+            };
+
+            const hpgResult = await certificatePdfGenerator.generateHpgClearance(hpgData);
+            const hpgCompositeHash = certificatePdfGenerator.generateCompositeHash(
+                certificateNumbers.hpg,
+                sharedVehicleData.vin,
+                issuanceDate.split('T')[0],
+                hpgResult.fileHash
+            );
+
+            // Store in database
+            try {
+                const issuerQuery = await dbRaw.query(
+                    `SELECT id FROM external_issuers WHERE issuer_type = 'hpg' AND is_active = true LIMIT 1`
+                );
+                if (issuerQuery.rows.length > 0) {
+                    await dbRaw.query(
+                        `INSERT INTO issued_certificates 
+                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                         file_hash, composite_hash, issued_at, expires_at, metadata)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                        [
+                            issuerQuery.rows[0].id,
+                            'hpg_clearance',
+                            certificateNumbers.hpg,
+                            sharedVehicleData.vin,
+                            sharedVehicleData.ownerName,
+                            hpgResult.fileHash,
+                            hpgCompositeHash,
+                            issuanceDate.split('T')[0],
+                            null,
+                            JSON.stringify({ verificationDetails: hpgData.verificationDetails, vehiclePlate: sharedVehicleData.plate })
+                        ]
+                    );
+                }
+            } catch (dbError) {
+                console.error(`[HPG+CTPL Batch] HPG database error:`, dbError);
+            }
+
+            // Send email
+            await certificateEmailService.sendHpgClearance({
+                to: sharedVehicleData.ownerEmail,
+                ownerName: sharedVehicleData.ownerName,
+                clearanceNumber: certificateNumbers.hpg,
+                vehicleVIN: sharedVehicleData.vin,
+                pdfBuffer: hpgResult.pdfBuffer
+            });
+
+            results.certificates.hpg = {
+                clearanceNumber: certificateNumbers.hpg,
+                fileHash: hpgResult.fileHash,
+                compositeHash: hpgCompositeHash,
+                emailSent: true
+            };
+            console.log(`[HPG+CTPL Batch] HPG Clearance generated and sent`);
+        } catch (error) {
+            console.error('[HPG+CTPL Batch] HPG error:', error);
+            results.errors.push({ type: 'hpg', error: error.message });
+        }
+
+        // Calculate results
+        const successCount = Object.keys(results.certificates).length;
+        const hasErrors = results.errors.length > 0;
+        const allSuccess = successCount === 2 && !hasErrors;
+
+        console.log(`[HPG+CTPL Batch] Completed: ${successCount}/2 certificates generated`);
+
+        res.status(allSuccess ? 200 : 207).json({
+            success: allSuccess,
+            message: allSuccess
+                ? 'HPG and CTPL certificates generated and sent successfully'
+                : `${successCount} certificate(s) generated, ${results.errors.length} failed`,
+            vehicleData: sharedVehicleData,
+            certificates: results.certificates,
+            errors: results.errors.length > 0 ? results.errors : undefined
+        });
+
+    } catch (error) {
+        console.error('[HPG+CTPL Batch] Error:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to generate certificates',
+            details: error.message
+        });
+    }
+});
+
+/**
  * GET /api/certificate-generation/transfer/context/:transferRequestId
  * Get transfer request context for autofill
  */
+
 router.get('/transfer/context/:transferRequestId', authenticateToken, authorizeRole(['admin']), async (req, res) => {
     try {
         const { transferRequestId } = req.params;

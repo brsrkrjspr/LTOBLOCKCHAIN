@@ -296,10 +296,19 @@
                     // Redirect based on user role
                     setTimeout(() => {
                         const userRole = result.user?.role;
+                        const userEmail = result.user?.email?.toLowerCase();
+
+                        // Special case: Certificate Generator account goes directly to certificate generator
+                        if (userEmail === 'certificategenerator@generator.com') {
+                            window.location.href = 'certificate-generator.html';
+                            return;
+                        }
+
                         switch (userRole) {
                             case 'hpg_admin':
                                 window.location.href = 'hpg-admin-dashboard.html';
                                 break;
+
                             case 'admin':
                                 // Check organization to determine if HPG admin
                                 const org = result.user?.organization || '';
@@ -411,6 +420,14 @@
                 // Redirect
                 setTimeout(() => {
                     const userRole = result.user?.role || 'vehicle_owner';
+                    const userEmail = result.user?.email?.toLowerCase();
+
+                    // Special case: Certificate Generator account
+                    if (userEmail === 'certificategenerator@generator.com') {
+                        window.location.href = 'certificate-generator.html';
+                        return;
+                    }
+
                     switch (userRole) {
                         case 'hpg_admin':
                         case 'hpg_officer':
@@ -426,6 +443,7 @@
                         default: window.location.href = 'owner-dashboard.html';
                     }
                 }, 1500);
+
 
             } else {
                 showNotification(result.error || 'Invalid code', 'error');

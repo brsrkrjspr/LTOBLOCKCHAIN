@@ -1576,7 +1576,7 @@ function renderPreMintedVehiclesTable(vehicles) {
             <td>${vehicle.year}</td>
             <td>${vehicle.dealer || 'N/A'}</td>
             <td>${vehicle.importDate ? new Date(vehicle.importDate).toLocaleDateString() : 'N/A'}</td>
-             <td><span class="status-badge status-pending" style="background-color: #e0f2fe; color: #0284c7;">Available</span></td>
+             <td><span class="status-badge status-pending" style="background-color: #e0f2fe; color: #0284c7;">Unregistered</span></td>
             <td>
                  <button class="btn-secondary btn-sm" onclick="showNotification('Details view coming soon', 'info')">
                     <i class="fas fa-eye"></i> Details

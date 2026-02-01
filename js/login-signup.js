@@ -448,6 +448,14 @@
                             window.location.href = 'hpg-admin-dashboard.html';
                             break;
                         case 'admin':
+                            // Check organization/email to determine if HPG admin (matches regular login flow)
+                            const org = result.user?.organization || '';
+                            if (org.toLowerCase().includes('hpg') || userEmail.includes('hpg')) {
+                                window.location.href = 'hpg-admin-dashboard.html';
+                            } else {
+                                window.location.href = 'admin-dashboard.html';
+                            }
+                            break;
                         case 'lto_admin':
                             window.location.href = 'admin-dashboard.html';
                             break;

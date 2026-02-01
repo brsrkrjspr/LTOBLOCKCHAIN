@@ -1414,6 +1414,23 @@ function initializeVINAutoFill() {
     console.log('[VIN AutoFill] VIN auto-fill initialized');
 }
 
+/**
+ * Track when a user manually edits a field so OCR auto-fill won't overwrite it later.
+ */
+function initializeOcrUserEditTracking() {
+    const selector = 'input, select, textarea';
+    document.querySelectorAll(selector).forEach((el) => {
+        if (el.dataset.ocrUserEditTrackingBound === 'true') return;
+        el.dataset.ocrUserEditTrackingBound = 'true';
+        const markUserEdited = () => {
+            if (el.dataset.ocrFilling === 'true') return;
+            el.dataset.userEdited = 'true';
+        };
+        el.addEventListener('input', markUserEdited);
+        el.addEventListener('change', markUserEdited);
+    });
+}
+
 function initializeFileUploads() {
     const fileInputs = document.querySelectorAll('input[type="file"]');
     fileInputs.forEach(input => {

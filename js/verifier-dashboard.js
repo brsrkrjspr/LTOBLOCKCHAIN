@@ -556,7 +556,7 @@ async function handleEmissionReject(e) {
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 1rem;">Please provide a reason for rejecting emission test for ${vehicleInfo} (${appId}):</p>
-                <textarea class="rejection-reason-input" style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid #ecf0f1; border-radius: 5px;" placeholder="Enter rejection reason..." aria-label="Rejection reason"></textarea>
+                <textarea id="verifierRejectionReasonInput" name="rejection_reason" class="rejection-reason-input" style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid #ecf0f1; border-radius: 5px;" placeholder="Enter rejection reason..." aria-label="Rejection reason"></textarea>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>

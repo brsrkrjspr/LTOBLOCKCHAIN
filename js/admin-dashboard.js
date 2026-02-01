@@ -2943,6 +2943,7 @@ async function rejectApplication(applicationId) {
     // Show custom dialog for rejection reason
     const modal = document.createElement('div');
     modal.className = 'modal';
+    modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;';
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header">
@@ -2951,7 +2952,7 @@ async function rejectApplication(applicationId) {
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 1rem;">Please provide a reason for rejection:</p>
-                <textarea class="rejection-reason-input" style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid #ecf0f1; border-radius: 5px;" placeholder="Enter rejection reason..." aria-label="Rejection reason"></textarea>
+                <textarea id="rejectionReasonInput" name="rejection_reason" class="rejection-reason-input" style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid #ecf0f1; border-radius: 5px;" placeholder="Enter rejection reason..." aria-label="Rejection reason"></textarea>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>

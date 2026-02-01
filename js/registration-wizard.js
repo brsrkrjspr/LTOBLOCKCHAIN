@@ -1290,6 +1290,22 @@ function initializeKeyboardShortcuts() {
 }
 
 /**
+ * Restore saved form data on page load and re-show document section if car type was set.
+ */
+function restoreFormData() {
+    const form = document.querySelector('.wizard-form');
+    if (form && typeof FormPersistence !== 'undefined' && FormPersistence.restore('registration-wizard', form)) {
+        if (typeof ToastNotification !== 'undefined') ToastNotification.show('Previous form data restored', 'info', 3000);
+    }
+    setTimeout(() => {
+        const carTypeSelect = document.getElementById('carType');
+        if (carTypeSelect && carTypeSelect.value) {
+            handleCarTypeChange(carTypeSelect.value);
+        }
+    }, 50);
+}
+
+/**
  * Validate ID number format based on ID type
  */
 function validateIDNumber(idNumber, idType) {
@@ -2141,74 +2157,50 @@ function updateReviewData() {
             return;
         }
 
-        // First: check for co        if (isSubmitting) return;
+        // Prevent double submit
+        if (isSubmitting) return;
         isSubmitting = true;
 
-        // Show loading state
-        showTopError('Submitting application...', 'info');
-
-        // Collect form data
-        const formData = new FormData();
-
-        // Add basic fields
-        const inputs = document.querySelectorAll('.wizard-form input:not([type="file"]), .wizard-form select, .wizard-form textarea');
-        inputs.forEach(input => {
-            if (input.name && input.type !== 'radio') {
-                formData.append(input.name, input.value);
-            } else if (input.type === 'radio' && input.checked) {
-                formData.append(input.name, input.value);
-            }
-        });
-
-        // Add documents
-        const fileInputs = document.querySelectorAll('input[type="file"]');
-        fileInputs.forEach(input => {
-            if (input.files.length > 0) {
-                // If it's the payment file, add it with 'payment' key
-                if (input.id === 'document-payment') {
-                    formData.append('payment', input.files[0]);
-                } else {
-                    // Assuming dynamic document inputs have names corresponding to doc types
-                    formData.append('documents', input.files[0]);
-
-                    // Also append document metadata
-                    const docType = input.getAttribute('data-doc-type') || 'document';
-                    formData.append(`document_types[]`, docType);
-                }
-            }
-        });
-
-        // Add reg type
-        const regType = document.querySelector('input[name="registrationType"]:checked')?.value || 'NEW';
-        formData.append('registrationType', regType);
+        const apiClient = window.apiClient || new APIClient();
 
         try {
-            const apiClient = window.apiClient || new APIClient();
+            // 1. Upload documents first (backend /api/vehicles/register expects document IDs, not raw files)
+            showTopError('Uploading documents...', 'info');
+            const uploadResults = await uploadDocuments(undefined);
 
-            // Call API
-            const response = await apiClient.post('/api/registrations', formData, {
-                headers: {
-                    // 'Content-Type': 'multipart/form-data' // Let browser set boundary
-                }
-            });
+            // 2. Collect vehicle and owner data (matches backend POST /api/vehicles/register payload)
+            showTopError('Submitting application...', 'info');
+            const applicationData = collectApplicationData();
+
+            const registrationData = {
+                vehicle: applicationData.vehicle,
+                owner: {
+                    firstName: applicationData.owner.firstName,
+                    lastName: applicationData.owner.lastName,
+                    email: applicationData.owner.email,
+                    phone: applicationData.owner.phone || undefined,
+                    address: applicationData.owner.address || undefined
+                },
+                documents: uploadResults,
+                notes: (applicationData.notes && applicationData.notes.admin) || ''
+            };
+
+            // 3. POST JSON to backend (no FormData - backend expects JSON body)
+            const response = await apiClient.post('/api/vehicles/register', registrationData);
 
             if (response && response.success) {
-                // Success!
                 if (typeof ToastNotification !== 'undefined') {
                     ToastNotification.show('Application submitted successfully!', 'success');
                 }
-
-                // Redirect to dashboard or success page
                 setTimeout(() => {
                     window.location.href = 'owner-dashboard.html?submitted=true';
                 }, 1500);
             } else {
-                throw new Error(response.error || 'Submission failed');
+                throw new Error(response.error || response.message || 'Submission failed');
             }
         } catch (error) {
             console.error('Submission error:', error);
             showTopError(`Submission failed: ${error.message}`);
-            // No mock fallback - show error to user and let them retry
         } finally {
             isSubmitting = false;
         }
@@ -2325,6 +2317,8 @@ function updateReviewData() {
 
         // Helper functions for API integration
         async function uploadDocuments(signal) {
+            const apiClient = window.apiClient || (typeof APIClient !== 'undefined' && new APIClient());
+            if (!apiClient) throw new Error('API client not available');
             const uploadResults = {};
             const uploadErrors = [];
 

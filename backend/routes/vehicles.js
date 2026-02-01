@@ -37,6 +37,47 @@ function createSafeRegistrationMetadata(registrationData, vehicle, owner) {
 }
 
 /**
+ * Auto-verify CSR and Sales Invoice documents against issued_certificates (mint).
+ * Updates document.verified when file_hash matches. No "pending" – unmatched = user submitted.
+ * @param {string} vehicleId - Vehicle UUID
+ * @param {string|null} verifiedByUserId - User ID to set as verified_by (null for system)
+ * @returns {Promise<{ verified: number, alreadyVerified: number, unmatched: number }>}
+ */
+async function autoVerifyCsrSalesInvoiceForVehicle(vehicleId, verifiedByUserId = null) {
+    const certificateBlockchain = require('../services/certificateBlockchainService');
+    const documents = await db.getDocumentsByVehicle(vehicleId);
+    const csrOrSi = documents.filter(d => {
+        const t = (d.document_type || d.documentType || '').toLowerCase();
+        return t === 'csr' || t === 'sales_invoice' || t === 'salesinvoice';
+    });
+    let verified = 0, alreadyVerified = 0, unmatched = 0;
+    for (const doc of csrOrSi) {
+        if (doc.verified === true) {
+            alreadyVerified++;
+            continue;
+        }
+        const fileHash = doc.file_hash || doc.fileHash;
+        if (!fileHash) {
+            unmatched++;
+            continue;
+        }
+        const certType = (doc.document_type || doc.documentType || '').toLowerCase() === 'salesinvoice' ? 'sales_invoice' : (doc.document_type || doc.documentType || '').toLowerCase();
+        try {
+            const auth = await certificateBlockchain.checkCertificateAuthenticity(fileHash, vehicleId, certType);
+            if (auth && auth.authentic) {
+                await db.verifyDocument(doc.id, verifiedByUserId);
+                verified++;
+            } else {
+                unmatched++;
+            }
+        } catch (err) {
+            unmatched++;
+        }
+    }
+    return { verified, alreadyVerified, unmatched };
+}
+
+/**
  * Safely serialize blockchain metadata
  */
 function createSafeBlockchainMetadata(blockchainResult, txStatus) {
@@ -829,6 +870,14 @@ router.get('/id/:id', authenticateToken, async (req, res) => {
         vehicle.documents = await db.getDocumentsByVehicle(vehicle.id);
         vehicle.history = await db.getVehicleHistory(vehicle.id);
 
+        // Auto-verify CSR/Sales Invoice against mint so no "pending" for these types
+        try {
+            await autoVerifyCsrSalesInvoiceForVehicle(vehicle.id, req.user && req.user.userId || null);
+            vehicle.documents = await db.getDocumentsByVehicle(vehicle.id);
+        } catch (avErr) {
+            console.warn('Auto-verify CSR/Sales Invoice (get vehicle):', avErr.message);
+        }
+
         // CRITICAL: Verify blockchain transaction ID against Fabric
         // This ensures the transaction ID from PostgreSQL actually exists on Fabric
         await verifyBlockchainTransactionId(vehicle);
@@ -1314,6 +1363,13 @@ router.post('/register', optionalAuth, async (req, res) => {
 
         // After transaction commits successfully, continue with non-critical operations
 
+        // Auto-verify CSR/Sales Invoice against mint so no "pending" for these types
+        try {
+            await autoVerifyCsrSalesInvoiceForVehicle(newVehicle.id, ownerUser.id);
+        } catch (avErr) {
+            console.warn('Auto-verify CSR/Sales Invoice (registration):', avErr.message);
+        }
+
         // Registration validation - check for critical documents (warn but allow)
         const requiredDocuments = ['pnpHpgClearance', 'insuranceCert']; // Configurable per registration type
         const docTypes = require('../config/documentTypes');
@@ -1751,8 +1807,59 @@ router.put('/id/:id/status', authenticateToken, authorizeRole(['admin', 'lto_adm
     }
 });
 
+// GET /id/:id/csr-validation – two buckets: issued at mint (verified) + user submitted (verified or user submitted, no pending)
+// STRICT: admin, lto_admin, lto_officer; auto-verifies user-submitted docs before returning
+router.get('/id/:id/csr-validation', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
+    try {
+        const vehicleId = req.params.id;
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({ success: false, error: 'Vehicle not found' });
+        }
+        const dbModule = require('../database/db');
+        const vin = vehicle.vin;
+        const issuedRes = await dbModule.query(
+            `SELECT certificate_type, certificate_number, vehicle_vin, issued_at, file_hash
+             FROM issued_certificates
+             WHERE vehicle_vin = $1 AND certificate_type IN ('csr', 'sales_invoice') AND is_revoked = false
+             ORDER BY certificate_type, issued_at DESC`,
+            [vin]
+        );
+        const issuedAtMint = (issuedRes.rows || []).map(r => ({
+            type: r.certificate_type,
+            certificateNumber: r.certificate_number,
+            vehicleVin: r.vehicle_vin,
+            issuedAt: r.issued_at,
+            verified: true,
+            label: 'Verified (issued at mint)'
+        }));
+        await autoVerifyCsrSalesInvoiceForVehicle(vehicleId, req.user.userId);
+        const documents = await db.getDocumentsByVehicle(vehicleId);
+        const userSubmitted = documents
+            .filter(d => {
+                const t = (d.document_type || d.documentType || '').toLowerCase();
+                return t === 'csr' || t === 'sales_invoice' || t === 'salesinvoice';
+            })
+            .map(d => ({
+                id: d.id,
+                documentType: d.document_type || d.documentType,
+                verified: d.verified === true,
+                verifiedAt: d.verified_at || d.verifiedAt,
+                label: d.verified === true ? 'Verified (matches mint)' : 'User submitted'
+            }));
+        res.json({
+            success: true,
+            issuedAtMint,
+            userSubmitted
+        });
+    } catch (error) {
+        console.error('CSR validation error:', error);
+        res.status(500).json({ success: false, error: error.message || 'Internal server error' });
+    }
+});
+
 // POST /id/:id/documents/verify-mint-documents – verify CSR/Sales Invoice against issued_certificates (mint)
-// STRICT: admin, lto_admin, lto_officer only
+// STRICT: admin, lto_admin, lto_officer only (kept for backwards compatibility; GET csr-validation is preferred)
 router.post('/id/:id/documents/verify-mint-documents', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const vehicleId = req.params.id;
@@ -1760,53 +1867,17 @@ router.post('/id/:id/documents/verify-mint-documents', authenticateToken, author
         if (!vehicle) {
             return res.status(404).json({ success: false, error: 'Vehicle not found' });
         }
+        const result = await autoVerifyCsrSalesInvoiceForVehicle(vehicleId, req.user.userId);
         const documents = await db.getDocumentsByVehicle(vehicleId);
-        const csrOrSalesInvoice = documents.filter(d => {
-            const t = (d.document_type || d.documentType || '').toLowerCase();
-            return t === 'csr' || t === 'sales_invoice' || t === 'salesinvoice';
-        });
-        const certificateBlockchain = require('../services/certificateBlockchainService');
-        const results = { verified: 0, alreadyVerified: 0, failed: 0, documents: [] };
-        for (const doc of csrOrSalesInvoice) {
-            const docType = (doc.document_type || doc.documentType || '').toLowerCase();
-            const certType = docType === 'salesinvoice' ? 'sales_invoice' : docType;
-            const alreadyVerified = doc.verified === true;
-            if (alreadyVerified) {
-                results.alreadyVerified += 1;
-                results.documents.push({ id: doc.id, documentType: certType, verified: true, verifiedAt: doc.verified_at || doc.verifiedAt });
-                continue;
-            }
-            const fileHash = doc.file_hash || doc.fileHash;
-            if (!fileHash) {
-                results.failed += 1;
-                results.documents.push({ id: doc.id, documentType: certType, verified: false, reason: 'No file hash' });
-                continue;
-            }
-            try {
-                const auth = await certificateBlockchain.checkCertificateAuthenticity(fileHash, vehicleId, certType);
-                if (auth && auth.authentic) {
-                    await db.verifyDocument(doc.id, req.user.userId);
-                    results.verified += 1;
-                    results.documents.push({ id: doc.id, documentType: certType, verified: true, verifiedAt: new Date().toISOString() });
-                } else {
-                    results.failed += 1;
-                    results.documents.push({ id: doc.id, documentType: certType, verified: false, reason: 'No match in issued_certificates' });
-                }
-            } catch (err) {
-                results.failed += 1;
-                results.documents.push({ id: doc.id, documentType: certType, verified: false, reason: err.message || 'Verification failed' });
-            }
-        }
-        const updatedDocs = await db.getDocumentsByVehicle(vehicleId);
-        const csrSiOnly = updatedDocs.filter(d => {
+        const csrSiOnly = documents.filter(d => {
             const t = (d.document_type || d.documentType || '').toLowerCase();
             return t === 'csr' || t === 'sales_invoice' || t === 'salesinvoice';
         });
         res.json({
             success: true,
-            verified: results.verified,
-            alreadyVerified: results.alreadyVerified,
-            failed: results.failed,
+            verified: result.verified,
+            alreadyVerified: result.alreadyVerified,
+            failed: result.unmatched,
             documents: csrSiOnly.map(d => ({
                 id: d.id,
                 documentType: d.document_type || d.documentType,

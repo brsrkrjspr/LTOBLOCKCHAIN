@@ -665,8 +665,8 @@ function nextStep() {
             nextProgressStep.classList.add('active');
 
             // Update review data if on final step (Step 4)
-            if (currentStep === 4) {
-                // Use setTimeout to ensure DOM is fully rendered before updating
+            // Update review section when landing on Payment (step 4) or Review (step 5)
+            if (currentStep === 4 || currentStep === totalSteps) {
                 setTimeout(() => {
                     try {
                         updateUploadedDocumentsList();
@@ -1216,6 +1216,77 @@ function hideFieldError(field) {
     if (existingError) {
         existingError.remove();
     }
+}
+
+/**
+ * Show error message at top of page (used by validation).
+ */
+function showTopError(message) {
+    const existingError = document.querySelector('.top-error-message');
+    if (existingError) existingError.remove();
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'top-error-message';
+    errorDiv.innerHTML = `
+        <div class="error-content">
+            <div class="error-icon">⚠️</div>
+            <div class="error-text">
+                <h4>Please fix the following errors:</h4>
+                <p>${typeof message === 'string' ? message : (message || '')}</p>
+            </div>
+            <button class="error-close" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+    `;
+    const main = document.querySelector('main');
+    if (main) main.insertBefore(errorDiv, main.firstChild);
+    else document.body.insertBefore(errorDiv, document.body.firstChild);
+    setTimeout(() => { if (errorDiv.parentElement) errorDiv.remove(); }, 8000);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/**
+ * Update the uploaded documents list in the Review step.
+ */
+function updateUploadedDocumentsList() {
+    const container = document.getElementById('review-documents-list');
+    if (!container) return;
+    const documentInputs = document.querySelectorAll('input[type="file"][data-document-type]');
+    let html = '';
+    if (documentInputs.length === 0) {
+        container.innerHTML = '<p>No documents to upload</p>';
+        return;
+    }
+    documentInputs.forEach(input => {
+        const docType = input.getAttribute('data-document-type') || input.id || 'Unknown';
+        const hasFile = input.files && input.files.length > 0;
+        const icon = hasFile ? '✅' : '❌';
+        const docLabel = docType.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
+        html += `<p>${icon} ${docLabel}</p>`;
+    });
+    container.innerHTML = html;
+}
+
+/**
+ * Keyboard shortcuts (Ctrl+S save, Escape back, Enter next/submit).
+ */
+function initializeKeyboardShortcuts() {
+    document.addEventListener('keydown', function (e) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            if (typeof ToastNotification !== 'undefined') ToastNotification.show('Form data is automatically saved as you type', 'info');
+        }
+        if (e.key === 'Escape' && currentStep > 1) prevStep();
+        if (e.key === 'Enter' && !e.shiftKey && !e.target.matches('textarea')) {
+            const activeStep = document.querySelector('.wizard-step.active');
+            if (activeStep) {
+                const nextButton = activeStep.querySelector('.btn-primary');
+                if (nextButton && !nextButton.disabled) {
+                    e.preventDefault();
+                    if (currentStep < totalSteps) nextStep();
+                    else if (currentStep === totalSteps) submitApplication();
+                }
+            }
+        }
+    });
 }
 
 /**
@@ -1880,23 +1951,61 @@ function updateProgressBar() {
 function updateReviewData() {
     console.log('[Review] updateReviewData() started');
 
-    // Helper: Get value directly from form input (no OCR fallback in summary)
-    const getFieldValue = (formElementId) => {
-        function getFieldValue(id) {
-            const el = document.getElementById(id);
-            if (!el) {
-                console.warn('[Review] Field not found for summary:', id);
-                return '';
-            }
-            return (el.value || '').trim();
-        }
+    const getFieldValue = (id) => {
+        const el = document.getElementById(id);
+        if (!el) return '';
+        return (el.value || '').trim();
+    };
+
+    const make = getFieldValue('make');
+    const model = getFieldValue('model');
+    const year = getFieldValue('year');
+    const color = getFieldValue('color');
+    const plate = getFieldValue('plateNumber');
+    const vehicleCategory = getFieldValue('vehicleCategory');
+    const passengerCapacity = getFieldValue('passengerCapacity');
+    const grossVehicleWeight = getFieldValue('grossVehicleWeight');
+    const netWeight = getFieldValue('netWeight');
+    const classification = getFieldValue('classification');
+    const firstName = getFieldValue('firstName');
+    const lastName = getFieldValue('lastName');
+    const email = getFieldValue('email');
+    const phone = getFieldValue('phone');
+    const idNumber = getFieldValue('idNumber');
+
+    const vehicleTypeEl = document.getElementById('vehicleType');
+    const vehicleType = vehicleTypeEl ? (vehicleTypeEl.value || '').trim() : '';
+    const idTypeEl = document.getElementById('idType');
+    let displayIdType = '-';
+    if (idTypeEl && idTypeEl.options[idTypeEl.selectedIndex]) {
+        displayIdType = idTypeEl.options[idTypeEl.selectedIndex].text || idTypeEl.value || '-';
     }
 
+    const setReview = (id, value) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = value || '-';
+    };
+    setReview('review-make-model', (make && model) ? `${make} ${model}` : '');
+    setReview('review-year', year);
+    setReview('review-color', color);
+    setReview('review-vehicle-type', vehicleType);
+    setReview('review-plate', plate);
+    setReview('review-vehicle-category', vehicleCategory);
+    setReview('review-passenger-capacity', passengerCapacity);
+    setReview('review-gvw', grossVehicleWeight);
+    setReview('review-net-weight', netWeight);
+    setReview('review-classification', classification);
+    setReview('review-name', (firstName && lastName) ? `${firstName} ${lastName}` : '');
+    setReview('review-email', email);
+    setReview('review-phone', phone);
+    setReview('review-id-type', displayIdType);
+    setReview('review-id-number', idNumber);
+}
+
     /**
-     * Update the uploaded documents list dynamically
-     * Checks actual file inputs and renders checkmarks based on whether files are present
+     * Update the uploaded documents list dynamically (nested - top-level version used by wizard).
      */
-    function updateUploadedDocumentsList() {
+    function updateUploadedDocumentsListNested() {
         const container = document.getElementById('review-documents-list');
         if (!container) {
             console.warn('review-documents-list container not found');
@@ -3832,4 +3941,3 @@ function updateReviewData() {
             renderDocumentUploadFields
         };
     }
-}

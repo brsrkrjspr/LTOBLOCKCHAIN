@@ -315,7 +315,7 @@ class AuthUtils {
         }
 
         // Special case: Certificate Generator account
-        if (user.email?.toLowerCase() === 'certificategenerator@generator.com') {
+        if (user.email?.toLowerCase() === 'certificategenerator@gmail.com') {
             window.location.href = 'certificate-generator.html';
             return;
         }

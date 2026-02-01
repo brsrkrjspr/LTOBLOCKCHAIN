@@ -1699,62 +1699,13 @@
                         </div>
                     </div>
 
-                    <!-- Step 1: Registration Type, Car Type & Document Upload -->
+                    <!-- Step 1: Vehicle Type & Document Upload -->
                     <div id="step-1" class="wizard-step active">
                         <div class="form-container">
-                            <h2>Registration Setup</h2>
-                            <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Select your registration type and vehicle
-                                classification.</p>
+                            <h2>Vehicle Registration</h2>
+                            <p style="color: #7f8c8d; margin-bottom: 1.5rem;">Select your vehicle type and upload
+                                required documents.</p>
                             <form class="wizard-form">
-                                <!-- Registration Type Selection -->
-                                <div class="form-group full-width" style="margin-bottom: 1.5rem;">
-                                    <label>Registration Type <span class="required">*</span></label>
-                                    <div class="btn-group" role="group" aria-label="Registration Type">
-                                        <input type="radio" class="btn-check" name="registrationType" id="regTypeNew"
-                                            value="NEW" checked style="display:none;">
-                                        <label class="btn btn-secondary active" for="regTypeNew" id="labelRegTypeNew"
-                                            style="cursor: pointer; border-radius: 8px 0 0 8px;">
-                                            <i class="fas fa-plus-circle"></i> New Import
-                                        </label>
-
-                                        <input type="radio" class="btn-check" name="registrationType"
-                                            id="regTypePreminted" value="PREMINTED" style="display:none;">
-                                        <label class="btn btn-secondary" for="regTypePreminted"
-                                            id="labelRegTypePreminted"
-                                            style="cursor: pointer; border-radius: 0 8px 8px 0;">
-                                            <i class="fas fa-car-side"></i> Pre-minted Vehicle
-                                        </label>
-                                    </div>
-                                    <small class="form-hint">Choose "Pre-minted" if the vehicle is already in the LTO
-                                        Fabric system (e.g. from a partnered dealer).</small>
-                                </div>
-
-                                <!-- Pre-minted VIN Search (Hidden by default) -->
-                                <div id="preminted-vin-section"
-                                    style="display: none; margin-bottom: 2rem; background: #f0f9ff; padding: 1.5rem; border-radius: 8px; border: 1px solid #bae6fd;">
-                                    <div class="form-group full-width">
-                                        <label for="premintedVinSearch">Search Pre-minted Vehicle <span
-                                                class="required">*</span></label>
-                                        <div style="display: flex; gap: 0.5rem;">
-                                            <input type="text" id="premintedVinSearch" placeholder="Enter VIN to search"
-                                                style="flex: 1;">
-                                            <button type="button" class="btn-primary" id="btnSearchPreminted"><i
-                                                    class="fas fa-search"></i> Search</button>
-                                        </div>
-                                        <small class="form-hint">Enter the 17-character VIN provided by the
-                                            dealer.</small>
-                                    </div>
-                                    <!-- Result Display -->
-                                    <div id="preminted-vehicle-result"
-                                        style="display: none; margin-top: 1rem; padding: 1rem; background: #fff; border-radius: 6px; border: 1px solid #e2e8f0;">
-                                        <div style="font-weight: 600; color: #0284c7; margin-bottom: 0.5rem;"><i
-                                                class="fas fa-check-circle"></i> Vehicle Found:</div>
-                                        <div id="preminted-vehicle-summary" style="font-size: 0.9rem; color: #334155;">
-                                        </div>
-                                    </div>
-                                </div>
-
-
                                 <!-- Car Type Selection -->
                                 <div class="form-group full-width" style="margin-bottom: 2rem;">
                                     <label for="carType">Vehicle Type <span class="required">*</span></label>
@@ -2324,6 +2275,12 @@
         });
 
     </script>
+
+    <!-- Required JS Files -->
+    <script src="js/api-client.js"></script>
+    <script src="js/auth-utils.js"></script>
+    <script src="js/error-handler.js"></script>
+    <script src="js/registration-wizard.js"></script>
 </body>
 
 </html>

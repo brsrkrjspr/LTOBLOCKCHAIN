@@ -1218,6 +1218,202 @@ function hideFieldError(field) {
     }
 }
 
+/**
+ * Validate ID number format based on ID type
+ */
+function validateIDNumber(idNumber, idType) {
+    if (!idNumber || !idType) {
+        return { valid: false, message: 'ID number and type required' };
+    }
+    const cleaned = idNumber.replace(/\s+/g, '').toUpperCase();
+    const patterns = {
+        'drivers-license': /^[A-Z]\d{2}-\d{2}-\d{6,}$/,
+        'passport': /^[A-Z]{2}\d{7}$/,
+        'national-id': /^\d{4}-\d{4}-\d{4}-\d{4}$/,
+        'postal-id': /^[A-Z]{2,3}\d{6,9}$|^\d{8,10}$/,
+        'voters-id': /^\d{4}-\d{4}-\d{4}$/,
+        'sss-id': /^\d{2}-\d{7}-\d{1}$/,
+        'philhealth-id': /^\d{2}-\d{7}-\d{2}$/,
+        'tin': /^\d{3}-\d{3}-\d{3}-\d{3}$/
+    };
+    const pattern = patterns[idType];
+    if (pattern && pattern.test(cleaned)) {
+        return { valid: true, message: 'Valid format' };
+    }
+    return { valid: false, message: `Invalid ${idType.replace(/-/g, ' ')} format` };
+}
+
+/**
+ * Initialize ID number validation on form fields
+ */
+function initializeIDNumberValidation() {
+    const idNumberField = document.getElementById('idNumber');
+    const idTypeField = document.getElementById('idType');
+    if (idNumberField && idTypeField) {
+        idNumberField.addEventListener('blur', function () {
+            const idType = idTypeField.value;
+            const idNumber = idNumberField.value;
+            if (idType && idNumber) {
+                const validation = validateIDNumber(idNumber, idType);
+                if (!validation.valid) {
+                    showFieldError(idNumberField, validation.message);
+                } else {
+                    hideFieldError(idNumberField);
+                }
+            } else if (idNumber && !idType) {
+                showFieldError(idNumberField, 'Please select an ID type first');
+            } else {
+                hideFieldError(idNumberField);
+            }
+        });
+        idTypeField.addEventListener('change', function () {
+            const idType = idTypeField.value;
+            const idNumber = idNumberField.value;
+            if (idType && idNumber) {
+                const validation = validateIDNumber(idNumber, idType);
+                if (!validation.valid) {
+                    showFieldError(idNumberField, validation.message);
+                } else {
+                    hideFieldError(idNumberField);
+                }
+            } else {
+                hideFieldError(idNumberField);
+            }
+        });
+        idNumberField.addEventListener('input', function () {
+            const idType = idTypeField.value;
+            const idNumber = idNumberField.value;
+            if (idType && idNumber) {
+                const validation = validateIDNumber(idNumber, idType);
+                if (validation.valid) {
+                    hideFieldError(idNumberField);
+                }
+            }
+        });
+    }
+}
+
+/**
+ * Ensure manual overrides to ID type are respected
+ */
+function initializeIDTypeOverrideHandling() {
+    const idTypeField = document.getElementById('idType');
+    if (!idTypeField) return;
+    idTypeField.addEventListener('change', function () {
+        const badge = idTypeField.parentElement && idTypeField.parentElement.querySelector('.ocr-detection-indicator');
+        if (badge) badge.remove();
+        delete idTypeField.dataset.ocrConfidence;
+        idTypeField.title = 'ID type selected manually';
+    });
+}
+
+/**
+ * Escape HTML to prevent XSS
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+/**
+ * Handle car type selection change – show document upload section and load docs by type
+ */
+function handleCarTypeChange(carType) {
+    const documentSection = document.getElementById('document-upload-section');
+    const container = document.getElementById('document-upload-container');
+    if (!carType || !carType.trim()) {
+        if (documentSection) documentSection.style.display = 'none';
+        if (container) container.innerHTML = '<div class="loading-message">Please select a vehicle type first</div>';
+        return;
+    }
+    if (documentSection) documentSection.style.display = 'block';
+    loadDocumentsByCarType(carType);
+}
+
+/**
+ * Load documents based on selected car type
+ */
+function loadDocumentsByCarType(carType) {
+    const container = document.getElementById('document-upload-container');
+    if (!container) return;
+    container.innerHTML = '<div class="loading-message">Loading document requirements...</div>';
+    let documents = [];
+    if (carType === 'Motorcycle – Tricycle (TC)') {
+        documents = [
+            { id: 'certificateOfStockReport', name: 'Certificate of Stock Report (CSR)', description: 'Upload your Certificate of Stock Report', required: true },
+            { id: 'insuranceCertificate', name: 'Insurance Certificate of Cover (Third Party Liability)', description: 'Upload your Insurance Certificate of Cover', required: true },
+            { id: 'pnpHpgClearance', name: 'PNP-HPG Motor Vehicle (MV) Clearance Certificate', description: 'Upload your PNP-HPG MV Clearance Certificate', required: true },
+            { id: 'salesInvoice', name: 'Sales Invoice', description: 'Upload your Sales Invoice', required: true },
+            { id: 'ownerValidId', name: 'Owner Valid ID', description: 'Upload a copy of your valid ID', required: true },
+            { id: 'affidavitOfAttachment', name: 'Original Affidavit of Attachment for Sidecar', description: 'Upload the Original Affidavit of Attachment for Sidecar', required: true }
+        ];
+    } else if (carType === 'Passenger Vehicle' || carType === 'Commercial Vehicle' || carType === 'Motorcycle') {
+        documents = [
+            { id: 'certificateOfStockReport', name: 'Certificate of Stock Report (CSR)', description: 'Upload your Certificate of Stock Report', required: true },
+            { id: 'insuranceCertificate', name: 'Insurance Certificate of Cover (Third Party Liability)', description: 'Upload your Insurance Certificate of Cover', required: true },
+            { id: 'pnpHpgClearance', name: 'PNP-HPG Motor Vehicle (MV) Clearance Certificate', description: 'Upload your PNP-HPG MV Clearance Certificate', required: true },
+            { id: 'salesInvoice', name: 'Sales Invoice', description: 'Upload your Sales Invoice', required: true },
+            { id: 'ownerValidId', name: 'Owner Valid ID', description: 'Upload a copy of your valid ID', required: true }
+        ];
+    } else {
+        container.innerHTML = '<div class="error-message">Please select a valid vehicle type</div>';
+        return;
+    }
+    renderCustomDocumentFields(documents, container);
+    initializeFileUploads();
+}
+
+/**
+ * Render custom document upload fields into container
+ */
+function renderCustomDocumentFields(documents, container) {
+    container.innerHTML = '';
+    documents.forEach(doc => {
+        const uploadItem = document.createElement('div');
+        uploadItem.className = 'upload-item';
+        uploadItem.innerHTML = `
+            <div class="upload-info">
+                <h4>${escapeHtml(doc.name)} ${doc.required ? '<span class="required">*</span>' : ''}</h4>
+                <p>${escapeHtml(doc.description || '')}</p>
+                <small class="form-hint">Accepted: PDF, JPG, JPEG, PNG | Max: 10MB</small>
+            </div>
+            <div class="upload-area">
+                <input type="file" id="${doc.id}" name="${doc.id}" accept=".pdf,.jpg,.jpeg,.png" data-document-type="${doc.id}" data-max-size="${10 * 1024 * 1024}" ${doc.required ? 'required' : ''}>
+                <label for="${doc.id}" class="upload-label">
+                    <span class="upload-icon">📄</span>
+                    <span>Choose File</span>
+                </label>
+            </div>
+        `;
+        container.appendChild(uploadItem);
+    });
+}
+
+/**
+ * Initialize VIN auto-fill from chassis number
+ */
+function initializeVINAutoFill() {
+    const chassisNumberField = document.getElementById('chassisNumber');
+    const vinField = document.getElementById('vin');
+    if (!chassisNumberField || !vinField) {
+        console.warn('[VIN AutoFill] Chassis or VIN field not found');
+        return;
+    }
+    const syncVinFromChassis = () => {
+        const chassisValue = (chassisNumberField.value || '').trim();
+        if (chassisValue) {
+            vinField.value = chassisValue;
+            vinField.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    };
+    chassisNumberField.addEventListener('input', syncVinFromChassis);
+    chassisNumberField.addEventListener('change', syncVinFromChassis);
+    syncVinFromChassis();
+    console.log('[VIN AutoFill] VIN auto-fill initialized');
+}
+
 function initializeFileUploads() {
     const fileInputs = document.querySelectorAll('input[type="file"]');
     fileInputs.forEach(input => {

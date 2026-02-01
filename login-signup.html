@@ -207,12 +207,12 @@
                         <div id="twoFAForm" class="auth-form-container" style="display: none;">
                             <div class="auth-header">
                                 <h2>Two-Factor Authentication</h2>
-                                <p>Please enter the verification code sent to your email/device</p>
+                                <p id="twoFASentToMessage">Enter the 6-digit code sent to your registered email in the box below.</p>
                             </div>
 
                             <form class="auth-form" onsubmit="event.preventDefault(); handle2FAVerification();">
                                 <div class="form-group">
-                                    <label for="twofaCode">Verification Code</label>
+                                    <label for="twofaCode" id="twoFACodeLabel">Verification code</label>
                                     <div class="input-wrapper">
                                         <input type="text" id="twofaCode" name="code" placeholder="Enter 6-digit code"
                                             required maxlength="6"

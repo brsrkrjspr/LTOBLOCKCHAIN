@@ -456,6 +456,49 @@ class CertificateBlockchainService {
     }
 
     /**
+     * Find issued certificate by extracted data (policy number, VIN, type, optional expiry).
+     * Used when file hash does not match (e.g. re-saved/renamed file) but OCR/extracted data
+     * matches what was issued — allows data-based auto-approval with reason.
+     * @param {string} vehicleVin - Vehicle VIN
+     * @param {string} certificateNumber - Policy/certificate number (e.g. CTPL-2025-XXXXXX)
+     * @param {string} certificateType - Certificate type ('insurance', 'hpg_clearance', etc.)
+     * @param {string} [expiryDate] - Optional expiry (ISO or date string) to compare with issued_certificates.expires_at
+     * @returns {Promise<Object|null>} Issued certificate row or null
+     */
+    async findIssuedCertificateByExtractedData(vehicleVin, certificateNumber, certificateType, expiryDate) {
+        try {
+            if (!vehicleVin || !certificateNumber || !certificateType) return null;
+            const vin = String(vehicleVin).toUpperCase().trim();
+            const number = String(certificateNumber).trim().toUpperCase().replace(/\s+/g, ' ');
+            const result = await dbRaw.query(
+                `SELECT id, certificate_number, vehicle_vin, file_hash, composite_hash, 
+                        issued_at, expires_at, certificate_type, is_revoked, metadata
+                 FROM issued_certificates 
+                 WHERE UPPER(TRIM(vehicle_vin)) = $1 
+                   AND certificate_type = $2 
+                   AND UPPER(REPLACE(TRIM(certificate_number), ' ', '')) = UPPER(REPLACE($3, ' ', ''))
+                   AND is_revoked = false
+                 ORDER BY created_at DESC LIMIT 1`,
+                [vin, certificateType, number]
+            );
+            if (!result.rows || result.rows.length === 0) return null;
+            const row = result.rows[0];
+            if (expiryDate) {
+                const issuedExpiry = row.expires_at ? new Date(row.expires_at).toISOString().split('T')[0] : null;
+                const submittedExpiry = new Date(expiryDate).toISOString().split('T')[0];
+                if (issuedExpiry && submittedExpiry && issuedExpiry !== submittedExpiry) {
+                    console.log(`[Certificate Authenticity] Data match: expiry differs (issued: ${issuedExpiry}, submitted: ${submittedExpiry})`);
+                    return null;
+                }
+            }
+            return row;
+        } catch (error) {
+            console.error('Error in findIssuedCertificateByExtractedData:', error);
+            return null;
+        }
+    }
+
+    /**
      * Get original certificate for vehicle (for composite hash generation)
      * Checks BOTH issued_certificates (from certificate-generator.html) AND certificates (from clearance workflow)
      * @param {string} vehicleId - Vehicle ID (UUID)

@@ -226,13 +226,29 @@
                     console.log('2FA required for login');
                     sessionStorage.setItem('pending2faTempToken', result.tempToken);
                     sessionStorage.setItem('pending2faEmail', email);
+                    if (result.sentToEmail) {
+                        sessionStorage.setItem('pending2faSentToEmail', result.sentToEmail);
+                    }
 
                     const loginForm = document.getElementById('loginForm');
                     const twoFAForm = document.getElementById('twoFAForm');
                     if (loginForm) loginForm.style.display = 'none';
                     if (twoFAForm) twoFAForm.style.display = 'block';
 
-                    showNotification('Please enter the verification code sent to your email.', 'info');
+                    // Show where the code was sent and that it goes in the box below
+                    const sentTo = sessionStorage.getItem('pending2faSentToEmail');
+                    const twoFASubtitle = document.getElementById('twoFASentToMessage');
+                    if (twoFASubtitle) {
+                        twoFASubtitle.textContent = sentTo
+                            ? `Enter the 6-digit code sent to ${sentTo} in the box below.`
+                            : 'Enter the 6-digit code sent to your registered email in the box below.';
+                    }
+                    const twoFACodeLabel = document.getElementById('twoFACodeLabel');
+                    if (twoFACodeLabel) {
+                        twoFACodeLabel.textContent = 'Verification code';
+                    }
+
+                    showNotification('Check your email for the 6-digit code, then enter it below.', 'info');
                     return;
                 }
 
@@ -483,6 +499,7 @@
         if (loginForm) loginForm.style.display = 'block';
         sessionStorage.removeItem('pending2faTempToken');
         sessionStorage.removeItem('pending2faEmail');
+        sessionStorage.removeItem('pending2faSentToEmail');
         sessionStorage.removeItem('pending2faUserId');
     };
 

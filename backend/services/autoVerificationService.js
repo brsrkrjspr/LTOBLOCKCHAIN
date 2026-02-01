@@ -281,12 +281,35 @@ class AutoVerificationService {
             );
             console.log(`[Auto-Verify] Verification score: ${verificationScore.percentage}%`);
 
-            // Decision logic: Pattern valid + Certificate authentic + Hash unique + Not expired
-            const shouldApprove = verificationScore.percentage >= 80 &&
-                                  patternCheck.valid &&
-                                  authenticityCheck.authentic &&
-                                  !hashCheck.exists &&
-                                  expiryCheck.isValid;
+            // Data-based fallback: if hash does not match (e.g. re-saved/renamed file) but extracted data
+            // matches issued_certificates, still allow auto-approval with reason (Insurance org requirement).
+            let dataValidatedMatch = false;
+            let dataValidatedCertificate = null;
+            if (!authenticityCheck.authentic && patternCheck.valid && !hashCheck.exists && expiryCheck.isValid) {
+                dataValidatedCertificate = await certificateBlockchain.findIssuedCertificateByExtractedData(
+                    vehicle.vin,
+                    policyNumber,
+                    'insurance',
+                    ocrData.insuranceExpiry || ocrData.expiryDate
+                );
+                if (dataValidatedCertificate) {
+                    dataValidatedMatch = true;
+                    console.log('[Auto-Verify] Data-based match: extracted data matches issued_certificates (hash mismatch, e.g. re-saved or renamed file)');
+                }
+            }
+
+            // Decision logic: (1) Hash authentic path, or (2) Data-validated path (extracted data matches backend)
+            const shouldApproveByHash = verificationScore.percentage >= 80 &&
+                patternCheck.valid &&
+                authenticityCheck.authentic &&
+                !hashCheck.exists &&
+                expiryCheck.isValid;
+            const shouldApproveByData = dataValidatedMatch &&
+                verificationScore.percentage >= 80 &&
+                patternCheck.valid &&
+                !hashCheck.exists &&
+                expiryCheck.isValid;
+            const shouldApprove = shouldApproveByHash || shouldApproveByData;
 
             if (shouldApprove) {
                 // Store hash on blockchain
@@ -316,14 +339,17 @@ class AutoVerificationService {
                     // Continue with approval even if blockchain storage fails
                 }
 
-                // Auto-approve
+                // Auto-approve (hash-authentic or data-validated path)
                 const systemUserId = 'system';
+                const approvalNote = shouldApproveByData
+                    ? `Auto-approved: extracted data matched backend (hash mismatch, e.g. re-saved or renamed file). Policy: ${policyNumber}, Score: ${verificationScore.percentage}%`
+                    : `Auto-verified: Pattern valid, Certificate authentic, Hash unique, Score ${verificationScore.percentage}%, Policy: ${policyNumber}`;
                 await db.updateVerificationStatus(
                     vehicleId,
                     'insurance',
                     'APPROVED',
                     systemUserId,
-                    `Auto-verified: Pattern valid, Certificate authentic, Hash unique, Score ${verificationScore.percentage}%, Policy: ${policyNumber}`,
+                    approvalNote,
                     {
                         automated: true,
                         verificationScore: verificationScore.percentage,
@@ -336,7 +362,10 @@ class AutoVerificationService {
                             compositeHash,
                             blockchainTxId,
                             verificationScore,
-                            verifiedAt: new Date().toISOString()
+                            verifiedAt: new Date().toISOString(),
+                            dataValidatedMatch: shouldApproveByData || undefined,
+                            dataValidatedReason: shouldApproveByData ? 'Extracted data matched issued_certificates; file hash differed (e.g. re-saved or renamed file).' : undefined,
+                            dataValidatedCertificateId: dataValidatedCertificate?.id || undefined
                         }
                     }
                 );
@@ -352,7 +381,9 @@ class AutoVerificationService {
                     hashCheck,
                     authenticityCheck,
                     compositeHash,
-                    blockchainTxId
+                    blockchainTxId,
+                    dataValidatedMatch: shouldApproveByData || undefined,
+                    dataValidatedReason: shouldApproveByData ? 'Extracted data matched backend; hash mismatch (e.g. re-saved or renamed file).' : undefined
                 };
             } else {
                 // Clearly invalid / low-confidence → set to PENDING with results stored

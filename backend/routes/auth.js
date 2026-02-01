@@ -409,7 +409,7 @@ router.post('/login', async (req, res) => {
         // ============================================================
         // ORGANIZATION-LEVEL 2FA - Check if role requires 2FA
         // ============================================================
-        const TFA_REQUIRED_ROLES = ['lto_admin', 'insurance_verifier', 'hpg_officer'];
+        const TFA_REQUIRED_ROLES = ['admin', 'lto_admin', 'lto_officer', 'insurance_verifier', 'hpg_officer', 'hpg_admin'];
 
         if (TFA_REQUIRED_ROLES.includes(user.role)) {
             console.log('🔐 2FA required for organization account:', {
@@ -444,16 +444,23 @@ router.post('/login', async (req, res) => {
             });
 
             // Determine which email to send the code to
-            // Use personal_email (aliased email) if available, otherwise use primary email
+            // Organizational accounts: send 2FA to designated inbox (e.g. admin@lto.gov.ph → lto.lipaph@gmail.com, hpg@hpg.gov.ph → hpg.lipaph@gmail.com)
             const targetEmail = user.personal_email || user.email;
-
-            // Map organizational emails to their aliases
+            const loginEmailKey = (user.email || '').trim().toLowerCase();
             const emailAliases = {
                 'admin@lto.gov.ph': 'lto.lipaph@gmail.com',
                 'insurance@insurance.gov.ph': 'insurance.lipaph@gmail.com',
                 'hpg@hpg.gov.ph': 'hpg.lipaph@gmail.com'
             };
-            const finalEmail = emailAliases[user.email.toLowerCase()] || targetEmail;
+            const finalEmail = emailAliases[loginEmailKey] || targetEmail;
+
+            // Mask email for UI hint (e.g. "ins***@gmail.com")
+            const maskEmail = (e) => {
+                if (!e || !e.includes('@')) return e;
+                const [local, domain] = e.split('@');
+                const show = local.length <= 3 ? local : local.slice(0, 3) + '***';
+                return show + '@' + domain;
+            };
 
             // Send 2FA code via email
             try {
@@ -496,6 +503,7 @@ router.post('/login', async (req, res) => {
                 require2fa: true,
                 tempToken: tempToken,
                 message: '2FA code sent to your registered email',
+                sentToEmail: maskEmail(finalEmail),
                 expiresIn: 600 // 10 minutes in seconds
             });
         }

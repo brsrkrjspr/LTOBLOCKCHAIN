@@ -2723,16 +2723,15 @@ function showApplicationModal(application) {
                         <div class="document-list" id="csr-docs-list-${application.id}">
                             ${(() => {
                                 const docs = application.documents || [];
-                                const csrSales = docs.filter(d => {
-                                    const t = (d.documentType || d.document_type || '').toLowerCase();
-                                    return t === 'csr' || t === 'sales_invoice' || t === 'salesinvoice';
-                                });
-                                if (csrSales.length === 0) return '<p style="color: #64748b; font-size: 0.875rem;">No CSR or Sales Invoice documents linked yet. These are generated during minting.</p>';
-                                return csrSales.map(doc => {
+                                const items = [];
+                                docs.forEach((doc, index) => {
                                     const t = (doc.documentType || doc.document_type || '').toLowerCase();
+                                    if (t !== 'csr' && t !== 'sales_invoice' && t !== 'salesinvoice') return;
                                     const n = t === 'csr' ? 'CSR' : 'Sales Invoice';
-                                    return '<div class="document-item" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; margin: 6px 0;"><span>' + n + '</span></div>';
-                                }).join('');
+                                    items.push('<div class="document-item" data-doc-index="' + index + '" style="cursor: pointer; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; margin: 6px 0; display: flex; justify-content: space-between; align-items: center;" title="Click to view"><span>' + n + '</span><span style="color: #0284c7;">View →</span></div>');
+                                });
+                                if (items.length === 0) return '<p style="color: #64748b; font-size: 0.875rem;">No CSR or Sales Invoice documents linked yet. These are generated during minting.</p>';
+                                return items.join('');
                             })()}
                         </div>
                     </div>

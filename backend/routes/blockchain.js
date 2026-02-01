@@ -417,6 +417,49 @@ router.post('/vehicles/mint', authenticateToken, async (req, res) => {
                 }
             }
             await fabricService.updateCertificateHash(vehicleData.vin, 'csr', fileHash, csrIpfsCid);
+            // Persist in issued_certificates so CSR can be verified against mint (panelist validation)
+            try {
+                const dbRaw = require('../database/db');
+                const compositeHash = certificatePdfGenerator.generateCompositeHash(
+                    certificateNumber || csrNumber,
+                    vehicleData.vin,
+                    issuanceDate.split('T')[0],
+                    fileHash
+                );
+                const issuerRes = await dbRaw.query(
+                    `SELECT id FROM external_issuers WHERE issuer_type = 'csr' AND is_active = true LIMIT 1`
+                );
+                const issuerId = issuerRes.rows && issuerRes.rows[0] ? issuerRes.rows[0].id : null;
+                await dbRaw.query(
+                    `INSERT INTO issued_certificates 
+                    (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                     file_hash, composite_hash, issued_at, expires_at, metadata)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                    [
+                        issuerId,
+                        'csr',
+                        certificateNumber || csrNumber,
+                        vehicleData.vin,
+                        'LTO Pre-Minted (CSR Verified)',
+                        fileHash,
+                        compositeHash,
+                        issuanceDate.split('T')[0],
+                        null,
+                        JSON.stringify({
+                            vehicleMake: vehicleData.make,
+                            vehicleModel: vehicleData.model,
+                            vehicleYear: vehicleData.year,
+                            bodyType: vehicleData.vehicleType || 'Car',
+                            color: vehicleData.color || '',
+                            fuelType: 'Gasoline',
+                            engineNumber: vehicleData.engineNumber || ''
+                        })
+                    ]
+                );
+                console.log(`[Mint] CSR written to issued_certificates for VIN ${vehicleData.vin}`);
+            } catch (dbErr) {
+                console.warn('[Mint] issued_certificates insert for CSR failed (mint succeeded):', dbErr.message);
+            }
             await certificateEmailService.sendCsrCertificate({
                 to: PREMINTED_CSR_EMAIL,
                 dealerName: 'LTO Pre-Minted (CSR Verified)',
@@ -470,6 +513,47 @@ router.post('/vehicles/mint', authenticateToken, async (req, res) => {
                 }
             }
             await fabricService.updateCertificateHash(vehicleData.vin, 'sales_invoice', salesInvoiceHash, salesInvoiceIpfsCid);
+            // Persist in issued_certificates so Sales Invoice can be verified against mint (panelist validation)
+            try {
+                const dbRaw = require('../database/db');
+                const salesInvoiceCompositeHash = certificatePdfGenerator.generateCompositeHash(
+                    salesInvoiceCertNumber || invoiceNumber,
+                    vehicleData.vin,
+                    dateOfSale.split('T')[0],
+                    salesInvoiceHash
+                );
+                const issuerResSI = await dbRaw.query(
+                    `SELECT id FROM external_issuers WHERE issuer_type = 'sales_invoice' AND is_active = true LIMIT 1`
+                );
+                const issuerIdSI = issuerResSI.rows && issuerResSI.rows[0] ? issuerResSI.rows[0].id : null;
+                await dbRaw.query(
+                    `INSERT INTO issued_certificates 
+                    (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                     file_hash, composite_hash, issued_at, expires_at, metadata)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                    [
+                        issuerIdSI,
+                        'sales_invoice',
+                        String(salesInvoiceCertNumber || invoiceNumber),
+                        vehicleData.vin,
+                        'LTO Pre-Minted (CSR Verified)',
+                        salesInvoiceHash,
+                        salesInvoiceCompositeHash,
+                        dateOfSale.split('T')[0],
+                        null,
+                        JSON.stringify({
+                            vehicleMake: vehicleData.make,
+                            vehicleModel: vehicleData.model,
+                            vehicleYear: vehicleData.year,
+                            purchasePrice,
+                            invoiceNumber: salesInvoiceCertNumber || invoiceNumber
+                        })
+                    ]
+                );
+                console.log(`[Mint] Sales Invoice written to issued_certificates for VIN ${vehicleData.vin}`);
+            } catch (dbErrSI) {
+                console.warn('[Mint] issued_certificates insert for Sales Invoice failed (mint succeeded):', dbErrSI.message);
+            }
             await certificateEmailService.sendSalesInvoice({
                 to: PREMINTED_CSR_EMAIL,
                 ownerName: 'LTO Pre-Minted (CSR Verified)',

@@ -1652,6 +1652,7 @@ LTO Lipa City Team
 
 // Update vehicle status
 // STRICT: Allow admin, lto_admin, and lto_officer (all LTO staff can update vehicle status)
+// APPROVED is only allowed when org clearances (HPG) and CSR validation are satisfied.
 router.put('/id/:id/status', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { id } = req.params;
@@ -1675,6 +1676,39 @@ router.put('/id/:id/status', authenticateToken, authorizeRole(['admin', 'lto_adm
                 success: false,
                 error: 'Vehicle not found'
             });
+        }
+
+        // Gate: do not allow APPROVED until HPG clearance, insurance verification, and CSR are valid
+        if (status === 'APPROVED') {
+            const dbModule = require('../database/db');
+            const [verifications, documents, hpgResult] = await Promise.all([
+                db.getVehicleVerifications(id),
+                db.getDocumentsByVehicle(id),
+                dbModule.query(
+                    `SELECT 1 FROM clearance_requests 
+                     WHERE vehicle_id = $1 AND request_type = 'hpg' AND status IN ('APPROVED', 'COMPLETED') 
+                     LIMIT 1`,
+                    [id]
+                )
+            ]);
+            const hasHpgClearance = hpgResult.rows.length > 0;
+            const hasInsuranceApproved = verifications.some(
+                v => v.verification_type === 'insurance' && v.status === 'APPROVED'
+            );
+            const hasCsrVerified = documents.some(
+                d => d.document_type === 'csr' && d.verified === true
+            );
+            if (!hasHpgClearance || !hasInsuranceApproved || !hasCsrVerified) {
+                const missing = [];
+                if (!hasHpgClearance) missing.push('HPG clearance (org)');
+                if (!hasInsuranceApproved) missing.push('insurance verification');
+                if (!hasCsrVerified) missing.push('CSR document verified');
+                return res.status(400).json({
+                    success: false,
+                    error: 'Cannot approve application until all validations are complete.',
+                    missing
+                });
+            }
         }
 
         // Update vehicle status
@@ -1714,6 +1748,75 @@ router.put('/id/:id/status', authenticateToken, authorizeRole(['admin', 'lto_adm
             success: false,
             error: 'Internal server error'
         });
+    }
+});
+
+// POST /id/:id/documents/verify-mint-documents – verify CSR/Sales Invoice against issued_certificates (mint)
+// STRICT: admin, lto_admin, lto_officer only
+router.post('/id/:id/documents/verify-mint-documents', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
+    try {
+        const vehicleId = req.params.id;
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({ success: false, error: 'Vehicle not found' });
+        }
+        const documents = await db.getDocumentsByVehicle(vehicleId);
+        const csrOrSalesInvoice = documents.filter(d => {
+            const t = (d.document_type || d.documentType || '').toLowerCase();
+            return t === 'csr' || t === 'sales_invoice' || t === 'salesinvoice';
+        });
+        const certificateBlockchain = require('../services/certificateBlockchainService');
+        const results = { verified: 0, alreadyVerified: 0, failed: 0, documents: [] };
+        for (const doc of csrOrSalesInvoice) {
+            const docType = (doc.document_type || doc.documentType || '').toLowerCase();
+            const certType = docType === 'salesinvoice' ? 'sales_invoice' : docType;
+            const alreadyVerified = doc.verified === true;
+            if (alreadyVerified) {
+                results.alreadyVerified += 1;
+                results.documents.push({ id: doc.id, documentType: certType, verified: true, verifiedAt: doc.verified_at || doc.verifiedAt });
+                continue;
+            }
+            const fileHash = doc.file_hash || doc.fileHash;
+            if (!fileHash) {
+                results.failed += 1;
+                results.documents.push({ id: doc.id, documentType: certType, verified: false, reason: 'No file hash' });
+                continue;
+            }
+            try {
+                const auth = await certificateBlockchain.checkCertificateAuthenticity(fileHash, vehicleId, certType);
+                if (auth && auth.authentic) {
+                    await db.verifyDocument(doc.id, req.user.userId);
+                    results.verified += 1;
+                    results.documents.push({ id: doc.id, documentType: certType, verified: true, verifiedAt: new Date().toISOString() });
+                } else {
+                    results.failed += 1;
+                    results.documents.push({ id: doc.id, documentType: certType, verified: false, reason: 'No match in issued_certificates' });
+                }
+            } catch (err) {
+                results.failed += 1;
+                results.documents.push({ id: doc.id, documentType: certType, verified: false, reason: err.message || 'Verification failed' });
+            }
+        }
+        const updatedDocs = await db.getDocumentsByVehicle(vehicleId);
+        const csrSiOnly = updatedDocs.filter(d => {
+            const t = (d.document_type || d.documentType || '').toLowerCase();
+            return t === 'csr' || t === 'sales_invoice' || t === 'salesinvoice';
+        });
+        res.json({
+            success: true,
+            verified: results.verified,
+            alreadyVerified: results.alreadyVerified,
+            failed: results.failed,
+            documents: csrSiOnly.map(d => ({
+                id: d.id,
+                documentType: d.document_type || d.documentType,
+                verified: d.verified,
+                verifiedAt: d.verified_at || d.verifiedAt
+            }))
+        });
+    } catch (error) {
+        console.error('Verify mint documents error:', error);
+        res.status(500).json({ success: false, error: error.message || 'Internal server error' });
     }
 });
 

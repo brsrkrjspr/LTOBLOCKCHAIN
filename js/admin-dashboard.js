@@ -2451,7 +2451,7 @@ function showApplicationModal(application) {
     };
 
     modal.innerHTML = `
-        <div class="modal-content" style="background: white; border-radius: 12px; max-width: 900px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
+        <div class="modal-content" data-vehicle-id="${application.id}" style="background: white; border-radius: 12px; max-width: 900px; width: 95%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);">
             <div class="modal-header" style="padding: 1.5rem; border-bottom: 2px solid #e2e8f0; flex-shrink: 0;">
                 <h3 style="margin: 0; color: #0f172a;">Application Details - ${application.id}</h3>
                 <button class="modal-close" onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">×</button>
@@ -2711,12 +2711,34 @@ function showApplicationModal(application) {
                 ` : `
                 <!-- CSR Validation Tab (initial registration only) -->
                 <div class="tab-pane" id="csr-validation-pane" style="display: none; padding: 1.5rem;">
-                    <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
-                        <h6 style="color: #0c4a6e; margin: 0 0 0.75rem 0;"><i class="fas fa-info-circle me-2"></i>CSR &amp; Sales Invoice Validation</h6>
-                        <p style="color: #475569; font-size: 0.9rem; margin: 0 0 1rem 0;">CSR (Certificate of Stock Report) and Sales Invoice are generated during vehicle minting and linked with the vehicle on Fabric and IPFS. Validation status can be used for panelist review.</p>
-                        <div id="csr-validation-status-${application.id}" style="min-height: 40px; font-size: 0.9rem; color: #475569;">
-                            <span style="color: #64748b;"><i class="fas fa-check-circle" style="color: #10b981;"></i> Validation is based on minting flow (Fabric/IPFS).</span>
+                    <!-- CSR auto-verification (distinct from minted vehicles on Fabric) -->
+                    <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem;">
+                        <h6 style="color: #065f46; margin: 0 0 0.5rem 0;"><i class="fas fa-robot me-2"></i>CSR auto-verification</h6>
+                        <p style="color: #047857; font-size: 0.875rem; margin: 0 0 0.75rem 0;">CSR is verified against the certificate issuer (hash/data match with issued certificates). This is separate from documents generated during vehicle minting on Fabric.</p>
+                        <div id="csr-validation-status-${application.id}" style="min-height: 36px; font-size: 0.9rem;">
+                            ${(() => {
+                                const docs = application.documents || [];
+                                const csrDoc = docs.find(d => {
+                                    const t = (d.documentType || d.document_type || '').toLowerCase();
+                                    return t === 'csr';
+                                });
+                                const verified = csrDoc && (csrDoc.verified === true || csrDoc.verified === 'true');
+                                const verifiedAt = csrDoc && (csrDoc.verifiedAt || csrDoc.verified_at);
+                                const dateStr = verifiedAt ? new Date(verifiedAt).toLocaleString() : '';
+                                if (verified) {
+                                    return '<span style="color: #059669;"><i class="fas fa-check-circle" style="color: #10b981;"></i> CSR verified ✓' + (dateStr ? ' <span style="color: #047857;">(' + dateStr + ')</span>' : '') + '</span>';
+                                }
+                                if (csrDoc) {
+                                    return '<span style="color: #b45309;"><i class="fas fa-clock" style="color: #d97706;"></i> CSR pending verification</span>';
+                                }
+                                return '<span style="color: #64748b;"><i class="fas fa-info-circle"></i> No CSR document uploaded yet.</span>';
+                            })()}
                         </div>
+                    </div>
+                    <!-- Minted vehicles (Fabric) – documents from mint flow -->
+                    <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+                        <h6 style="color: #0c4a6e; margin: 0 0 0.5rem 0;"><i class="fas fa-link me-2"></i>Minted vehicle (Fabric)</h6>
+                        <p style="color: #475569; font-size: 0.875rem; margin: 0;">For pre-minted vehicles, CSR and Sales Invoice are generated during minting and linked with the vehicle on Hyperledger Fabric and IPFS. The documents below may come from the mint flow or from applicant upload.</p>
                     </div>
                     <div class="detail-section">
                         <h4>Linked documents (CSR / Sales Invoice)</h4>
@@ -2728,9 +2750,15 @@ function showApplicationModal(application) {
                                     const t = (doc.documentType || doc.document_type || '').toLowerCase();
                                     if (t !== 'csr' && t !== 'sales_invoice' && t !== 'salesinvoice') return;
                                     const n = t === 'csr' ? 'CSR' : 'Sales Invoice';
-                                    items.push('<div class="document-item" data-doc-index="' + index + '" style="cursor: pointer; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; margin: 6px 0; display: flex; justify-content: space-between; align-items: center;" title="Click to view"><span>' + n + '</span><span style="color: #0284c7;">View →</span></div>');
+                                    const verified = doc.verified === true || doc.verified === 'true';
+                                    const verifiedAt = doc.verifiedAt || doc.verified_at;
+                                    const dateStr = verifiedAt ? new Date(verifiedAt).toLocaleDateString() : '';
+                                    const badge = verified
+                                        ? '<span style="background: #d1fae5; color: #065f46; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600;">Verified ✓' + (dateStr ? ' ' + dateStr : '') + '</span>'
+                                        : '<span style="background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem;">Pending</span>';
+                                    items.push('<div class="document-item" data-doc-index="' + index + '" style="cursor: pointer; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; margin: 6px 0; display: flex; justify-content: space-between; align-items: center;" title="Click to view"><span style="display: flex; align-items: center; gap: 8px;">' + n + ' ' + badge + '</span><span style="color: #0284c7;">View →</span></div>');
                                 });
-                                if (items.length === 0) return '<p style="color: #64748b; font-size: 0.875rem;">No CSR or Sales Invoice documents linked yet. These are generated during minting.</p>';
+                                if (items.length === 0) return '<p style="color: #64748b; font-size: 0.875rem;">No CSR or Sales Invoice documents linked yet. These may be generated during minting or uploaded by the applicant.</p>';
                                 return items.join('');
                             })()}
                         </div>
@@ -2959,11 +2987,11 @@ async function rejectApplication(applicationId) {
             </div>
             <div class="modal-body">
                 <p style="margin-bottom: 1rem;">Please provide a reason for rejection:</p>
-                <textarea id="rejectionReason" style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid #ecf0f1; border-radius: 5px;" placeholder="Enter rejection reason..."></textarea>
+                <textarea class="rejection-reason-input" style="width: 100%; min-height: 100px; padding: 0.75rem; border: 2px solid #ecf0f1; border-radius: 5px;" placeholder="Enter rejection reason..." aria-label="Rejection reason"></textarea>
             </div>
             <div class="modal-footer">
                 <button class="btn-secondary" onclick="this.closest('.modal').remove()">Cancel</button>
-                <button class="btn-danger" id="confirmReject">Reject Application</button>
+                <button class="btn-danger confirm-reject-btn">Reject Application</button>
             </div>
         </div>
     `;
@@ -2971,8 +2999,8 @@ async function rejectApplication(applicationId) {
     document.body.appendChild(modal);
 
     return new Promise((resolve) => {
-        modal.querySelector('#confirmReject').onclick = async function () {
-            const reason = document.getElementById('rejectionReason').value.trim();
+        modal.querySelector('.confirm-reject-btn').onclick = async function () {
+            const reason = modal.querySelector('.rejection-reason-input').value.trim();
             if (!reason) {
                 ToastNotification.show('Please provide a reason for rejection', 'error');
                 return;
@@ -4289,6 +4317,47 @@ function switchModalTab(tabName) {
     const activePane = document.getElementById(tabName + '-pane');
     if (activePane) {
         activePane.style.display = 'block';
+    }
+
+    // When CSR Validation tab is shown, verify CSR/Sales Invoice against mint and refresh status
+    if (tabName === 'csr-validation') {
+        const modalContent = document.querySelector('.modal .modal-content');
+        const vehicleId = modalContent && modalContent.getAttribute('data-vehicle-id');
+        if (vehicleId) {
+            verifyMintDocumentsAndRefresh(vehicleId);
+        }
+    }
+}
+
+/**
+ * Call verify-mint-documents API and refresh CSR Validation status in the modal.
+ * Document list is not replaced so view-document click handlers keep working.
+ * @param {string} vehicleId - Vehicle ID (application.id)
+ */
+async function verifyMintDocumentsAndRefresh(vehicleId) {
+    const statusEl = document.getElementById('csr-validation-status-' + vehicleId);
+    if (statusEl) statusEl.innerHTML = '<span style="color: #64748b;"><i class="fas fa-spinner fa-spin"></i> Verifying against mint...</span>';
+    try {
+        const apiClient = window.ApiClient || window.apiClient;
+        if (!apiClient) return;
+        const res = await apiClient.post('/api/vehicles/id/' + vehicleId + '/documents/verify-mint-documents');
+        if (!res || !res.success) return;
+        const docs = res.documents || [];
+        const csrDoc = docs.find(d => (d.documentType || d.document_type || '').toLowerCase() === 'csr');
+        const verified = csrDoc && (csrDoc.verified === true);
+        const verifiedAt = csrDoc && (csrDoc.verifiedAt || csrDoc.verified_at);
+        const dateStr = verifiedAt ? new Date(verifiedAt).toLocaleString() : '';
+        if (statusEl) {
+            if (verified) {
+                statusEl.innerHTML = '<span style="color: #059669;"><i class="fas fa-check-circle" style="color: #10b981;"></i> CSR verified ✓ (matches LTO-issued certificate at mint)' + (dateStr ? ' <span style="color: #047857;">(' + dateStr + ')</span>' : '') + '</span>';
+            } else if (csrDoc) {
+                statusEl.innerHTML = '<span style="color: #b45309;"><i class="fas fa-clock" style="color: #d97706;"></i> CSR pending verification</span>';
+            } else {
+                statusEl.innerHTML = '<span style="color: #64748b;"><i class="fas fa-info-circle"></i> No CSR document uploaded yet.</span>';
+            }
+        }
+    } catch (e) {
+        if (statusEl) statusEl.innerHTML = '<span style="color: #64748b;"><i class="fas fa-info-circle"></i> Could not verify against mint. You can verify documents manually.</span>';
     }
 }
 

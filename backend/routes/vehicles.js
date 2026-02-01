@@ -1300,9 +1300,10 @@ router.post('/register', optionalAuth, async (req, res) => {
             failures: [],
             linkedDocuments: []
         };
+        let transactionResult = null;
 
         try {
-            const transactionResult = await vehicleRegistrationTransaction.createVehicleWithDocumentsTransaction({
+            transactionResult = await vehicleRegistrationTransaction.createVehicleWithDocumentsTransaction({
                 vehicle,
                 ownerUser,
                 registrationData,
@@ -1589,10 +1590,12 @@ LTO Lipa City Team
         try {
             const clearanceService = require('../services/clearanceService');
             const requestedBy = ownerUser.id; // Use owner as requester (system-initiated)
+            const isResubmission = !!(transactionResult && transactionResult.isResubmission);
             autoSendResults = await clearanceService.autoSendClearanceRequests(
                 newVehicle.id,
                 registrationData.documents,
-                requestedBy
+                requestedBy,
+                { isResubmission }
             );
             console.log('✅ Auto-sent clearance requests:', {
                 hpg: autoSendResults?.hpg?.sent ? 'Yes' : 'No',

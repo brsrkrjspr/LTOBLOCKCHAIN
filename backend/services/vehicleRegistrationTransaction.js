@@ -358,7 +358,8 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
     return {
         vehicle: newVehicle,
         documentCids,
-        documentLinkingResults
+        documentLinkingResults,
+        isResubmission: !!(existingResubmitVehicle && existingResubmitVehicle.id)
     };
 }
 

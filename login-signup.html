@@ -207,7 +207,8 @@
                         <div id="twoFAForm" class="auth-form-container" style="display: none;">
                             <div class="auth-header">
                                 <h2>Two-Factor Authentication</h2>
-                                <p id="twoFASentToMessage">Enter the 6-digit code sent to your registered email in the box below.</p>
+                                <p id="twoFASentToMessage">Enter the 6-digit code sent to your registered email in the
+                                    box below.</p>
                             </div>
 
                             <form class="auth-form" onsubmit="event.preventDefault(); handle2FAVerification();">
@@ -215,8 +216,7 @@
                                     <label for="twofaCode" id="twoFACodeLabel">Verification code</label>
                                     <div class="input-wrapper">
                                         <input type="text" id="twofaCode" name="code" placeholder="Enter 6-digit code"
-                                            required maxlength="6"
-                                            style="letter-spacing: 0.5rem; text-align: center; font-size: 1.25rem;">
+                                            required maxlength="6" class="input-2fa">
                                         <i class="fas fa-shield-alt input-icon"></i>
                                     </div>
                                 </div>
@@ -231,8 +231,7 @@
                                     <i class="fas fa-check-circle"></i>
                                 </button>
 
-                                <button type="button" class="btn-secondary btn-full" onclick="cancel2FA()"
-                                    style="margin-top: 1rem;">
+                                <button type="button" class="btn-secondary btn-full" onclick="cancel2FA()">
                                     <span>Cancel</span>
                                 </button>
                             </form>

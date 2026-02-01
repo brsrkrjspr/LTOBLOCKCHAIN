@@ -68,7 +68,8 @@ async function waitForDocuments(vehicleId, maxRetries = 5, initialDelay = 100) {
     return [];
 }
 
-async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
+async function autoSendClearanceRequests(vehicleId, documents, requestedBy, options = {}) {
+    const { isResubmission = false } = options;
     const results = {
         hpg: { sent: false, requestId: null, error: null },
         insurance: { sent: false, requestId: null, error: null }
@@ -79,6 +80,24 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy) {
         const vehicle = await db.getVehicleById(vehicleId);
         if (!vehicle) {
             throw new Error('Vehicle not found');
+        }
+
+        // On resubmission: supersede existing PENDING/SENT clearance requests so new ones can be created and auto-sent
+        if (isResubmission) {
+            try {
+                const updated = await dbModule.query(
+                    `UPDATE clearance_requests
+                     SET status = 'REJECTED', notes = COALESCE(notes, '') || ' Superseded by resubmission.'
+                     WHERE vehicle_id = $1 AND request_type IN ('hpg', 'insurance') AND status IN ('PENDING', 'SENT')
+                     RETURNING id`,
+                    [vehicleId]
+                );
+                if (updated.rows && updated.rows.length > 0) {
+                    console.log(`[Auto-Send] Resubmission: superseded ${updated.rows.length} existing clearance request(s) for vehicle ${vehicleId}`);
+                }
+            } catch (supersedeErr) {
+                console.warn('[Auto-Send] Resubmission supersede error (non-blocking):', supersedeErr.message);
+            }
         }
 
         // Wait for documents with improved retry logic

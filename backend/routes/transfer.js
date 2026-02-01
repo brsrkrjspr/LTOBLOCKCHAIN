@@ -3421,6 +3421,28 @@ router.post('/requests/:id/reject', authenticateToken, authorizeRole(['admin', '
         // Update transfer request status
         await db.updateTransferRequestStatus(id, TRANSFER_STATUS.REJECTED, req.user.userId, reason);
 
+        // Clear HPG/Insurance clearance request IDs and supersede old clearance requests so resubmission can auto-forward again (same fix as initial registration resubmission)
+        try {
+            const dbModule = require('../database/db');
+            if (request.hpg_clearance_request_id || request.insurance_clearance_request_id) {
+                const idsToSupersede = [request.hpg_clearance_request_id, request.insurance_clearance_request_id].filter(Boolean);
+                if (idsToSupersede.length > 0) {
+                    await dbModule.query(
+                        `UPDATE clearance_requests SET status = 'REJECTED', notes = COALESCE(notes, '') || ' Superseded by transfer rejection.'
+                         WHERE id = ANY($1::uuid[]) AND status IN ('PENDING', 'SENT')`,
+                        [idsToSupersede]
+                    );
+                }
+                await dbModule.query(
+                    `UPDATE transfer_requests SET hpg_clearance_request_id = NULL, insurance_clearance_request_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+                    [id]
+                );
+                console.log(`[Transfer Reject] Cleared clearance request IDs for transfer ${id} so resubmission can forward again`);
+            }
+        } catch (clearErr) {
+            console.warn('⚠️ Failed to clear transfer clearance request IDs (non-blocking):', clearErr.message);
+        }
+
         try {
             await db.updateVehicle(request.vehicle_id, { status: VEHICLE_STATUS.REGISTERED });
         } catch (statusErr) {

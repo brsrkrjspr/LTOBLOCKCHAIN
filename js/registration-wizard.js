@@ -151,7 +151,12 @@ function initializeRegistrationWizard() {
 }
 
 function initializeRegistrationTypeHandler() {
-    const regType radios = document.querySelectorAll('input[name="registrationType"]');
+    const regTypeRadios = document.querySelectorAll('input[name="registrationType"]');
+    // Only set up handlers if registration type elements exist
+    if (regTypeRadios.length === 0) {
+        console.log('[Registration Type] No registration type radio buttons found - skipping initialization');
+        return;
+    }
     regTypeRadios.forEach(radio => {
         radio.addEventListener('change', function () {
             handleRegistrationTypeChange(this.value);

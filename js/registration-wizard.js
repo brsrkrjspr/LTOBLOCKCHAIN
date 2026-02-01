@@ -1431,6 +1431,369 @@ function initializeOcrUserEditTracking() {
     });
 }
 
+/**
+ * Get auth token for API calls (used by OCR extraction).
+ */
+function getAuthToken() {
+    const token = (typeof window !== 'undefined' && window.authManager)
+        ? window.authManager.getAccessToken()
+        : (localStorage.getItem('authToken') || sessionStorage.getItem('authToken'));
+    if (!token) {
+        window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);
+        return null;
+    }
+    if (typeof AuthUtils !== 'undefined' && !AuthUtils.isAuthenticated()) {
+        return null;
+    }
+    return token;
+}
+
+/**
+ * Detect Philippine ID type from ID number using known patterns.
+ */
+function detectIDTypeFromNumber(idNumber) {
+    if (!idNumber) return null;
+    const cleaned = idNumber.replace(/\s+/g, '').toUpperCase();
+    const candidates = [
+        { idType: 'drivers-license', pattern: /^[A-Z]\d{2}-\d{2}-\d{6,}$/ },
+        { idType: 'passport', pattern: /^[A-Z]{2}\d{7}$/ },
+        { idType: 'national-id', pattern: /^\d{4}-\d{4}-\d{4}-\d{4}$/ },
+        { idType: 'postal-id', pattern: /^[A-Z]{2,3}\d{6,9}$|^\d{8,10}$/ },
+        { idType: 'voters-id', pattern: /^\d{4}-\d{4}-\d{4}$/ },
+        { idType: 'sss-id', pattern: /^\d{2}-\d{7}-\d{1}$/ },
+        { idType: 'philhealth-id', pattern: /^\d{2}-\d{7}-\d{2}$/ },
+        { idType: 'tin', pattern: /^\d{3}-\d{3}-\d{3}-\d{3}$/ }
+    ];
+    for (const c of candidates) {
+        if (c.pattern.test(cleaned)) return { idType: c.idType, confidence: 0.9 };
+    }
+    return null;
+}
+
+/**
+ * Render a small inline detection badge next to the select element.
+ */
+function renderIDTypeDetectionBadge(selectEl, idType, confidence) {
+    const prev = selectEl.parentElement.querySelector('.ocr-detection-indicator');
+    if (prev) prev.remove();
+    const span = document.createElement('span');
+    span.className = 'ocr-detection-indicator';
+    span.style.marginLeft = '8px';
+    span.style.fontSize = '12px';
+    span.style.color = '#555';
+    span.textContent = `Auto-selected (${idType.replace(/-/g, ' ')}, ${Math.round((confidence || 0) * 100)}%)`;
+    selectEl.parentElement.insertBefore(span, selectEl.nextSibling);
+}
+
+/**
+ * Auto-fill form fields from OCR extracted data.
+ */
+function autoFillFromOCRData(extractedData, documentType) {
+    if (!extractedData) return;
+    console.log('[OCR AutoFill] Processing extracted data:', extractedData, 'Document type:', documentType);
+    const strictFieldMapping = {
+        'vin': 'chassisNumber', 'chassisNumber': 'chassisNumber', 'chassis / vin': 'chassisNumber', 'chassis/vin': 'chassisNumber', 'chassis vin': 'chassisNumber',
+        'engineNumber': 'engineNumber', 'plateNumber': 'plateNumber', 'mvFileNumber': 'mvFileNumber',
+        'make': 'make', 'series': 'model', 'model': 'model', 'bodyType': 'vehicleType', 'vehicleType': 'vehicleType', 'yearModel': 'year', 'year': 'year', 'color': 'color', 'fuelType': 'fuelType',
+        'grossWeight': 'grossVehicleWeight', 'netCapacity': 'netWeight', 'netWeight': 'netWeight',
+        'idType': 'idType', 'idNumber': 'idNumber'
+    };
+    const normalizeOcrKey = (k) => (k || '').toString().trim().toLowerCase().replace(/[_-]/g, '').replace(/\s+/g, '');
+    const normalizedStrictMapping = {};
+    Object.keys(strictFieldMapping).forEach((k) => { normalizedStrictMapping[normalizeOcrKey(k)] = strictFieldMapping[k]; });
+
+    let idTypeDetection = null;
+    if ((documentType === 'ownerValidId' || documentType === 'owner_id' || documentType === 'ownerId') &&
+        (!extractedData.idType || extractedData.idType === '') && extractedData.idNumber) {
+        idTypeDetection = detectIDTypeFromNumber(extractedData.idNumber);
+        if (idTypeDetection && idTypeDetection.idType) extractedData.idType = idTypeDetection.idType;
+    }
+
+    let fieldsFilled = 0;
+    const personalInfoFields = ['firstName', 'lastName', 'address', 'phone', 'email'];
+
+    Object.keys(extractedData).forEach(ocrField => {
+        const value = extractedData[ocrField];
+        if (!value || value === '') return;
+        if ((documentType === 'ownerValidId' || documentType === 'owner_id' || documentType === 'ownerId') && personalInfoFields.includes(ocrField)) return;
+
+        const normalizedField = normalizeOcrKey(ocrField);
+        let htmlInputId = normalizedStrictMapping[normalizedField] || strictFieldMapping[ocrField];
+        if (!htmlInputId) return;
+
+        const inputElement = document.getElementById(htmlInputId);
+        if (!inputElement) return;
+        if (inputElement.dataset.userEdited === 'true') return;
+
+        const getDocPriority = (dt) => {
+            const n = (dt || '').toString().trim().toLowerCase();
+            if (n === 'csr') return 3;
+            if (n === 'sales_invoice' || n === 'salesinvoice') return 2;
+            return 1;
+        };
+        const incomingPriority = getDocPriority(documentType);
+        const existingPriority = parseInt(inputElement.dataset.ocrPriority || '0', 10) || 0;
+        const hasExistingValue = !!(inputElement.value && inputElement.value.toString().trim() !== '');
+        const existingWasOcr = inputElement.classList.contains('ocr-auto-filled');
+        if (hasExistingValue && !existingWasOcr) return;
+        if (hasExistingValue && existingWasOcr && existingPriority > incomingPriority) return;
+
+        let formattedValue = value.trim();
+        if (htmlInputId === 'plateNumber') {
+            formattedValue = formattedValue.replace(/\s/g, '').toUpperCase().replace(/-/g, '');
+            if (formattedValue.length === 7 && /^[A-Z]{3}\d{4}$/.test(formattedValue)) {
+                formattedValue = formattedValue.substring(0, 3) + '-' + formattedValue.substring(3);
+            } else return;
+        }
+
+        const normalizeDropdownToken = (raw) => {
+            if (!raw) return '';
+            const s = raw.toString().trim().toLowerCase().replace(/\s+/g, '');
+            const stripped = s.replace(/^fueltype/, '').replace(/^fuel/, '').replace(/^type/, '').replace(/^kind/, '');
+            return stripped.replace(/[^a-z0-9]/g, '');
+        };
+        const matchSelectOption = (selectEl, rawVal) => {
+            const token = normalizeDropdownToken(rawVal);
+            if (!token) return null;
+            const options = Array.from(selectEl.options || []);
+            const byValue = options.find((opt) => normalizeDropdownToken(opt.value) === token);
+            if (byValue) return byValue;
+            const byText = options.find((opt) => normalizeDropdownToken(opt.textContent || '') === token);
+            if (byText) return byText;
+            if (token === 'gas' || token === 'gasoline' || token === 'petrol') return options.find((opt) => normalizeDropdownToken(opt.value) === 'gasoline' || normalizeDropdownToken(opt.textContent || '') === 'gasoline') || null;
+            if (token === 'diesel') return options.find((opt) => normalizeDropdownToken(opt.value) === 'diesel' || normalizeDropdownToken(opt.textContent || '') === 'diesel') || null;
+            return null;
+        };
+
+        if (inputElement.tagName === 'SELECT') {
+            const optionExists = matchSelectOption(inputElement, formattedValue) || Array.from(inputElement.options).find(opt => opt.value === formattedValue || opt.textContent.trim() === formattedValue || opt.value.toLowerCase() === formattedValue.toLowerCase() || opt.textContent.trim().toLowerCase() === formattedValue.toLowerCase());
+            if (optionExists) {
+                inputElement.dataset.ocrFilling = 'true';
+                inputElement.value = optionExists.value;
+                inputElement.dataset.ocrFilling = 'false';
+            } else return;
+        } else {
+            inputElement.dataset.ocrFilling = 'true';
+            inputElement.value = formattedValue;
+            inputElement.dataset.ocrFilling = 'false';
+        }
+        inputElement.classList.add('ocr-auto-filled');
+        inputElement.dataset.ocrSource = (documentType || '').toString();
+        inputElement.dataset.ocrPriority = String(incomingPriority);
+
+        const htmlToCanonical = { vin: 'vin', chassisNumber: 'chassisNumber', engineNumber: 'engineNumber', plateNumber: 'plateNumber', make: 'make', model: 'model', year: 'year', vehicleType: 'vehicleType', color: 'color', fuelType: 'fuelType', grossVehicleWeight: 'grossVehicleWeight', netWeight: 'netWeight', idType: 'idType', idNumber: 'idNumber' };
+        const canonicalKey = htmlToCanonical[htmlInputId];
+        if (canonicalKey) {
+            storeOcrValue(canonicalKey, formattedValue, documentType);
+            if (canonicalKey === 'chassisNumber') storeOcrValue('vin', formattedValue, documentType);
+        }
+
+        if (htmlInputId === 'plateNumber') {
+            if (validateField(inputElement) === false) {
+                inputElement.value = '';
+                inputElement.classList.remove('ocr-auto-filled');
+                inputElement.classList.add('invalid');
+                return;
+            }
+        }
+        inputElement.dispatchEvent(new Event('change', { bubbles: true }));
+        inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+        fieldsFilled++;
+    });
+
+    if (idTypeDetection && idTypeDetection.idType) {
+        const idTypeSelect = document.getElementById('idType');
+        if (idTypeSelect) {
+            idTypeSelect.dataset.ocrConfidence = (idTypeDetection.confidence || 0).toString();
+            idTypeSelect.title = `Detected: ${idTypeDetection.idType.replace(/-/g, ' ')} (confidence ${Math.round((idTypeDetection.confidence || 0) * 100)}%)`;
+            renderIDTypeDetectionBadge(idTypeSelect, idTypeDetection.idType, idTypeDetection.confidence || 0);
+        }
+    }
+    if (fieldsFilled > 0) console.log(`[OCR AutoFill] Successfully auto-filled ${fieldsFilled} field(s) from document type: ${documentType}`);
+}
+
+/**
+ * Process document upload and extract data via OCR for auto-fill.
+ */
+async function processDocumentForOCRAutoFill(fileInput) {
+    const file = fileInput.files && fileInput.files[0];
+    if (!file) return;
+    const documentType = fileInput.getAttribute('data-document-type') || fileInput.id;
+
+    try {
+        const apiClient = window.apiClient || (window.APIClient && new window.APIClient());
+        if (!apiClient) return;
+
+        const indicator = document.createElement('div');
+        indicator.className = 'ocr-processing';
+        indicator.textContent = 'Extracting information from document...';
+        indicator.style.cssText = 'color: #667eea; font-size: 0.875rem; margin-top: 0.5rem;';
+        fileInput.parentElement.appendChild(indicator);
+
+        const formData = new FormData();
+        formData.append('document', file);
+        formData.append('documentType', documentType);
+
+        const token = getAuthToken();
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        try {
+            const response = await fetch('/api/documents/extract-info', { method: 'POST', headers: headers, body: formData });
+            if (!response.ok) {
+                indicator.textContent = `OCR extraction failed (${response.status}). Please enter information manually.`;
+                indicator.style.color = '#e74c3c';
+                setTimeout(() => indicator.remove(), 5000);
+                return;
+            }
+            const data = await response.json();
+
+            if (data.success && data.extractedData) {
+                if (documentType === 'ownerValidId' || documentType === 'owner_id' || documentType === 'ownerId') {
+                    const ownerIdData = { idType: data.extractedData.idType, idNumber: data.extractedData.idNumber };
+                    Object.keys(ownerIdData).forEach(key => { storeOcrValue(key, ownerIdData[key], documentType); });
+                } else {
+                    const vehicleDataFields = ['engineNumber', 'chassisNumber', 'plateNumber', 'vin', 'make', 'model', 'series', 'year', 'yearModel', 'color', 'fuelType', 'vehicleType', 'bodyType', 'grossVehicleWeight', 'grossWeight', 'netWeight', 'netCapacity', 'mvFileNumber', 'csrNumber'];
+                    vehicleDataFields.forEach(key => {
+                        const value = data.extractedData[key];
+                        if (value !== undefined && value !== null && value !== '') {
+                            storeOcrValue(key, value, documentType);
+                            if (key === 'series') storeOcrValue('model', value, documentType);
+                            if (key === 'yearModel') storeOcrValue('year', value, documentType);
+                            if (key === 'grossWeight') storeOcrValue('grossVehicleWeight', value, documentType);
+                            if (key === 'netCapacity') storeOcrValue('netWeight', value, documentType);
+                        }
+                    });
+                    const d = data.extractedData;
+                    if (d.engine_number) storeOcrValue('engineNumber', d.engine_number, documentType);
+                    if (d.chassis_number) storeOcrValue('chassisNumber', d.chassis_number, documentType);
+                    if (d.plate_number) storeOcrValue('plateNumber', d.plate_number, documentType);
+                    if (d.vin_number || d.vin_no) storeOcrValue('vin', d.vin_number || d.vin_no, documentType);
+                    if (d.vehicle_make) storeOcrValue('make', d.vehicle_make, documentType);
+                    if (d.vehicle_model || d.vehicle_series) storeOcrValue('model', d.vehicle_model || d.vehicle_series, documentType);
+                    if (d.year_model) storeOcrValue('year', d.year_model, documentType);
+                    if (d.vehicle_type || d.body_type) storeOcrValue('vehicleType', d.vehicle_type || d.body_type, documentType);
+                    if (d.fuel_type) storeOcrValue('fuelType', d.fuel_type, documentType);
+                    if (d.vehicle_color) storeOcrValue('color', d.vehicle_color, documentType);
+                }
+                autoFillFromOCRData(data.extractedData, documentType);
+                indicator.textContent = '✓ Information extracted and auto-filled';
+                indicator.style.color = '#27ae60';
+                setTimeout(() => indicator.remove(), 3000);
+            } else {
+                indicator.textContent = 'Could not extract information (manual entry required)';
+                indicator.style.color = '#e74c3c';
+                setTimeout(() => indicator.remove(), 3000);
+            }
+        } catch (ocrError) {
+            console.error('[ID AutoFill Debug] OCR ERROR:', ocrError);
+            indicator.remove();
+            if (documentType === 'owner_id' || documentType === 'ownerId' || documentType === 'ownerValidId') {
+                autoFillOwnerInfo();
+            }
+        }
+    } catch (error) {
+        console.error('Error processing document for OCR:', error);
+    }
+}
+
+/**
+ * Setup OCR auto-fill when documents are uploaded.
+ */
+function setupOCRAutoFill() {
+    setTimeout(() => {
+        const container = document.getElementById('document-upload-container');
+        console.log('[ID AutoFill Debug] setupOCRAutoFill - container found:', !!container);
+        if (!container) {
+            setTimeout(() => {
+                const retryContainer = document.getElementById('document-upload-container');
+                if (retryContainer) {
+                    retryContainer.addEventListener('change', async function (e) {
+                        if (e.target.type === 'file' && e.target.files && e.target.files[0]) {
+                            await processDocumentForOCRAutoFill(e.target);
+                        }
+                    });
+                }
+            }, 1000);
+            return;
+        }
+        container.addEventListener('change', async function (e) {
+            if (e.target.type === 'file' && e.target.files && e.target.files[0]) {
+                await processDocumentForOCRAutoFill(e.target);
+            }
+        });
+        console.log('[ID AutoFill Debug] setupOCRAutoFill - event listener attached');
+    }, 1000);
+}
+
+/**
+ * Auto-fill owner information from logged-in user profile.
+ */
+async function autoFillOwnerInfo() {
+    try {
+        if (typeof window === 'undefined' || (!window.apiClient && !window.APIClient)) {
+            for (let i = 0; i < 20; i++) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                if (window.apiClient || window.APIClient) break;
+            }
+        }
+        const apiClient = window.apiClient || (window.APIClient && new window.APIClient());
+        if (!apiClient) return;
+        let token = (apiClient && typeof apiClient.getAuthToken === 'function')
+            ? apiClient.getAuthToken()
+            : (localStorage.getItem('authToken') || localStorage.getItem('token') || localStorage.getItem('accessToken') ||
+               sessionStorage.getItem('authToken') || sessionStorage.getItem('token') || sessionStorage.getItem('accessToken'));
+        if (!token && typeof window !== 'undefined' && window.authManager && typeof window.authManager.getAccessToken === 'function') {
+            token = window.authManager.getAccessToken();
+        }
+        if (!token) return;
+        let profileResponse;
+        try {
+            profileResponse = await apiClient.get('/api/auth/profile');
+        } catch (error) {
+            return;
+        }
+        if (!profileResponse || !profileResponse.success || !profileResponse.user) return;
+        const user = profileResponse.user;
+        const firstNameField = document.getElementById('firstName');
+        const lastNameField = document.getElementById('lastName');
+        const emailField = document.getElementById('email');
+        const phoneField = document.getElementById('phone');
+        const addressField = document.getElementById('address');
+        let fieldsFilled = 0;
+        if (firstNameField && !firstNameField.value && user.firstName) {
+            firstNameField.value = user.firstName;
+            firstNameField.classList.add('auto-filled');
+            fieldsFilled++;
+        }
+        if (lastNameField && !lastNameField.value && user.lastName) {
+            lastNameField.value = user.lastName;
+            lastNameField.classList.add('auto-filled');
+            fieldsFilled++;
+        }
+        if (emailField && !emailField.value && user.email) {
+            emailField.value = user.email;
+            emailField.classList.add('auto-filled');
+            fieldsFilled++;
+        }
+        if (phoneField && !phoneField.value && user.phone) {
+            phoneField.value = user.phone;
+            phoneField.classList.add('auto-filled');
+            fieldsFilled++;
+        }
+        if (addressField && !addressField.value && user.address) {
+            addressField.value = user.address;
+            addressField.classList.add('auto-filled');
+            fieldsFilled++;
+        }
+        if (fieldsFilled > 0 && typeof ToastNotification !== 'undefined') {
+            ToastNotification.show('Owner information has been auto-filled from your profile. Upload documents in Step 1 for more accurate auto-fill.', 'info');
+        }
+    } catch (error) {
+        console.log('Auto-fill error (non-critical):', error);
+    }
+}
+
 function initializeFileUploads() {
     const fileInputs = document.querySelectorAll('input[type="file"]');
     fileInputs.forEach(input => {

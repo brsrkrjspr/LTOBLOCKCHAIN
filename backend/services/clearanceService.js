@@ -733,7 +733,7 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
 
         console.log(`[Auto-Send→Insurance] Request created: ${clearanceRequest.id} (with verification: ${verificationResult?.status || 'none'})`);
 
-        // Step 3: Update clearance request status if verification was successful
+        // Step 3: Update clearance request status when auto-verification returns APPROVED or REJECTED
         if (verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED') {
             await db.updateClearanceRequestStatus(clearanceRequest.id, 'APPROVED', {
                 verifiedBy: 'system',
@@ -743,6 +743,15 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
                 autoVerificationResult: verificationResult
             });
             console.log(`[Auto-Verify→Insurance] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
+        } else if (verificationResult && verificationResult.automated && verificationResult.status === 'REJECTED') {
+            await db.updateClearanceRequestStatus(clearanceRequest.id, 'REJECTED', {
+                verifiedBy: 'system',
+                verifiedAt: verificationResult.verifiedAt || new Date().toISOString(),
+                notes: `Auto-verified and rejected. Reason: ${verificationResult.reason || 'Verification failed'}`,
+                autoVerified: true,
+                autoVerificationResult: verificationResult
+            });
+            console.log(`[Auto-Verify→Insurance] Updated clearance request ${clearanceRequest.id} status to REJECTED`);
         }
 
         // Update vehicle verification status (if not already updated by autoVerifyInsurance)
@@ -774,18 +783,24 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
         }
 
         // Add to history
+        const insuranceAction = verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
+            ? 'INSURANCE_AUTO_VERIFIED_APPROVED'
+            : verificationResult && verificationResult.automated && verificationResult.status === 'REJECTED'
+            ? 'INSURANCE_AUTO_VERIFIED_REJECTED'
+            : verificationResult && verificationResult.automated
+            ? 'INSURANCE_AUTO_VERIFIED_PENDING'
+            : 'INSURANCE_VERIFICATION_REQUESTED';
+        const insuranceDesc = verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
+            ? `Insurance auto-verified and approved. Score: ${verificationResult.score || 0}%`
+            : verificationResult && verificationResult.automated && verificationResult.status === 'REJECTED'
+            ? `Insurance auto-verified and rejected. Reason: ${verificationResult.reason || 'Verification failed'}`
+            : verificationResult && verificationResult.automated
+            ? `Insurance auto-verified but flagged for manual review. Score: ${verificationResult.score || 0}%, Reason: ${verificationResult.reason || 'Unknown'}`
+            : `Insurance verification automatically requested`;
         await db.addVehicleHistory({
             vehicleId,
-            action: verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
-                ? 'INSURANCE_AUTO_VERIFIED_APPROVED'
-                : verificationResult && verificationResult.automated
-                ? 'INSURANCE_AUTO_VERIFIED_PENDING'
-                : 'INSURANCE_VERIFICATION_REQUESTED',
-            description: verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
-                ? `Insurance auto-verified and approved. Score: ${verificationResult.score || 0}%`
-                : verificationResult && verificationResult.automated
-                ? `Insurance auto-verified but flagged for manual review. Score: ${verificationResult.score || 0}%, Reason: ${verificationResult.reason || 'Unknown'}`
-                : `Insurance verification automatically requested`,
+            action: insuranceAction,
+            description: insuranceDesc,
             performedBy: requestedBy,
             transactionId: null,
             metadata: { 
@@ -797,15 +812,22 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
 
         // Create notification
         if (assignedTo) {
+            const notifTitle = verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
+                ? 'Insurance Auto-Verified and Approved'
+                : verificationResult && verificationResult.automated && verificationResult.status === 'REJECTED'
+                ? 'Insurance Auto-Verified and Rejected'
+                : 'New Insurance Verification Request';
+            const notifMessage = verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
+                ? `Insurance for vehicle ${vehicle.plate_number || vehicle.vin} was auto-verified and approved. Score: ${verificationResult.score || 0}%`
+                : verificationResult && verificationResult.automated && verificationResult.status === 'REJECTED'
+                ? `Insurance for vehicle ${vehicle.plate_number || vehicle.vin} was auto-verified and rejected. Reason: ${verificationResult.reason || 'Verification failed'}`
+                : `New insurance verification request for vehicle ${vehicle.plate_number || vehicle.vin}`;
+            const notifType = verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED' ? 'success' : verificationResult && verificationResult.automated && verificationResult.status === 'REJECTED' ? 'warning' : 'info';
             await db.createNotification({
                 userId: assignedTo,
-                title: verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
-                    ? 'Insurance Auto-Verified and Approved'
-                    : 'New Insurance Verification Request',
-                message: verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
-                    ? `Insurance for vehicle ${vehicle.plate_number || vehicle.vin} was auto-verified and approved. Score: ${verificationResult.score || 0}%`
-                    : `New insurance verification request for vehicle ${vehicle.plate_number || vehicle.vin}`,
-                type: verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED' ? 'success' : 'info'
+                title: notifTitle,
+                message: notifMessage,
+                type: notifType
             });
         }
 

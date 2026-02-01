@@ -2400,6 +2400,8 @@ function showApplicationModal(application) {
 
     // Prepare vehicle data (handle both nested and flat structures)
     const vehicle = application.vehicle || {};
+    const originType = vehicle.origin_type || vehicle.originType || application.origin_type || application.originType || 'NEW_REG';
+    const isTransferWorkflow = originType === 'TRANSFER';
     const inspectionStatus = vehicle.inspection_result || vehicle.inspectionResult || 'PENDING';
     const mvirNumber = vehicle.mvir_number || vehicle.mvirNumber || '';
     const inspectionDate = vehicle.inspection_date || vehicle.inspectionDate || '';
@@ -2455,14 +2457,20 @@ function showApplicationModal(application) {
                 <button class="modal-close" onclick="this.closest('.modal').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b;">×</button>
             </div>
             
-            <!-- Tab Navigation -->
+            <!-- Tab Navigation: Inspection only for transfer; CSR Validation for initial registration -->
             <div class="modal-tabs" style="display: flex; border-bottom: 2px solid #e2e8f0; padding: 0 1.5rem; background: #f8fafc; flex-shrink: 0; z-index: 10;">
                 <button class="modal-tab active" data-tab="details" onclick="switchModalTab('details')" style="padding: 1rem 1.5rem; border: none; background: transparent; font-weight: 600; color: #0284c7; border-bottom: 3px solid #0284c7; cursor: pointer; transition: all 0.2s;">
                     <i class="fas fa-file-alt me-2"></i>Application Details
                 </button>
+                ${isTransferWorkflow ? `
                 <button class="modal-tab" data-tab="inspection" onclick="switchModalTab('inspection')" style="padding: 1rem 1.5rem; border: none; background: transparent; font-weight: 600; color: #64748b; border-bottom: none; cursor: pointer; transition: all 0.2s;">
                     <i class="fas fa-clipboard-check me-2"></i>Inspection & Emission
                 </button>
+                ` : `
+                <button class="modal-tab" data-tab="csr-validation" onclick="switchModalTab('csr-validation')" style="padding: 1rem 1.5rem; border: none; background: transparent; font-weight: 600; color: #64748b; border-bottom: none; cursor: pointer; transition: all 0.2s;">
+                    <i class="fas fa-certificate me-2"></i>CSR Validation
+                </button>
+                `}
             </div>
             
             <!-- Tab Content Container -->
@@ -2597,7 +2605,7 @@ function showApplicationModal(application) {
                 </div>
                 </div>
                 
-                <!-- Inspection Tab (new content) -->
+                ${isTransferWorkflow ? `<!-- Inspection Tab (transfer only) -->
                 <div class="tab-pane" id="inspection-pane" style="display: none; padding: 1.5rem;">
                     <!-- Status Overview -->
                     <div style="display: flex; justify-content: space-between; align-items: center; background: #f8fafc; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid #e2e8f0;">
@@ -2700,6 +2708,36 @@ function showApplicationModal(application) {
                         </button>
                     </div>
                 </div>
+                ` : `
+                <!-- CSR Validation Tab (initial registration only) -->
+                <div class="tab-pane" id="csr-validation-pane" style="display: none; padding: 1.5rem;">
+                    <div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+                        <h6 style="color: #0c4a6e; margin: 0 0 0.75rem 0;"><i class="fas fa-info-circle me-2"></i>CSR &amp; Sales Invoice Validation</h6>
+                        <p style="color: #475569; font-size: 0.9rem; margin: 0 0 1rem 0;">CSR (Certificate of Stock Report) and Sales Invoice are generated during vehicle minting and linked with the vehicle on Fabric and IPFS. Validation status can be used for panelist review.</p>
+                        <div id="csr-validation-status-${application.id}" style="min-height: 40px; font-size: 0.9rem; color: #475569;">
+                            <span style="color: #64748b;"><i class="fas fa-check-circle" style="color: #10b981;"></i> Validation is based on minting flow (Fabric/IPFS).</span>
+                        </div>
+                    </div>
+                    <div class="detail-section">
+                        <h4>Linked documents (CSR / Sales Invoice)</h4>
+                        <div class="document-list" id="csr-docs-list-${application.id}">
+                            ${(() => {
+                                const docs = application.documents || [];
+                                const csrSales = docs.filter(d => {
+                                    const t = (d.documentType || d.document_type || '').toLowerCase();
+                                    return t === 'csr' || t === 'sales_invoice' || t === 'salesinvoice';
+                                });
+                                if (csrSales.length === 0) return '<p style="color: #64748b; font-size: 0.875rem;">No CSR or Sales Invoice documents linked yet. These are generated during minting.</p>';
+                                return csrSales.map(doc => {
+                                    const t = (doc.documentType || doc.document_type || '').toLowerCase();
+                                    const n = t === 'csr' ? 'CSR' : 'Sales Invoice';
+                                    return '<div class="document-item" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; margin: 6px 0;"><span>' + n + '</span></div>';
+                                }).join('');
+                            })()}
+                        </div>
+                    </div>
+                </div>
+                `}
             </div>
             
             <div class="modal-footer" style="display: flex; gap: 10px; justify-content: space-between; padding: 1rem 1.5rem; border-top: 1px solid #e2e8f0; background: #f8fafc;">
@@ -4231,11 +4269,10 @@ function closeIntegrityModal() {
 // ========================================
 
 /**
- * Switch between modal tabs (Details vs Inspection)
- * @param {string} tabName - Tab name: 'details' or 'inspection'
+ * Switch between modal tabs (Details, Inspection for transfer, or CSR Validation for registration)
+ * @param {string} tabName - Tab name: 'details', 'inspection', or 'csr-validation'
  */
 function switchModalTab(tabName) {
-    // Update tab buttons
     document.querySelectorAll('.modal-tab').forEach(tab => {
         if (tab.dataset.tab === tabName) {
             tab.style.color = '#0284c7';
@@ -4246,7 +4283,6 @@ function switchModalTab(tabName) {
         }
     });
 
-    // Update tab content panes
     document.querySelectorAll('.tab-pane').forEach(pane => {
         pane.style.display = 'none';
     });

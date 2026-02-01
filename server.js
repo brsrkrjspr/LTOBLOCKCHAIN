@@ -23,6 +23,7 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://fonts.googleapis.com"],
             scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+            workerSrc: ["'self'", "blob:"], // PDF.js and other libs create workers from blob URLs
             scriptSrcAttr: ["'unsafe-inline'"],
             imgSrc: ["'self'", "data:", "https:", "http://localhost:8080", "blob:"],
             connectSrc: ["'self'", "https://ltoblockchain.duckdns.org", "http://127.0.0.1:7242", "http://localhost:7242"],

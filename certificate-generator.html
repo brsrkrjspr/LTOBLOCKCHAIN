@@ -683,7 +683,7 @@
 
             try {
                 const apiClient = window.apiClient || new APIClient();
-                const response = await apiClient.get(`/api/users/lookup?email=${encodeURIComponent(email)}`);
+                const response = await apiClient.get(`/api/auth/users/lookup?email=${encodeURIComponent(email)}`);
 
                 if (response.success && response.user) {
                     previewDiv.style.display = 'flex';
@@ -744,7 +744,7 @@
 
                 // Call transfer certificate generation API
                 const apiClient = window.apiClient || new APIClient();
-                const response = await apiClient.post('/api/certificate-generation/transfer/generate', formData);
+                const response = await apiClient.post('/api/certificate-generation/transfer/generate-compliance-documents', formData);
 
                 loadingOverlay.classList.remove('show');
                 displayTransferResults(response, formData);
@@ -890,7 +890,7 @@
             try {
                 // Call user lookup API
                 const apiClient = window.apiClient || new APIClient();
-                const response = await apiClient.get(`/api/users/lookup?email=${encodeURIComponent(email)}`);
+                const response = await apiClient.get(`/api/auth/users/lookup?email=${encodeURIComponent(email)}`);
 
                 if (response.success && response.user) {
                     previewEl.style.display = 'flex';

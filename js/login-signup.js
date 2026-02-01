@@ -221,24 +221,22 @@
                 const result = await response.json();
                 console.log('Login response:', result);
 
+                // CHECK FOR 2FA FIRST - backend returns 202 with success: false when 2FA is required
+                if (response.status === 202 || result.require2fa || result.require_2fa) {
+                    console.log('2FA required for login');
+                    sessionStorage.setItem('pending2faTempToken', result.tempToken);
+                    sessionStorage.setItem('pending2faEmail', email);
+
+                    const loginForm = document.getElementById('loginForm');
+                    const twoFAForm = document.getElementById('twoFAForm');
+                    if (loginForm) loginForm.style.display = 'none';
+                    if (twoFAForm) twoFAForm.style.display = 'block';
+
+                    showNotification('Please enter the verification code sent to your email.', 'info');
+                    return;
+                }
+
                 if (result.success) {
-                    // CHECK FOR 2FA
-                    if (result.require2fa || result.require_2fa) {
-                        console.log('2FA required for login');
-                        // Store tempToken from backend for 2FA verification
-                        sessionStorage.setItem('pending2faTempToken', result.tempToken);
-                        sessionStorage.setItem('pending2faEmail', email);
-
-                        // Show 2FA UI
-                        const loginForm = document.getElementById('loginForm');
-                        const twoFAForm = document.getElementById('twoFAForm');
-                        if (loginForm) loginForm.style.display = 'none';
-                        if (twoFAForm) twoFAForm.style.display = 'block';
-
-                        showNotification('Please enter the verification code sent to your email.', 'info');
-                        return;
-                    }
-
                     // Store user data in localStorage (non-sensitive)
                     if (result.user) {
                         localStorage.setItem('currentUser', JSON.stringify(result.user));
@@ -479,10 +477,13 @@
     };
 
     window.cancel2FA = function () {
-        document.getElementById('twoFAForm').style.display = 'none';
-        document.getElementById('loginForm').style.display = 'block';
+        const twoFAForm = document.getElementById('twoFAForm');
+        const loginForm = document.getElementById('loginForm');
+        if (twoFAForm) twoFAForm.style.display = 'none';
+        if (loginForm) loginForm.style.display = 'block';
         sessionStorage.removeItem('pending2faTempToken');
         sessionStorage.removeItem('pending2faEmail');
+        sessionStorage.removeItem('pending2faUserId');
     };
 
     // ============================================

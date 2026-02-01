@@ -21,13 +21,14 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
         failures: [],
         linkedDocuments: []
     };
-    
+
     let newVehicle;
-    
+    let existingResubmitVehicle = null;
+
     // Normalize VIN to uppercase before transaction (VINs are standardized as uppercase)
     const normalizedVin = vehicle.vin ? vehicle.vin.toUpperCase().trim() : vehicle.vin;
     vehicle.vin = normalizedVin;
-    
+
     await db.transaction(async (client) => {
         // 1. Check for duplicate VIN WITHIN transaction using SELECT FOR UPDATE
         // This prevents race conditions by locking the row during the check
@@ -40,7 +41,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
             statusConstants.VEHICLE_STATUS.PENDING_BLOCKCHAIN,
             statusConstants.VEHICLE_STATUS.PROCESSING
         ];
-        
+
         const existingVehicleCheck = await client.query(
             `SELECT id, vin, plate_number, status 
              FROM vehicles 
@@ -48,8 +49,9 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
              FOR UPDATE`,
             [normalizedVin]
         );
-        
-        let existingResubmitVehicle = null;
+
+        // Reset for this transaction (reassign outer-scoped variable)
+        existingResubmitVehicle = null;
         if (existingVehicleCheck.rows.length > 0) {
             const existingVehicle = existingVehicleCheck.rows[0];
             if (blockingStatuses.includes(existingVehicle.status)) {
@@ -63,7 +65,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
                 console.log(`⚠️ VIN ${normalizedVin} exists with status ${existingVehicle.status} - resubmitting (UPDATE)`);
             }
         }
-        
+
         // 2. Check for duplicate plate number WITHIN transaction (if provided)
         if (vehicle.plateNumber) {
             const normalizedPlate = vehicle.plateNumber.trim();
@@ -74,7 +76,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
                  FOR UPDATE`,
                 [normalizedPlate]
             );
-            
+
             if (existingPlateCheck.rows.length > 0) {
                 const existingByPlate = existingPlateCheck.rows[0];
                 if (blockingStatuses.includes(existingByPlate.status)) {
@@ -89,7 +91,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
                 }
             }
         }
-        
+
         // 3. Create new vehicle or UPDATE existing rejected vehicle (resubmission)
         const vehicleValues = [
             normalizedVin,
@@ -125,11 +127,11 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
             );
             newVehicle = vehicleResult.rows[0];
         }
-        
+
         if (!newVehicle || !newVehicle.id) {
             throw new Error('Vehicle creation/update failed: newVehicle is missing or invalid');
         }
-        
+
         // 4. Add to history (within transaction)
         try {
             const truncatedDescription = 'Vehicle registration submitted';
@@ -150,51 +152,51 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
             console.error('❌ Failed to add vehicle history:', historyError);
             // Don't fail registration for history errors - log and continue
         }
-        
+
         // 5. Link documents (all within transaction)
         if (registrationData.documents && typeof registrationData.documents === 'object') {
             documentLinkingResults.total = Object.keys(registrationData.documents).length;
             const docTypes = require('../config/documentTypes');
-            
+
             // UUID validation regex (RFC 4122 compliant)
             const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-            
+
             function isValidUUID(str) {
                 return typeof str === 'string' && UUID_REGEX.test(str);
             }
-            
+
             for (const [frontendKey, docData] of Object.entries(registrationData.documents)) {
                 // Validate docData is an object
                 if (!docData || typeof docData !== 'object') {
                     console.warn(`⚠️ Invalid document data for ${frontendKey}, skipping`);
                     continue;
                 }
-                
+
                 // Map frontend key to logical type, then to database type
                 const logicalType = docTypes.mapLegacyType(frontendKey);
                 const dbDocType = docTypes.mapToDbType(logicalType);
-                
+
                 // Validate mapping results
                 if (!logicalType || !dbDocType) {
                     console.error(`❌ Unknown document type key: ${frontendKey} (mapped to: ${logicalType}, dbType: ${dbDocType})`);
                     continue;
                 }
-                
+
                 // Explicitly reject 'other' type
                 if (dbDocType === 'other') {
                     console.error(`❌ Document type mapped to 'other' for key: ${frontendKey}. This indicates a configuration error.`);
                     continue;
                 }
-                
+
                 // Validate logicalType is a valid logical type
                 if (!docTypes.isValidLogicalType(logicalType)) {
                     console.warn(`⚠️ Invalid logical type for ${frontendKey}: ${logicalType}, skipping`);
                     continue;
                 }
-                
+
                 try {
                     let documentRecord = null;
-                    
+
                     // Method 1: If document ID is provided (from upload response), update directly
                     if (docData.id && typeof docData.id === 'string') {
                         // Skip TEMP_ and doc_ prefixed IDs
@@ -224,7 +226,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
                             console.warn(`⚠️ Invalid UUID format for document ID: ${docData.id}. Expected UUID format.`);
                         }
                     }
-                    
+
                     // Method 2: If not found by ID, try filename or CID (for unlinked documents)
                     if (!documentRecord && (docData.filename || docData.cid)) {
                         try {
@@ -245,7 +247,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
                             console.error(`❌ Error querying document by filename/CID:`, queryError.message);
                         }
                     }
-                    
+
                     // Method 3: Try to find any unlinked document for this owner (fallback)
                     if (!documentRecord && ownerUser.id) {
                         try {
@@ -272,7 +274,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
                             console.error(`❌ Error querying recent unlinked documents:`, queryError.message);
                         }
                     }
-                    
+
                     // Method 4: Create new document record if not found (with minimal data)
                     if (!documentRecord) {
                         if (docData.filename || docData.cid) {
@@ -305,7 +307,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
                             console.warn(`⚠️ Cannot link ${frontendKey} document: No ID, filename, CID, or unlinked document found`);
                         }
                     }
-                    
+
                     // Track linking result
                     if (documentRecord) {
                         documentLinkingResults.linked++;
@@ -314,7 +316,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
                             id: documentRecord.id,
                             cid: documentRecord.ipfs_cid || docData.cid || null
                         });
-                        
+
                         // Collect CID for blockchain
                         if ((documentRecord.ipfs_cid || docData.cid) && logicalType && docTypes.isValidLogicalType(logicalType)) {
                             documentCids[logicalType] = {
@@ -345,16 +347,16 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
         } else {
             console.warn('⚠️ No documents provided in registration data - vehicle will be registered without documents');
         }
-        
+
         // Transaction will commit automatically if no errors thrown
         console.log(`✅ Transaction committed: Vehicle ${newVehicle.id} with ${documentLinkingResults.linked} documents`);
     });
-    
+
     // Update linked count based on documentCids
     const linkedCount = Object.keys(documentCids).length;
     documentLinkingResults.linked = linkedCount;
     documentLinkingResults.failed = documentLinkingResults.total - linkedCount;
-    
+
     return {
         vehicle: newVehicle,
         documentCids,

@@ -2165,11 +2165,11 @@ function updateReviewData() {
 
         try {
             // 1. Upload documents first (backend /api/vehicles/register expects document IDs, not raw files)
-            showTopError('Uploading documents...', 'info');
+            if (typeof ToastNotification !== 'undefined') ToastNotification.show('Uploading documents...', 'info');
             const uploadResults = await uploadDocuments(undefined);
 
             // 2. Collect vehicle and owner data (matches backend POST /api/vehicles/register payload)
-            showTopError('Submitting application...', 'info');
+            if (typeof ToastNotification !== 'undefined') ToastNotification.show('Submitting application...', 'info');
             const applicationData = collectApplicationData();
 
             const registrationData = {

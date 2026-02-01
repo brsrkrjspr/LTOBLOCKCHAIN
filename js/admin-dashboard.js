@@ -2995,6 +2995,13 @@ async function rejectApplication(applicationId) {
                         // Add notification for user
                         addUserNotification(applicationId, 'rejected', `Your application has been rejected. Reason: ${reason}. Please review and resubmit.`);
 
+                        // Close the application detail modal if it is open for this application (so it doesn't show stale Reject/Approve buttons)
+                        const applicationDetailModal = document.querySelector(`.modal .modal-content[data-vehicle-id="${applicationId}"]`);
+                        if (applicationDetailModal) {
+                            const parentModal = applicationDetailModal.closest('.modal');
+                            if (parentModal) parentModal.remove();
+                        }
+
                         // Refresh the table
                         await loadSubmittedApplications();
                         modal.remove();
@@ -3006,6 +3013,12 @@ async function rejectApplication(applicationId) {
                     // Fallback to localStorage only if no API client
                     updateApplicationStatus(applicationId, 'rejected', `Application rejected: ${reason}`);
                     ToastNotification.show('Application rejected (local only). Please refresh to sync with server.', 'warning');
+                    // Close application detail modal if open for this application
+                    const applicationDetailModal = document.querySelector(`.modal .modal-content[data-vehicle-id="${applicationId}"]`);
+                    if (applicationDetailModal) {
+                        const parentModal = applicationDetailModal.closest('.modal');
+                        if (parentModal) parentModal.remove();
+                    }
                     await loadSubmittedApplications();
                     modal.remove();
                     resolve();

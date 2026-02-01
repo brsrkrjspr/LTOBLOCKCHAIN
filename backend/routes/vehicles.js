@@ -1783,6 +1783,64 @@ router.put('/id/:id/status', authenticateToken, authorizeRole(['admin', 'lto_adm
             metadata: { previousStatus: vehicle.status, newStatus: status, notes }
         });
 
+        // When rejected, notify applicant by email and in-app notification
+        if (status === 'REJECTED' && (vehicle.owner_id || vehicle.owner_email)) {
+            const ownerEmail = vehicle.owner_email || (vehicle.owner_id ? (await db.getUserById(vehicle.owner_id))?.email : null);
+            const ownerName = [vehicle.owner_first_name, vehicle.owner_last_name].filter(Boolean).join(' ') || 'Applicant';
+            const rejectionReason = (notes || '').replace(/^Application rejected:\s*/i, '').trim() || 'No reason provided.';
+            const registrationUrl = process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org';
+            try {
+                if (ownerEmail) {
+                    const subject = 'Vehicle Registration Application Rejected - TrustChain LTO';
+                    const text = `
+Dear ${ownerName},
+
+Your vehicle registration application has been rejected by LTO.
+
+Vehicle: ${vehicle.plate_number || vehicle.vin || 'N/A'} - ${vehicle.make || ''} ${vehicle.model || ''} (${vehicle.year || ''})
+
+Reason: ${rejectionReason}
+
+You may correct the issues and resubmit your application by logging in at ${registrationUrl}.
+
+Best regards,
+LTO Lipa City Team
+                    `.trim();
+                    const html = `
+<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;}
+.email-container{background:#fff;border-radius:8px;padding:30px;box-shadow:0 2px 4px rgba(0,0,0,0.1);}
+.header{text-align:center;border-bottom:2px solid #e74c3c;padding-bottom:20px;margin-bottom:20px;}
+.header h1{color:#c0392b;margin:0;font-size:22px;}
+.reason-box{background:#fdf2f2;border-left:4px solid #e74c3c;padding:15px;margin:20px 0;border-radius:4px;}
+.footer{text-align:center;color:#666;font-size:12px;margin-top:24px;padding-top:20px;border-top:1px solid #eee;}
+.btn{display:inline-block;padding:12px 24px;background:#3498db;color:#fff;text-decoration:none;border-radius:4px;margin:16px 0;}</style></head><body>
+<div class="email-container">
+<div class="header"><h1>Application Rejected</h1></div>
+<p>Dear ${ownerName},</p>
+<p>Your vehicle registration application has been rejected by LTO.</p>
+<p><strong>Vehicle:</strong> ${vehicle.plate_number || vehicle.vin || 'N/A'} - ${vehicle.make || ''} ${vehicle.model || ''} (${vehicle.year || ''})</p>
+<div class="reason-box"><strong>Reason:</strong> ${rejectionReason}</div>
+<p>You may correct the issues and resubmit your application.</p>
+<p style="text-align:center;"><a href="${registrationUrl}" class="btn">Log in to resubmit</a></p>
+<div class="footer"><p>Best regards,<br>LTO Lipa City Team</p></div>
+</div></body></html>`;
+                    await sendMail({ to: ownerEmail, subject, text, html });
+                    console.log('✅ Rejection email sent to:', ownerEmail);
+                }
+                if (vehicle.owner_id) {
+                    await db.createNotification({
+                        userId: vehicle.owner_id,
+                        title: 'Application Rejected',
+                        message: `Your vehicle registration (${vehicle.plate_number || vehicle.vin || 'N/A'}) has been rejected. Reason: ${rejectionReason}. You may resubmit after correcting the issues.`,
+                        type: 'warning'
+                    });
+                }
+            } catch (notifyErr) {
+                console.error('Rejection notification error (non-blocking):', notifyErr.message);
+            }
+        }
+
         // Note: If status update triggers blockchain transaction, it will be stored on Fabric automatically
         // No local ledger writes - all blockchain data comes from Fabric
 

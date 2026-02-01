@@ -3255,3 +3255,5 @@ function updateReviewData() {
             loadDocumentRequirements,
             renderDocumentUploadFields
         };
+    }
+}

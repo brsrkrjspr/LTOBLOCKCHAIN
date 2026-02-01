@@ -87,12 +87,14 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
                     throw duplicateError;
                 } else {
                     if (!existingResubmitVehicle) existingResubmitVehicle = existingByPlate;
-                    console.log(`⚠️ Plate ${normalizedPlate} exists with status ${existingByPlate.status} - resubmitting (UPDATE)`);
+                    console.log(`⚠️ Plate ${normalizedPlate} exists with status ${existingByPlate.status} - will create new record (resubmission)`);
                 }
             }
         }
 
-        // 3. Create new vehicle or UPDATE existing rejected vehicle (resubmission)
+        // 3. ALWAYS CREATE new vehicle record (even for resubmissions)
+        // This preserves rejected applications as separate records for audit trail
+        // If resubmitting, set previous_application_id to link to rejected predecessor
         const vehicleValues = [
             normalizedVin,
             vehicle.plateNumber ? vehicle.plateNumber.trim() : null,
@@ -100,32 +102,23 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
             vehicle.engineNumber, vehicle.chassisNumber,
             vehicle.vehicleType || 'Car', vehicle.vehicleCategory,
             parseInt(vehicle.passengerCapacity), parseFloat(vehicle.grossVehicleWeight), parseFloat(vehicle.netWeight),
-            vehicle.classification || 'Private', ownerUser.id, 'SUBMITTED', registrationData.notes, 'NEW_REG'
+            vehicle.classification || 'Private', ownerUser.id, 'SUBMITTED', registrationData.notes, 'NEW_REG',
+            existingResubmitVehicle ? existingResubmitVehicle.id : null  // previous_application_id
         ];
-        if (existingResubmitVehicle && existingResubmitVehicle.id) {
-            const updateResult = await client.query(
-                `UPDATE vehicles SET
-                    vin = $1, plate_number = $2, make = $3, model = $4, year = $5, color = $6,
-                    engine_number = $7, chassis_number = $8, vehicle_type = $9, vehicle_category = $10,
-                    passenger_capacity = $11, gross_vehicle_weight = $12, net_weight = $13,
-                    registration_type = $14, owner_id = $15, status = $16, notes = $17, origin_type = $18,
-                    last_updated = CURRENT_TIMESTAMP
-                 WHERE id = $19
-                 RETURNING *`,
-                [...vehicleValues.slice(0, 18), existingResubmitVehicle.id]
-            );
-            newVehicle = updateResult.rows[0];
-        } else {
-            const vehicleResult = await client.query(
-                `INSERT INTO vehicles (
-                    vin, plate_number, make, model, year, color, engine_number, chassis_number,
-                    vehicle_type, vehicle_category, passenger_capacity, gross_vehicle_weight, net_weight,
-                    registration_type, owner_id, status, notes, origin_type
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-                RETURNING *`,
-                vehicleValues
-            );
-            newVehicle = vehicleResult.rows[0];
+
+        const vehicleResult = await client.query(
+            `INSERT INTO vehicles (
+                vin, plate_number, make, model, year, color, engine_number, chassis_number,
+                vehicle_type, vehicle_category, passenger_capacity, gross_vehicle_weight, net_weight,
+                registration_type, owner_id, status, notes, origin_type, previous_application_id
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            RETURNING *`,
+            vehicleValues
+        );
+        newVehicle = vehicleResult.rows[0];
+
+        if (existingResubmitVehicle) {
+            console.log(`✅ Created new vehicle record ${newVehicle.id} as resubmission of rejected ${existingResubmitVehicle.id}`);
         }
 
         if (!newVehicle || !newVehicle.id) {

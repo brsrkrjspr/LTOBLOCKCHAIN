@@ -285,16 +285,25 @@ class AutoVerificationService {
             // matches issued_certificates, still allow auto-approval with reason (Insurance org requirement).
             let dataValidatedMatch = false;
             let dataValidatedCertificate = null;
+            const ocrExpiry = ocrData.insuranceExpiry || ocrData.expiryDate;
             if (!authenticityCheck.authentic && patternCheck.valid && !hashCheck.exists && expiryCheck.isValid) {
+                console.log('[Auto-Verify] Data-based lookup attempt:', {
+                    vehicleVin: vehicle.vin,
+                    policyNumber,
+                    ocrExpiry,
+                    certificateType: 'insurance'
+                });
                 dataValidatedCertificate = await certificateBlockchain.findIssuedCertificateByExtractedData(
                     vehicle.vin,
                     policyNumber,
                     'insurance',
-                    ocrData.insuranceExpiry || ocrData.expiryDate
+                    ocrExpiry
                 );
                 if (dataValidatedCertificate) {
                     dataValidatedMatch = true;
                     console.log('[Auto-Verify] Data-based match: extracted data matches issued_certificates (hash mismatch, e.g. re-saved or renamed file)');
+                } else {
+                    console.log('[Auto-Verify] Data-based lookup: no matching row in issued_certificates (cert may be external or VIN/cert-number/expiry mismatch)');
                 }
             }
 

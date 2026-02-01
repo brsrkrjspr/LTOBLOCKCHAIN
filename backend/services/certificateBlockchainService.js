@@ -208,9 +208,11 @@ class CertificateBlockchainService {
             // ============================================
             
             // CHECK 1: issued_certificates table (from certificate-generator.html)
-            // Lookup by file_hash first - this is the primary authenticity check
+            // Lookup by file_hash first - this is the primary authenticity check.
+            // Insurance certs may be stored as 'insurance' or 'ctpl' in issued_certificates.
+            const issuedTypes = certificateType === 'insurance' ? ['insurance', 'ctpl'] : [certificateType];
             console.log('🔐 [Certificate Authenticity] CHECK 1: Looking up issued_certificates by file_hash');
-            console.log('🔐 [Certificate Authenticity] Query:', `SELECT ... FROM issued_certificates WHERE file_hash = '${fileHash.substring(0, 16)}...' AND certificate_type = '${certificateType}'`);
+            console.log('🔐 [Certificate Authenticity] Query:', `SELECT ... FROM issued_certificates WHERE file_hash = '${fileHash.substring(0, 16)}...' AND certificate_type = ANY(ARRAY[${issuedTypes.map(t => `'${t}'`).join(',')}])`);
             
             const issuedCertQuery = await dbRaw.query(
                 `SELECT id, file_hash, composite_hash, certificate_number, 
@@ -218,10 +220,10 @@ class CertificateBlockchainService {
                         blockchain_tx_id, is_revoked, created_at, certificate_type
                  FROM issued_certificates 
                  WHERE file_hash = $1 
-                   AND certificate_type = $2 
+                   AND certificate_type = ANY($2::text[])
                    AND is_revoked = false
                  ORDER BY created_at DESC LIMIT 1`,
-                [fileHash, certificateType]
+                [fileHash, issuedTypes]
             );
             
             console.log('🔐 [Certificate Authenticity] CHECK 1 Result:', {
@@ -272,7 +274,9 @@ class CertificateBlockchainService {
             console.log('🔐 [Certificate Authenticity] ❌ No match in issued_certificates');
 
             // CHECK 2: certificates table (from clearance workflow)
-            // Also lookup by file_hash for certificates from clearance workflow
+            // Also lookup by file_hash for certificates from clearance workflow.
+            // Use same type list as issued_certificates for insurance (insurance/ctpl).
+            const certTypes = certificateType === 'insurance' ? ['insurance', 'ctpl'] : [certificateType];
             console.log('🔐 [Certificate Authenticity] CHECK 2: Looking up certificates table by file_hash');
             const certQuery = await dbRaw.query(
                 `SELECT id, file_hash, composite_hash, certificate_number, 
@@ -280,10 +284,10 @@ class CertificateBlockchainService {
                         blockchain_tx_id, vehicle_id, certificate_type
                  FROM certificates 
                  WHERE file_hash = $1 
-                   AND certificate_type = $2 
+                   AND certificate_type = ANY($2::text[])
                    AND status IN ('ACTIVE')
                  ORDER BY issued_at DESC LIMIT 1`,
-                [fileHash, certificateType]
+                [fileHash, certTypes]
             );
             
             console.log('🔐 [Certificate Authenticity] CHECK 2 Result:', {
@@ -336,17 +340,18 @@ class CertificateBlockchainService {
                 if (vehicle && vehicle.vin) {
                     const vehicleVin = vehicle.vin;
 
-                    // Fallback: Check issued_certificates by vehicle_vin
+                    // Fallback: Check issued_certificates by vehicle_vin (same type list as primary check)
+                    const fallbackIssuedTypes = certificateType === 'insurance' ? ['insurance', 'ctpl'] : [certificateType];
                     const fallbackIssuedQuery = await dbRaw.query(
                         `SELECT id, file_hash, composite_hash, certificate_number, 
                                 vehicle_vin, metadata, issued_at, expires_at,
                                 blockchain_tx_id, is_revoked, created_at
                          FROM issued_certificates 
                          WHERE vehicle_vin = $1 
-                           AND certificate_type = $2 
+                           AND certificate_type = ANY($2::text[])
                            AND is_revoked = false
                          ORDER BY created_at DESC LIMIT 1`,
-                        [vehicleVin, certificateType]
+                        [vehicleVin, fallbackIssuedTypes]
                     );
 
                     if (fallbackIssuedQuery.rows && fallbackIssuedQuery.rows.length > 0) {
@@ -367,17 +372,18 @@ class CertificateBlockchainService {
                         };
                     }
 
-                    // Fallback: Check certificates table by vehicle_id
+                    // Fallback: Check certificates table by vehicle_id (same type list as primary check)
+                    const fallbackCertTypes = certificateType === 'insurance' ? ['insurance', 'ctpl'] : [certificateType];
                     const fallbackCertQuery = await dbRaw.query(
                         `SELECT id, file_hash, composite_hash, certificate_number, 
                                 status, application_status, issued_at, expires_at,
                                 blockchain_tx_id
                          FROM certificates 
                          WHERE vehicle_id = $1 
-                           AND certificate_type = $2 
+                           AND certificate_type = ANY($2::text[])
                            AND status IN ('ACTIVE')  
                          ORDER BY issued_at DESC LIMIT 1`,
-                        [vehicleId, certificateType]
+                        [vehicleId, fallbackCertTypes]
                     );
 
                     if (fallbackCertQuery.rows && fallbackCertQuery.rows.length > 0) {
@@ -406,14 +412,15 @@ class CertificateBlockchainService {
             console.log('🔐 [Certificate Authenticity] ❌ NO MATCH FOUND in either table');
             console.log('🔐 [Certificate Authenticity] Checking all issued_certificates for debugging...');
             
-            // Debug: Check all certificates of this type
+            // Debug: Check all certificates of this type (use same type list for insurance)
+            const debugTypes = certificateType === 'insurance' ? ['insurance', 'ctpl'] : [certificateType];
             const allCertsDebug = await dbRaw.query(
                 `SELECT id, certificate_number, vehicle_vin, file_hash, certificate_type, created_at
                  FROM issued_certificates 
-                 WHERE certificate_type = $1 
+                 WHERE certificate_type = ANY($1::text[])
                  ORDER BY created_at DESC 
                  LIMIT 10`,
-                [certificateType]
+                [debugTypes]
             );
             console.log('🔐 [Certificate Authenticity] All certificates in issued_certificates:', {
                 totalFound: allCertsDebug.rows.length,
@@ -470,24 +477,30 @@ class CertificateBlockchainService {
             if (!vehicleVin || !certificateNumber || !certificateType) return null;
             const vin = String(vehicleVin).toUpperCase().trim();
             const number = String(certificateNumber).trim().toUpperCase().replace(/\s+/g, ' ');
+            // Insurance certs in issued_certificates are stored as 'ctpl' by the certificate generator
+            const types = certificateType === 'insurance' ? ['insurance', 'ctpl'] : [certificateType];
             const result = await dbRaw.query(
                 `SELECT id, certificate_number, vehicle_vin, file_hash, composite_hash, 
                         issued_at, expires_at, certificate_type, is_revoked, metadata
                  FROM issued_certificates 
                  WHERE UPPER(TRIM(vehicle_vin)) = $1 
-                   AND certificate_type = $2 
+                   AND certificate_type = ANY($2::text[])
                    AND UPPER(REPLACE(TRIM(certificate_number), ' ', '')) = UPPER(REPLACE($3, ' ', ''))
                    AND is_revoked = false
                  ORDER BY created_at DESC LIMIT 1`,
-                [vin, certificateType, number]
+                [vin, types, number]
             );
-            if (!result.rows || result.rows.length === 0) return null;
+            if (!result.rows || result.rows.length === 0) {
+                console.log(`[Certificate Authenticity] Data match: no row in issued_certificates for vin=${vin}, cert=${number}, type=${certificateType} (types tried: ${types.join(', ')})`);
+                return null;
+            }
             const row = result.rows[0];
             if (expiryDate) {
                 const issuedExpiry = row.expires_at ? new Date(row.expires_at).toISOString().split('T')[0] : null;
-                const submittedExpiry = new Date(expiryDate).toISOString().split('T')[0];
+                const submittedDate = this._parseExpiryToDate(expiryDate);
+                const submittedExpiry = submittedDate ? submittedDate.toISOString().split('T')[0] : null;
                 if (issuedExpiry && submittedExpiry && issuedExpiry !== submittedExpiry) {
-                    console.log(`[Certificate Authenticity] Data match: expiry differs (issued: ${issuedExpiry}, submitted: ${submittedExpiry})`);
+                    console.log(`[Certificate Authenticity] Data match: expiry differs (issued: ${issuedExpiry}, submitted: ${submittedExpiry}, raw: ${expiryDate})`);
                     return null;
                 }
             }
@@ -496,6 +509,24 @@ class CertificateBlockchainService {
             console.error('Error in findIssuedCertificateByExtractedData:', error);
             return null;
         }
+    }
+
+    /**
+     * Parse expiry string (e.g. DD-MMM-YYYY like 01-Feb-2027, or ISO) to Date for comparison.
+     */
+    _parseExpiryToDate(expiryDate) {
+        if (!expiryDate) return null;
+        const s = String(expiryDate).trim();
+        const ddmmyyyy = s.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
+        if (ddmmyyyy) {
+            const months = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+            const month = months[ddmmyyyy[2].toLowerCase().slice(0, 3)];
+            if (month === undefined) return new Date(s);
+            const date = new Date(parseInt(ddmmyyyy[3], 10), month, parseInt(ddmmyyyy[1], 10));
+            return isNaN(date.getTime()) ? new Date(s) : date;
+        }
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
     }
 
     /**
@@ -514,15 +545,17 @@ class CertificateBlockchainService {
             }
             const vehicleVin = vehicle.vin;
 
-            // Priority 1: Check issued_certificates table (from certificate-generator.html)
+            // Priority 1: Check issued_certificates table (from certificate-generator.html).
+            // Insurance certs may be stored as 'insurance' or 'ctpl'.
+            const origIssuedTypes = certificateType === 'insurance' ? ['insurance', 'ctpl'] : [certificateType];
             const issuedCertResult = await dbRaw.query(
                 `SELECT certificate_number, file_hash, composite_hash, issued_at, expires_at
                  FROM issued_certificates 
                  WHERE vehicle_vin = $1 
-                   AND certificate_type = $2 
+                   AND certificate_type = ANY($2::text[])
                    AND is_revoked = false
                  ORDER BY created_at DESC LIMIT 1`,
-                [vehicleVin, certificateType]
+                [vehicleVin, origIssuedTypes]
             );
 
             if (issuedCertResult.rows && issuedCertResult.rows.length > 0) {
@@ -530,14 +563,15 @@ class CertificateBlockchainService {
             }
 
             // Priority 2: Check certificates table (from clearance workflow)
+            const origCertTypes = certificateType === 'insurance' ? ['insurance', 'ctpl'] : [certificateType];
             const certResult = await dbRaw.query(
                 `SELECT certificate_number, file_hash, composite_hash, issued_at, expires_at
                  FROM certificates 
                  WHERE vehicle_id = $1 
-                   AND certificate_type = $2 
+                   AND certificate_type = ANY($2::text[])
                    AND status IN ('ACTIVE')  
                  ORDER BY issued_at DESC LIMIT 1`,
-                [vehicleId, certificateType]
+                [vehicleId, origCertTypes]
             );
 
             return certResult.rows && certResult.rows.length > 0 ? certResult.rows[0] : null;

@@ -1429,7 +1429,7 @@ async function submitTransferDocument(docKey, transferRequestId, vehicleId) {
             'buyer_id': window.DocumentUploadUtils.DOCUMENT_TYPES.BUYER_ID || 'buyerId',
             'buyer_tin': window.DocumentUploadUtils.DOCUMENT_TYPES.OWNER_ID || 'ownerId', // TIN uses ownerId type
             'buyer_ctpl': window.DocumentUploadUtils.DOCUMENT_TYPES.INSURANCE_CERT || 'insuranceCert',
-            'buyer_hpg_clearance': window.DocumentUploadUtils.DOCUMENT_TYPES.OWNER_ID || 'ownerId', // HPG uses ownerId type
+            'buyer_hpg_clearance': window.DocumentUploadUtils.DOCUMENT_TYPES.HPG_CLEARANCE || 'hpgClearance', // FIXED: Use HPG_CLEARANCE type, not ownerId
             'buyer_mvir': window.DocumentUploadUtils.DOCUMENT_TYPES.OWNER_ID || 'ownerId', // MVIR uses ownerId type
             'deed_of_sale': window.DocumentUploadUtils.DOCUMENT_TYPES.DEED_OF_SALE || 'deedOfSale',
             'seller_id': window.DocumentUploadUtils.DOCUMENT_TYPES.SELLER_ID || 'sellerId',
@@ -1532,14 +1532,14 @@ async function handleBuyerDocumentUpload(input, docKey, transferRequestId, vehic
     const filenameDiv = document.getElementById(`filename-${uniqueId}`);
     const uploadItem = document.getElementById(`upload-item-${uniqueId}`);
     
-    // Map buyer document keys to logical document types (for DocumentUploadUtils)
-    const docTypeMap = {
-        'buyer_id': window.DocumentUploadUtils?.DOCUMENT_TYPES?.BUYER_ID || 'buyerId',
-        'buyer_tin': window.DocumentUploadUtils?.DOCUMENT_TYPES?.OWNER_ID || 'ownerId', // TIN uses ownerId type
-        'buyer_ctpl': window.DocumentUploadUtils?.DOCUMENT_TYPES?.INSURANCE_CERT || 'insuranceCert',
-        'buyer_hpg_clearance': window.DocumentUploadUtils?.DOCUMENT_TYPES?.OWNER_ID || 'ownerId', // HPG uses ownerId type
-        'buyer_mvir': window.DocumentUploadUtils?.DOCUMENT_TYPES?.OWNER_ID || 'ownerId' // MVIR uses ownerId type
-    };
+        // Map buyer document keys to logical document types (for DocumentUploadUtils)
+        const docTypeMap = {
+            'buyer_id': window.DocumentUploadUtils?.DOCUMENT_TYPES?.BUYER_ID || 'buyerId',
+            'buyer_tin': window.DocumentUploadUtils?.DOCUMENT_TYPES?.OWNER_ID || 'ownerId', // TIN uses ownerId type
+            'buyer_ctpl': window.DocumentUploadUtils?.DOCUMENT_TYPES?.INSURANCE_CERT || 'insuranceCert',
+            'buyer_hpg_clearance': window.DocumentUploadUtils?.DOCUMENT_TYPES?.HPG_CLEARANCE || 'hpgClearance', // FIXED: Use HPG_CLEARANCE type, not ownerId
+            'buyer_mvir': window.DocumentUploadUtils?.DOCUMENT_TYPES?.OWNER_ID || 'ownerId' // MVIR uses ownerId type
+        };
     
     const logicalDocType = docTypeMap[docKey];
     if (!logicalDocType) {

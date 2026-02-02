@@ -476,6 +476,13 @@ class AutoVerificationService {
 
         try {
             console.log(`[Auto-Verify] Starting HPG auto-verification for vehicle ${vehicleId}`);
+            console.log(`[Auto-Verify] Received ${documents.length} document(s) for verification`);
+            console.log(`[Auto-Verify] Document details:`, documents.map(d => ({
+                id: d.id,
+                document_type: d.document_type,
+                type: d.type,
+                original_name: d.original_name || d.originalName
+            })));
 
             // Find HPG Clearance document (HPG receives hpg_clearance, not OR/CR)
             // For transfer requests, buyer uploads with type 'buyer_hpg_clearance' (transfer role)
@@ -491,6 +498,19 @@ class AutoVerificationService {
                 d.type === 'buyer_hpg_clearance' // Transfer role (from metadata.documents)
             );
 
+            if (hpgClearanceDoc) {
+                console.log(`[Auto-Verify] Found HPG clearance document:`, {
+                    id: hpgClearanceDoc.id,
+                    document_type: hpgClearanceDoc.document_type,
+                    type: hpgClearanceDoc.type,
+                    original_name: hpgClearanceDoc.original_name || hpgClearanceDoc.originalName
+                });
+            } else {
+                console.warn(`[Auto-Verify] HPG clearance document not found. Available document types:`, 
+                    documents.map(d => ({ document_type: d.document_type, type: d.type }))
+                );
+            }
+
             // Fallback: Also check for OR/CR (for transfer cases where OR/CR is submitted)
             const clearanceDoc = hpgClearanceDoc || documents.find(d => 
                 d.document_type === 'registration_cert' || 
@@ -501,10 +521,18 @@ class AutoVerificationService {
             );
 
             if (!clearanceDoc) {
+                console.error(`[Auto-Verify] No HPG clearance or OR/CR document found. Available documents:`, 
+                    documents.map(d => ({
+                        id: d.id,
+                        document_type: d.document_type,
+                        type: d.type,
+                        original_name: d.original_name || d.originalName
+                    }))
+                );
                 return {
                     status: 'PENDING',
                     automated: false,
-                    reason: 'HPG Clearance document not found',
+                    reason: `HPG Clearance document not found. Available document types: ${documents.map(d => d.document_type || d.type).join(', ')}`,
                     confidence: 0
                 };
             }

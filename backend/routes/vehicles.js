@@ -179,7 +179,7 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
         }
 
         const includeHistory = req.query.includeHistory === 'true' || req.query.includeHistory === '1';
-        const historyLimitRaw = parseInt(req.query.historyLimit || req.query.history_limit, 10);
+        const historyLimitRaw = parseInt(req.query.historyLimit, 10);
         const historyLimit = Number.isFinite(historyLimitRaw)
             ? Math.min(Math.max(historyLimitRaw, 1), 20)
             : 5;
@@ -227,7 +227,7 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
                     SELECT *
                     FROM (
                         SELECT vh.*,
-                               u.first_name || ' ' || u.last_name as performer_name,
+                               CONCAT_WS(' ', u.first_name, u.last_name) as performer_name,
                                ROW_NUMBER() OVER (PARTITION BY vh.vehicle_id ORDER BY vh.performed_at DESC) AS rn
                         FROM vehicle_history vh
                         LEFT JOIN users u ON vh.performed_by = u.id

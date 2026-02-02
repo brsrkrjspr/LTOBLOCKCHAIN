@@ -2210,6 +2210,14 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function formatHistoryAction(action) {
+    if (!action) return 'History';
+    return action
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, char => char.toUpperCase());
+}
+
 function getStatusText(status) {
     // Use StatusUtils.getStatusText if available, otherwise fallback
     if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
@@ -3687,11 +3695,11 @@ async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BL
             const historyRows = historyItems.map(entry => {
                 const timestamp = entry.performed_at || entry.timestamp;
                 const timestampText = timestamp ? new Date(timestamp).toLocaleString() : 'N/A';
-                const action = entry.action ? entry.action.replace(/_/g, ' ') : 'HISTORY';
+                const action = entry.action ? formatHistoryAction(entry.action) : 'History';
                 const description = entry.description || '';
                 const performer = entry.performer_name || entry.performed_by || 'System';
                 const txId = entry.transaction_id || entry.transactionId;
-                const txDisplay = txId ? `${txId.substring(0, 12)}...` : 'N/A';
+                const txDisplay = txId ? (txId.length > 12 ? `${txId.substring(0, 12)}...` : txId) : 'N/A';
                 const txBadge = txId
                     ? `<span style="margin-left: 0.5rem; background: #dcfce7; color: #166534; border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.75rem; font-weight: 600;"><i class="fas fa-lock"></i> Immutable</span>`
                     : `<span style="margin-left: 0.5rem; background: #e2e8f0; color: #475569; border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.75rem; font-weight: 600;"><i class="fas fa-database"></i> DB</span>`;
@@ -3746,7 +3754,7 @@ async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BL
                     <td colspan="8" style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 0.75rem 1.25rem;">
                         <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: #0f172a; font-weight: 600;">
                             <i class="fas fa-history" style="color: #0284c7;"></i>
-                            <span>Audit Trail (latest ${historyItems.length} event${historyItems.length === 1 ? '' : 's'})</span>
+                            <span>Audit Trail (latest ${historyItems.length} event${historyItems.length === 1 ? '' : 's'}${historyItems.length >= 5 ? ' shown' : ''})</span>
                         </div>
                         <div>${historyRows}</div>
                     </td>

@@ -313,7 +313,7 @@
                         const userEmail = result.user?.email?.toLowerCase();
 
                         // Special case: Certificate Generator account goes directly to certificate generator
-                        if (userEmail === 'certificategenerator@gmail.com') {
+                        if (userEmail === 'certificategenerator@generator.com') {
                             window.location.href = 'certificate-generator.html';
                             return;
                         }
@@ -437,7 +437,7 @@
                     const userEmail = result.user?.email?.toLowerCase();
 
                     // Special case: Certificate Generator account
-                    if (userEmail === 'certificategenerator@gmail.com') {
+                    if (userEmail === 'certificategenerator@generator.com') {
                         window.location.href = 'certificate-generator.html';
                         return;
                     }

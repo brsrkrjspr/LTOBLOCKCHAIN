@@ -306,13 +306,17 @@ async function loadVehicleDetails(vehicleId) {
                 vehicle.chassisNo || '';
             document.getElementById('chassisNumber').value = chassisNumber || vehicle.vin || 'Not Recorded';
 
-            // New fields: Weights and Capacity
-            document.getElementById('passengerCapacity').value = vehicle.passengerCapacity || vehicle.passenger_capacity || 'Not Available';
-            document.getElementById('grossVehicleWeight').value = vehicle.grossVehicleWeight || vehicle.gross_vehicle_weight || 'Not Available';
-            document.getElementById('netWeight').value = vehicle.netWeight || vehicle.net_weight || 'Not Available';
-            document.getElementById('vehicleType').value = vehicle.vehicleType || vehicle.vehicle_type || 'Not Available';
-            document.getElementById('vehicleCategory').value = vehicle.vehicleCategory || vehicle.vehicle_category || 'Not Available';
-            document.getElementById('classification').value = vehicle.classification || 'Not Available';
+            // New fields: Weights and Capacity (optional - may not exist in all forms)
+            const setOptionalField = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) el.value = value;
+            };
+            setOptionalField('passengerCapacity', vehicle.passengerCapacity || vehicle.passenger_capacity || 'Not Available');
+            setOptionalField('grossVehicleWeight', vehicle.grossVehicleWeight || vehicle.gross_vehicle_weight || 'Not Available');
+            setOptionalField('netWeight', vehicle.netWeight || vehicle.net_weight || 'Not Available');
+            setOptionalField('vehicleType', vehicle.vehicleType || vehicle.vehicle_type || 'Not Available');
+            setOptionalField('vehicleCategory', vehicle.vehicleCategory || vehicle.vehicle_category || 'Not Available');
+            setOptionalField('classification', vehicle.classification || 'Not Available');
 
             // Show vehicle info and inspection form
             document.getElementById('vehicleInfoCard').style.display = 'block';

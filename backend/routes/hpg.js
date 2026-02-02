@@ -264,15 +264,47 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                         [docIds]
                     );
                     documents = docResult.rows || [];
+                    
+                    // CRITICAL FIX: Preserve the 'type' field from metadata.documents
+                    // This is needed because documents loaded from DB have document_type (e.g., 'owner_id')
+                    // but metadata.documents has type (e.g., 'buyer_hpg_clearance') which is the transfer role
+                    // Handle duplicates: if same document ID appears with multiple types, prioritize buyer_hpg_clearance
+                    const typeMap = new Map();
+                    metadata.documents.forEach(mdDoc => {
+                        if (mdDoc.id && mdDoc.type) {
+                            const existingType = typeMap.get(mdDoc.id);
+                            // Prioritize buyer_hpg_clearance over other types for the same document ID
+                            if (!existingType || mdDoc.type === 'buyer_hpg_clearance' || mdDoc.type === 'hpg_clearance') {
+                                typeMap.set(mdDoc.id, mdDoc.type);
+                            }
+                        }
+                    });
+                    
+                    // Add the type field from metadata to each loaded document
+                    documents = documents.map(doc => {
+                        const metadataType = typeMap.get(doc.id);
+                        if (metadataType) {
+                            return { ...doc, type: metadataType };
+                        }
+                        return doc;
+                    });
+                    
                     console.log(`📄 [HPG Auto-Verify API] Loaded ${documents.length} document(s) from metadata.documents array`);
-                    console.log('📄 [HPG Auto-Verify API] Loaded document types:', documents.map(d => d.document_type || d.type));
+                    console.log('📄 [HPG Auto-Verify API] Loaded document types:', documents.map(d => ({ 
+                        document_type: d.document_type, 
+                        type: d.type,
+                        id: d.id 
+                    })));
                 } else {
                     console.warn('📄 [HPG Auto-Verify API] metadata.documents array exists but no valid IDs found');
                 }
             }
 
             // 2) FALLBACK: Use explicit document IDs from metadata (for transfers: buyerHpgDocId, for legacy: hpgClearanceDocId)
-            if (documents.length === 0) {
+            // Also check transfer_documents table to find buyer HPG clearance if buyerHpgDocId is not set
+            if (documents.length === 0 || !documents.some(d => 
+                (d.document_type === 'hpg_clearance' || d.type === 'buyer_hpg_clearance' || d.type === 'hpg_clearance')
+            )) {
                 // For transfer requests: buyerHpgDocId (buyer's HPG clearance)
                 if (metadata.buyerHpgDocId) {
                     console.log('📄 [HPG Auto-Verify API] Using buyerHpgDocId from metadata (transfer request)');
@@ -281,9 +313,43 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                         [metadata.buyerHpgDocId]
                     );
                     if (hpgDocResult.rows.length > 0) {
-                        documents.push(hpgDocResult.rows[0]);
+                        const hpgDoc = hpgDocResult.rows[0];
+                        // Add type field to indicate this is buyer HPG clearance (even if DB has different document_type)
+                        hpgDoc.type = 'buyer_hpg_clearance';
+                        // Check if already in documents array
+                        const existing = documents.find(d => d.id === hpgDoc.id);
+                        if (!existing) {
+                            documents.push(hpgDoc);
+                        } else {
+                            // Update existing document with type field
+                            existing.type = 'buyer_hpg_clearance';
+                        }
                     } else {
                         console.warn('[HPG Auto-Verify API] buyerHpgDocId set but document not found in documents table:', metadata.buyerHpgDocId);
+                    }
+                }
+                
+                // ADDITIONAL FIX: If buyerHpgDocId is not set but we have a transfer request,
+                // check transfer_documents table to find the buyer HPG clearance document
+                if (metadata.transferRequestId && !documents.some(d => 
+                    d.type === 'buyer_hpg_clearance' || d.document_type === 'hpg_clearance'
+                )) {
+                    console.log('📄 [HPG Auto-Verify API] Checking transfer_documents for buyer HPG clearance...');
+                    const transferDocResult = await dbModule.query(
+                        `SELECT d.* FROM documents d
+                         JOIN transfer_documents td ON d.id = td.document_id
+                         WHERE td.transfer_request_id = $1 
+                         AND td.document_type = $2`,
+                        [metadata.transferRequestId, 'buyer_hpg_clearance']
+                    );
+                    if (transferDocResult.rows.length > 0) {
+                        const hpgDoc = transferDocResult.rows[0];
+                        hpgDoc.type = 'buyer_hpg_clearance';
+                        const existing = documents.find(d => d.id === hpgDoc.id);
+                        if (!existing) {
+                            documents.push(hpgDoc);
+                            console.log('📄 [HPG Auto-Verify API] Found buyer HPG clearance via transfer_documents:', hpgDoc.id);
+                        }
                     }
                 }
                 // Legacy: hpgClearanceDocId (for non-transfer requests)

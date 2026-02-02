@@ -12,6 +12,7 @@ const DOCUMENT_TYPES = {
     DEED_OF_SALE: 'deedOfSale',
     SELLER_ID: 'sellerId',
     BUYER_ID: 'buyerId',
+    HPG_CLEARANCE: 'hpgClearance', // HPG Clearance certificate
     OTHER: 'other'
 };
 

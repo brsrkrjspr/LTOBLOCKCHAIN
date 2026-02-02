@@ -731,15 +731,29 @@
                 const formData = {
                     vehicleId: form.vehicleId.value,
                     vehicleVin: vehicleData.vin,
-                    buyerEmail: form.buyerEmail.value.trim(),
-                    purchasePrice: form.purchasePrice.value || undefined,
-                    saleDate: form.saleDate.value || undefined,
-                    odometerReading: form.odometerReading.value || undefined,
-                    hpgClearanceNumber: form.hpgClearanceNumber.value || undefined,
-                    ctplPolicyNumber: form.ctplPolicyNumber.value || undefined,
-                    ctplCoverageAmount: form.ctplCoverageAmount.value,
-                    mvirNumber: form.mvirNumber.value || undefined,
-                    mvirResult: form.mvirResult.value
+                    // Seller documents - Deed of Sale details
+                    sellerDocuments: {
+                        deedOfSale: {
+                            purchasePrice: form.purchasePrice.value || undefined,
+                            saleDate: form.saleDate.value || undefined,
+                            odometerReading: form.odometerReading.value || undefined
+                        }
+                    },
+                    // Buyer documents - buyer info and compliance documents
+                    buyerDocuments: {
+                        email: form.buyerEmail.value.trim(),
+                        hpgClearance: {
+                            clearanceNumber: form.hpgClearanceNumber.value || undefined
+                        },
+                        ctplInsurance: {
+                            policyNumber: form.ctplPolicyNumber.value || undefined,
+                            coverageAmount: form.ctplCoverageAmount.value
+                        },
+                        mvir: {
+                            mvirNumber: form.mvirNumber.value || undefined,
+                            result: form.mvirResult.value
+                        }
+                    }
                 };
 
                 // Call transfer certificate generation API

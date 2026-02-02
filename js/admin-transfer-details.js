@@ -1,7 +1,7 @@
 // Admin Transfer Details - JavaScript
 // Handles viewing detailed transfer request information
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     initializeTransferDetails();
 });
 
@@ -35,14 +35,14 @@ function initializeTransferDetails() {
             const sidebarUserNameEl = document.getElementById('sidebarUserName');
             const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
             const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
-            
+
             const displayName = AuthUtils.getUserDisplayName() || 'ADMIN';
             const initials = AuthUtils.getUserInitials() || 'AD';
-            
+
             if (userNameEl) userNameEl.textContent = displayName;
             if (userRoleEl) userRoleEl.textContent = 'System Administrator';
             if (userAvatarEl) userAvatarEl.textContent = initials;
-            
+
             // Update sidebar user info
             if (sidebarUserNameEl) sidebarUserNameEl.textContent = displayName;
             if (sidebarUserRoleEl) sidebarUserRoleEl.textContent = 'System Administrator';
@@ -56,7 +56,7 @@ function initializeTransferDetails() {
     const sidebar = document.querySelector('.dashboard-sidebar');
     const sidebarToggle = document.getElementById('sidebarToggle');
     if (sidebarToggle && sidebar) {
-        sidebarToggle.addEventListener('click', function() {
+        sidebarToggle.addEventListener('click', function () {
             sidebar.classList.toggle('collapsed');
             localStorage.setItem('adminSidebarCollapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
         });
@@ -71,7 +71,7 @@ function initializeTransferDetails() {
     // Logout
     const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
     if (sidebarLogoutBtn) {
-        sidebarLogoutBtn.addEventListener('click', function(e) {
+        sidebarLogoutBtn.addEventListener('click', function (e) {
             e.preventDefault();
             if (confirm('Are you sure you want to logout?')) {
                 if (typeof AuthUtils !== 'undefined') {
@@ -86,10 +86,10 @@ function initializeTransferDetails() {
 
     // Load transfer request details
     loadTransferRequestDetails();
-    
+
     // Start auto-refresh
     startAutoRefresh();
-    
+
     // Stop auto-refresh when page unloads
     window.addEventListener('beforeunload', stopAutoRefresh);
 }
@@ -103,13 +103,13 @@ async function loadTransferRequestDetails() {
 
         // Get transfer request by ID (mounted under /api/vehicles/transfer)
         const response = await apiClient.get(`/api/vehicles/transfer/requests/${currentRequestId}`);
-        
+
         if (!response.success) {
             throw new Error(response.error || 'Failed to load transfer request');
         }
 
         currentTransferRequest = response.transferRequest;
-        
+
         // Display transfer request details
         renderTransferRequestDetails(currentTransferRequest);
 
@@ -131,14 +131,14 @@ function startAutoRefresh() {
     if (autoRefreshInterval) {
         clearInterval(autoRefreshInterval);
     }
-    
+
     // Refresh every 30 seconds
     autoRefreshInterval = setInterval(() => {
         if (currentRequestId && document.visibilityState === 'visible') {
             loadTransferRequestDetails();
         }
     }, 30000); // 30 seconds
-    
+
     // Also refresh when window gains focus
     window.addEventListener('focus', () => {
         if (currentRequestId) {
@@ -159,7 +159,7 @@ function renderTransferRequestDetails(request) {
     const requestIdEl = document.getElementById('requestId');
     const requestStatusEl = document.getElementById('requestStatus');
     const requestDateEl = document.getElementById('requestDate');
-    
+
     if (requestIdEl) requestIdEl.textContent = request.id.substring(0, 8) + '...';
     if (requestStatusEl) {
         requestStatusEl.textContent = request.status || 'PENDING';
@@ -209,7 +209,7 @@ function renderTransferRequestDetails(request) {
 
     // Update MVIR (LTO) validation status display
     renderMvirValidationStatus(request);
-    
+
     // Update action buttons
     updateActionButtons(request);
 }
@@ -262,13 +262,13 @@ function renderMvirValidationStatus(request) {
     if (mvirAutoVerifyStatusEl) {
         const statusClass =
             status === 'APPROVED' ? 'status-approved' :
-            status === 'REJECTED' ? 'status-rejected' :
-            status === 'PENDING' ? 'status-pending' :
-            'status-pending';
+                status === 'REJECTED' ? 'status-rejected' :
+                    status === 'PENDING' ? 'status-pending' :
+                        'status-pending';
 
         const label =
             status === 'NOT_CHECKED' ? 'Not checked' :
-            status;
+                status;
 
         const autoSuffix = (status !== 'NOT_CHECKED' && automated !== undefined)
             ? (automated ? ' (Auto)' : ' (Manual/Review)')
@@ -350,15 +350,15 @@ function renderOrgApprovalStatus(request) {
         hpg_clearance_request_id: request.hpg_clearance_request_id,
         insurance_clearance_request_id: request.insurance_clearance_request_id
     });
-    
+
     const orgSection = document.getElementById('orgApprovalSection');
     const orgMessage = document.getElementById('orgApprovalMessage');
-    
+
     if (!orgSection) return;
-    
+
     // Show section if any org approval is tracked (HPG or Insurance)
     const hasOrgTracking = request.hpg_approval_status || request.insurance_approval_status;
-    
+
     if (hasOrgTracking) {
         orgSection.style.display = 'block';
         orgMessage.style.display = 'block';
@@ -366,18 +366,18 @@ function renderOrgApprovalStatus(request) {
         orgSection.style.display = 'none';
         orgMessage.style.display = 'none';
     }
-    
+
     // HPG Approval Status
     const hpgStatus = request.hpg_approval_status || 'PENDING';
     const hpgStatusEl = document.getElementById('hpgApprovalStatus');
     const hpgDateEl = document.getElementById('hpgApprovalDate');
-    
+
     if (hpgStatusEl) {
-        const statusClass = hpgStatus === 'APPROVED' ? 'status-approved' : 
-                           hpgStatus === 'REJECTED' ? 'status-rejected' : 'status-pending';
+        const statusClass = hpgStatus === 'APPROVED' ? 'status-approved' :
+            hpgStatus === 'REJECTED' ? 'status-rejected' : 'status-pending';
         hpgStatusEl.innerHTML = `<span class="status-badge ${statusClass}">${hpgStatus}</span>`;
     }
-    
+
     if (hpgDateEl && request.hpg_approved_at) {
         hpgDateEl.textContent = `Approved: ${new Date(request.hpg_approved_at).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -389,18 +389,18 @@ function renderOrgApprovalStatus(request) {
     } else if (hpgDateEl) {
         hpgDateEl.textContent = '';
     }
-    
+
     // Insurance Approval Status
     const insuranceStatus = request.insurance_approval_status || 'PENDING';
     const insuranceStatusEl = document.getElementById('insuranceApprovalStatus');
     const insuranceDateEl = document.getElementById('insuranceApprovalDate');
-    
+
     if (insuranceStatusEl) {
-        const statusClass = insuranceStatus === 'APPROVED' ? 'status-approved' : 
-                           insuranceStatus === 'REJECTED' ? 'status-rejected' : 'status-pending';
+        const statusClass = insuranceStatus === 'APPROVED' ? 'status-approved' :
+            insuranceStatus === 'REJECTED' ? 'status-rejected' : 'status-pending';
         insuranceStatusEl.innerHTML = `<span class="status-badge ${statusClass}">${insuranceStatus}</span>`;
     }
-    
+
     if (insuranceDateEl && request.insurance_approved_at) {
         insuranceDateEl.textContent = `Approved: ${new Date(request.insurance_approved_at).toLocaleDateString('en-US', {
             year: 'numeric',
@@ -412,14 +412,14 @@ function renderOrgApprovalStatus(request) {
     } else if (insuranceDateEl) {
         insuranceDateEl.textContent = '';
     }
-    
+
 }
 
 function renderSellerInfo(request) {
     // Extract seller info from database join (real data, not placeholders)
     // Seller is always a user account, so we use seller object from API
     const seller = request.seller || {};
-    
+
     // Log error if seller object is missing or empty
     if (!request.seller || Object.keys(seller).length === 0) {
         console.error('❌ [Seller Info] Seller object is missing or empty:', {
@@ -429,11 +429,11 @@ function renderSellerInfo(request) {
             fullRequest: request
         });
     }
-    
+
     // Construct seller name from database fields (real data)
     let sellerName = 'Unknown Seller';
     let nameSource = 'none';
-    
+
     if (seller.first_name && seller.last_name) {
         sellerName = `${seller.first_name} ${seller.last_name}`;
         nameSource = 'first_name + last_name';
@@ -453,11 +453,11 @@ function renderSellerInfo(request) {
             sellerEmail: seller.email
         });
     }
-    
+
     const sellerContact = seller.phone || 'N/A';
     const sellerEmail = seller.email || 'N/A';
     const sellerAddress = seller.address || 'N/A';
-    
+
     // Log warning if critical fields are missing
     if (!seller.email) {
         console.warn('⚠️ [Seller Info] Seller email is missing:', {
@@ -467,7 +467,7 @@ function renderSellerInfo(request) {
             availableFields: Object.keys(seller)
         });
     }
-    
+
     // Log info about data extraction
     console.log('ℹ️ [Seller Info] Extracted seller data:', {
         requestId: request.id,
@@ -492,7 +492,7 @@ function renderSellerInfo(request) {
     if (sellerAddressEl) sellerAddressEl.textContent = sellerAddress;
 
     // Find seller ID document
-    const sellerIdDoc = (request.documents || []).find(doc => 
+    const sellerIdDoc = (request.documents || []).find(doc =>
         doc.document_type === 'SELLER_ID' || doc.type === 'seller_id'
     );
     if (sellerIdEl && sellerIdDoc) {
@@ -517,7 +517,7 @@ function renderBuyerInfo(request) {
     let buyerEmail = null;
     let buyerAddress = null;
     let dataSource = 'none';
-    
+
     // First, try buyer object (if buyer has account)
     if (request.buyer && request.buyer.id) {
         dataSource = 'buyer object (database join)';
@@ -530,7 +530,7 @@ function renderBuyerInfo(request) {
         buyerContact = request.buyer.phone || null;
         buyerEmail = request.buyer.email || null;
         buyerAddress = request.buyer.address || null;
-        
+
         // Log warning if buyer account exists but name is missing
         if (!buyerName && !request.buyer.email) {
             console.warn('⚠️ [Buyer Info] Buyer account exists but name and email are missing:', {
@@ -540,23 +540,23 @@ function renderBuyerInfo(request) {
             });
         }
     }
-    
+
     // If no buyer account, try buyer_info JSONB
     if (!buyerName && request.buyer_info) {
         try {
             const buyerInfo = typeof request.buyer_info === 'string' ? JSON.parse(request.buyer_info) : request.buyer_info;
             dataSource = 'buyer_info JSONB';
-            
+
             if (buyerInfo.firstName && buyerInfo.lastName) {
                 buyerName = `${buyerInfo.firstName} ${buyerInfo.lastName}`;
             } else if (buyerInfo.firstName) {
                 buyerName = buyerInfo.firstName;
             }
-            
+
             buyerContact = buyerInfo.phone || null;
             buyerEmail = buyerInfo.email || null;
             buyerAddress = buyerInfo.address || null;
-            
+
             // Log warning if buyer_info exists but email is missing
             if (!buyerEmail) {
                 console.warn('⚠️ [Buyer Info] buyer_info JSONB exists but email is missing:', {
@@ -574,7 +574,7 @@ function renderBuyerInfo(request) {
             });
         }
     }
-    
+
     // Final fallback: use email (real data, not placeholder)
     if (!buyerName && buyerEmail) {
         buyerName = buyerEmail;
@@ -591,12 +591,12 @@ function renderBuyerInfo(request) {
             availableFields: Object.keys(request).filter(k => k.includes('buyer'))
         });
     }
-    
+
     // Set defaults for missing fields
     buyerContact = buyerContact || 'N/A';
     buyerEmail = buyerEmail || 'N/A';
     buyerAddress = buyerAddress || 'N/A';
-    
+
     // Log error if critical email is missing
     if (buyerEmail === 'N/A') {
         console.error('❌ [Buyer Info] Buyer email is missing - this is required:', {
@@ -607,7 +607,7 @@ function renderBuyerInfo(request) {
             hasBuyerInfo: !!request.buyer_info
         });
     }
-    
+
     // Log info about data extraction
     console.log('ℹ️ [Buyer Info] Extracted buyer data:', {
         requestId: request.id,
@@ -631,7 +631,7 @@ function renderBuyerInfo(request) {
     if (buyerAddressEl) buyerAddressEl.textContent = buyerAddress;
 
     // Find buyer ID document
-    const buyerIdDoc = (request.documents || []).find(doc => 
+    const buyerIdDoc = (request.documents || []).find(doc =>
         doc.document_type === 'BUYER_ID' || doc.type === 'buyer_id'
     );
     if (buyerIdEl && buyerIdDoc) {
@@ -668,14 +668,14 @@ function renderVehicleInfo(request) {
     if (vehicleTypeEl) vehicleTypeEl.textContent = vehicle.vehicle_type || vehicle.vehicleType || 'N/A';
     if (makeModelEl) makeModelEl.textContent = `${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'N/A';
     if (yearModelEl) yearModelEl.textContent = vehicle.year || 'N/A';
-    
+
     // Display OR/CR Number if available
     // Display separate OR and CR numbers (new format)
     const orNumber = vehicle.or_number || vehicle.orNumber;
     const crNumber = vehicle.cr_number || vehicle.crNumber;
     // Backward compatibility
     const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber;
-    
+
     if (orNumberEl) {
         if (orNumber) {
             orNumberEl.innerHTML = `<strong style="color: #667eea; font-size: 1.1em;">OR: ${orNumber}</strong>`;
@@ -685,7 +685,7 @@ function renderVehicleInfo(request) {
             orNumberEl.textContent = 'Not yet assigned';
         }
     }
-    
+
     if (crNumberEl) {
         if (crNumber) {
             crNumberEl.innerHTML = `<strong style="color: #27ae60; font-size: 1.1em;">CR: ${crNumber}</strong>`;
@@ -695,7 +695,7 @@ function renderVehicleInfo(request) {
             crNumberEl.textContent = 'Not yet assigned';
         }
     }
-    
+
     // Backward compatibility - update old field if it exists
     if (orCrNumberEl) {
         if (orNumber && crNumber) {
@@ -708,10 +708,10 @@ function renderVehicleInfo(request) {
     }
 
     // Find OR/CR documents (real document_id, not transfer_documents.id)
-    const orDoc = (request.documents || []).find(doc => 
+    const orDoc = (request.documents || []).find(doc =>
         doc.document_type === 'OR' || doc.type === 'or' || doc.document_type === 'OR_CR' || doc.type === 'orCr' || doc.document_type === 'or_cr'
     );
-    const crDoc = (request.documents || []).find(doc => 
+    const crDoc = (request.documents || []).find(doc =>
         doc.document_type === 'CR' || doc.type === 'cr' || doc.document_type === 'OR_CR' || doc.type === 'orCr' || doc.document_type === 'or_cr'
     );
 
@@ -751,33 +751,33 @@ function renderDocuments(documentCategories) {
         console.error('[renderDocuments] Container .documents-grid not found');
         return;
     }
-    
+
     // Handle legacy format (array of documents) for backward compatibility
     if (Array.isArray(documentCategories)) {
         console.warn('[renderDocuments] Legacy document format detected, converting...');
         const vehicleDocuments = [];
         const sellerDocuments = [];
         const buyerDocuments = [];
-        
+
         documentCategories.forEach(doc => {
             const docType = (doc.document_type || doc.type || '').toLowerCase();
             if (doc.is_vehicle_document || doc.source === 'vehicle' || doc.auto_included) {
                 vehicleDocuments.push(doc);
             } else if (docType === 'deed_of_sale' || docType === 'seller_id') {
                 sellerDocuments.push(doc);
-            } else if (docType.startsWith('buyer_') || docType === 'buyer_id' || docType === 'buyer_tin' || 
-                       docType === 'buyer_ctpl' || docType === 'buyer_hpg_clearance') {
+            } else if (docType.startsWith('buyer_') || docType === 'buyer_id' || docType === 'buyer_tin' ||
+                docType === 'buyer_ctpl' || docType === 'buyer_hpg_clearance') {
                 buyerDocuments.push(doc);
             } else {
                 vehicleDocuments.push(doc); // Default to vehicle documents
             }
         });
-        
+
         documentCategories = { vehicleDocuments, sellerDocuments, buyerDocuments };
     }
-    
+
     const { vehicleDocuments = [], sellerDocuments = [], buyerDocuments = [] } = documentCategories;
-    
+
     console.log('[renderDocuments] Rendering categorized documents:', {
         vehicle: vehicleDocuments.length,
         seller: sellerDocuments.length,
@@ -855,7 +855,7 @@ function renderDocumentCard(doc) {
     const docName = doc.original_name || doc.filename || doc.name || docType;
     const docTypeLabel = getDocumentTypeLabel(docType);
     const docIcon = getDocumentIcon(docType);
-    
+
     return `
         <div class="document-card">
             <div class="document-header">
@@ -926,7 +926,7 @@ function getDocumentIcon(type) {
 function updateActionButtons(request) {
     const status = request.status || 'PENDING';
     const actionButtons = document.querySelector('.action-buttons') || document.getElementById('actionButtons');
-    
+
     // Update side card header: Admin Actions vs Document Verification
     const actionCardTitle = document.querySelector('.action-panel .dashboard-card h3');
     if (actionCardTitle) {
@@ -937,39 +937,39 @@ function updateActionButtons(request) {
             actionCardTitle.textContent = '';
         }
     }
-    
+
     if (!actionButtons) return;
 
     // Check organization approval statuses
     const hpgStatus = request.hpg_approval_status || 'NOT_FORWARDED';
     const insuranceStatus = request.insurance_approval_status || 'NOT_FORWARDED';
-    
+
     // Determine if all orgs have approved
     const hpgApproved = hpgStatus === 'APPROVED';
     const insuranceApproved = insuranceStatus === 'APPROVED';
     // Only HPG and Insurance are treated as required organizations for final approval.
     const allOrgsApproved = hpgApproved && insuranceApproved;
-    
+
     // Determine what's pending
     const pendingOrgs = [];
     if (hpgStatus !== 'APPROVED' && hpgStatus !== 'NOT_FORWARDED' && hpgStatus !== 'REJECTED') pendingOrgs.push('HPG');
     if (insuranceStatus !== 'APPROVED' && insuranceStatus !== 'NOT_FORWARDED' && insuranceStatus !== 'REJECTED') pendingOrgs.push('Insurance');
-    
+
     // Not forwarded orgs
     const notForwardedOrgs = [];
     if (hpgStatus === 'NOT_FORWARDED' || !hpgStatus || (!request.forwarded_to_hpg && !request.hpg_clearance_request_id)) notForwardedOrgs.push('HPG');
     if (insuranceStatus === 'NOT_FORWARDED' || !insuranceStatus || !request.insurance_clearance_request_id) notForwardedOrgs.push('Insurance');
-    
+
     // Check for rejections
     // Only HPG and Insurance rejections block final approval.
     const anyRejected = hpgStatus === 'REJECTED' || insuranceStatus === 'REJECTED';
-    
+
     // Clear existing buttons
     actionButtons.innerHTML = '';
 
     if (!isFinalizedStatus(status)) {
         let buttonsHTML = '';
-        
+
         // Show forward buttons for orgs not yet forwarded
         if (notForwardedOrgs.includes('HPG')) {
             buttonsHTML += `
@@ -985,7 +985,7 @@ function updateActionButtons(request) {
                 </button>
             `;
         }
-        
+
         // Approve/Reject buttons - only enabled if all orgs approved
         if (allOrgsApproved) {
             buttonsHTML += `
@@ -1030,14 +1030,14 @@ function updateActionButtons(request) {
                 </button>
             `;
         }
-        
+
         // Always show verification link
         buttonsHTML += `
             <a href="admin-transfer-verification.html?id=${currentRequestId}" class="btn-secondary btn-block">
                 <i class="fas fa-clipboard-check"></i> Verify Documents
             </a>
         `;
-        
+
         actionButtons.innerHTML = buttonsHTML;
     } else {
         // Finalized: hide the entire card and clear any actions/links
@@ -1049,7 +1049,7 @@ function updateActionButtons(request) {
 
 async function viewDocument(docId) {
     console.log('[viewDocument] Called with docId:', docId);
-    
+
     try {
         // Use DocumentModal if available for better in-page viewing
         if (typeof DocumentModal !== 'undefined') {
@@ -1057,7 +1057,7 @@ async function viewDocument(docId) {
             DocumentModal.view({ id: docId });
             return;
         }
-        
+
         // Strict: never open new tabs for viewing documents
         console.log('[viewDocument] DocumentModal not available');
         showError('Document viewer modal is not available. Please refresh the page.');
@@ -1077,7 +1077,7 @@ async function downloadDocument(docId) {
         const response = await apiClient.get(`/api/documents/${docId}/download`, {
             responseType: 'blob'
         });
-        
+
         if (!response.success) {
             throw new Error(response.error || 'Failed to download document');
         }
@@ -1106,17 +1106,17 @@ async function approveTransfer() {
     if (currentTransferRequest) {
         const hpgStatus = currentTransferRequest.hpg_approval_status || 'PENDING';
         const insuranceStatus = currentTransferRequest.insurance_approval_status || 'PENDING';
-        
+
         const pendingApprovals = [];
         if (hpgStatus !== 'APPROVED') pendingApprovals.push('HPG');
         if (insuranceStatus !== 'APPROVED') pendingApprovals.push('Insurance');
-        
+
         if (pendingApprovals.length > 0) {
             showError(`Cannot approve. Pending approvals from: ${pendingApprovals.join(', ')}`);
             return;
         }
     }
-    
+
     if (!confirm('Are you sure you want to approve this transfer request?')) {
         return;
     }
@@ -1126,7 +1126,7 @@ async function approveTransfer() {
         const apiClient = window.apiClient || new APIClient();
 
         const response = await apiClient.post(`/api/vehicles/transfer/requests/${currentRequestId}/approve`, {});
-        
+
         if (response.success) {
             showSuccess('Transfer request approved successfully');
             loadTransferRequestDetails(); // Reload to update status
@@ -1135,12 +1135,12 @@ async function approveTransfer() {
         }
     } catch (error) {
         console.error('Approve transfer error:', error);
-        
+
         // Extract detailed error message
         let errorMessage = 'Failed to approve transfer request';
         if (error.response?.data) {
             const errorData = error.response.data;
-            
+
             // Show detailed missing documents if available
             if (errorData.missingLabels) {
                 const missingList = [];
@@ -1161,35 +1161,85 @@ async function approveTransfer() {
         } else if (error.message) {
             errorMessage = error.message;
         }
-        
+
         showError(errorMessage);
     }
 }
 
 async function rejectTransfer() {
-    const reason = prompt('Please provide a reason for rejection:');
-    if (!reason) {
-        return;
-    }
+    // Show modal dialog for rejection reason
+    const modal = document.createElement('div');
+    modal.className = 'rejection-modal';
+    modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center; backdrop-filter: blur(4px);';
+    modal.innerHTML = `
+        <div style="background: white; border-radius: 12px; width: 100%; max-width: 480px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; animation: modalSlideIn 0.2s ease-out;">
+            <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); padding: 1.25rem 1.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                <i class="fas fa-times-circle" style="color: white; font-size: 1.5rem;"></i>
+                <h3 style="margin: 0; color: white; font-size: 1.1rem; font-weight: 600;">Reject Transfer Request</h3>
+            </div>
+            <div style="padding: 1.5rem;">
+                <p style="margin: 0 0 1rem 0; color: #4b5563; font-size: 0.95rem;">Please provide a reason for rejecting this transfer request:</p>
+                <textarea id="rejectionReasonInput" placeholder="Enter rejection reason..." 
+                    style="width: 100%; min-height: 120px; padding: 0.875rem; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 0.95rem; resize: vertical; font-family: inherit; transition: border-color 0.2s;"
+                    onfocus="this.style.borderColor='#ef4444'; this.style.outline='none';"
+                    onblur="this.style.borderColor='#e5e7eb';"></textarea>
+            </div>
+            <div style="padding: 1rem 1.5rem; background: #f9fafb; border-top: 1px solid #e5e7eb; display: flex; gap: 0.75rem; justify-content: flex-end;">
+                <button class="cancel-btn" style="padding: 0.625rem 1.25rem; background: white; border: 1px solid #d1d5db; border-radius: 8px; color: #4b5563; font-weight: 500; cursor: pointer; transition: all 0.2s;">Cancel</button>
+                <button class="confirm-btn" style="padding: 0.625rem 1.25rem; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border: none; border-radius: 8px; color: white; font-weight: 500; cursor: pointer; transition: all 0.2s;">
+                    <i class="fas fa-times" style="margin-right: 0.5rem;"></i>Reject Request
+                </button>
+            </div>
+        </div>
+    `;
 
-    try {
-        // Get apiClient instance
-        const apiClient = window.apiClient || new APIClient();
+    document.body.appendChild(modal);
 
-        const response = await apiClient.post(`/api/vehicles/transfer/requests/${currentRequestId}/reject`, {
-            reason: reason
-        });
-        
-        if (response.success) {
-            showSuccess('Transfer request rejected');
-            loadTransferRequestDetails(); // Reload to update status
-        } else {
-            throw new Error(response.error || 'Failed to reject transfer request');
-        }
-    } catch (error) {
-        console.error('Reject transfer error:', error);
-        showError(error.message || 'Failed to reject transfer request');
-    }
+    // Focus the textarea
+    setTimeout(() => modal.querySelector('#rejectionReasonInput').focus(), 100);
+
+    return new Promise((resolve) => {
+        const closeModal = () => {
+            modal.remove();
+            resolve();
+        };
+
+        modal.querySelector('.cancel-btn').onclick = closeModal;
+        modal.onclick = (e) => { if (e.target === modal) closeModal(); };
+
+        modal.querySelector('.confirm-btn').onclick = async function () {
+            const reason = modal.querySelector('#rejectionReasonInput').value.trim();
+            if (!reason) {
+                showError('Please provide a reason for rejection');
+                modal.querySelector('#rejectionReasonInput').focus();
+                return;
+            }
+
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right: 0.5rem;"></i>Rejecting...';
+
+            try {
+                const apiClient = window.apiClient || new APIClient();
+                const response = await apiClient.post(`/api/vehicles/transfer/requests/${currentRequestId}/reject`, {
+                    reason: reason
+                });
+
+                if (response.success) {
+                    showSuccess('Transfer request rejected');
+                    closeModal();
+                    loadTransferRequestDetails(); // Reload to update status
+                } else {
+                    throw new Error(response.error || 'Failed to reject transfer request');
+                }
+            } catch (error) {
+                console.error('Reject transfer error:', error);
+                showError(error.message || 'Failed to reject transfer request');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-times" style="margin-right: 0.5rem;"></i>Reject Request';
+            }
+        };
+    });
 }
 
 function getStatusClass(status) {
@@ -1254,7 +1304,7 @@ async function forwardToHPG() {
             purpose: 'Vehicle ownership transfer clearance',
             notes: 'Forwarded for HPG clearance review'
         });
-        
+
         if (response.success) {
             showSuccess('Transfer request forwarded to HPG successfully');
             loadTransferRequestDetails(); // Reload to update status
@@ -1278,7 +1328,7 @@ async function forwardToInsurance() {
             purpose: 'Vehicle ownership transfer clearance',
             notes: 'Forwarded for Insurance clearance review'
         });
-        
+
         if (response.success) {
             showSuccess('Transfer request forwarded to Insurance successfully');
             loadTransferRequestDetails(); // Reload to update status
@@ -1296,25 +1346,25 @@ let ownershipHistoryExpanded = false;
 
 async function loadOwnershipHistory(vehicleId, autoExpand = false) {
     if (!vehicleId) return;
-    
+
     const contentEl = document.getElementById('ownershipHistoryContent');
     if (!contentEl) return;
-    
+
     try {
         const apiClient = window.apiClient || new APIClient();
         const vehicle = await apiClient.get(`/api/vehicles/${vehicleId}`);
-        
+
         if (!vehicle || !vehicle.vehicle) {
             throw new Error('Vehicle not found');
         }
-        
+
         const vin = vehicle.vehicle.vin || vehicleId;
         const response = await apiClient.get(`/api/vehicles/${vin}/ownership-history`);
-        
+
         if (response.success) {
             const history = response.ownershipHistory || [];
             renderOwnershipHistory(history, vehicle.vehicle);
-            
+
             if (autoExpand && history.length > 0) {
                 toggleOwnershipHistory();
             }
@@ -1338,7 +1388,7 @@ async function loadOwnershipHistory(vehicleId, autoExpand = false) {
 function renderOwnershipHistory(history, vehicle) {
     const contentEl = document.getElementById('ownershipHistoryContent');
     if (!contentEl) return;
-    
+
     if (!history || history.length === 0) {
         contentEl.innerHTML = `
             <div class="empty-state" style="text-align: center; padding: 2rem; color: #7f8c8d;">
@@ -1349,16 +1399,16 @@ function renderOwnershipHistory(history, vehicle) {
         `;
         return;
     }
-    
+
     // Sort by date (newest first)
     const sortedHistory = [...history].sort((a, b) => {
         const dateA = new Date(a.performed_at || a.timestamp || 0);
         const dateB = new Date(b.performed_at || b.timestamp || 0);
         return dateB - dateA;
     });
-    
+
     let html = '<div class="ownership-timeline" style="position: relative; padding-left: 2rem;">';
-    
+
     sortedHistory.forEach((record, index) => {
         const isCurrent = index === 0;
         const date = new Date(record.performed_at || record.timestamp);
@@ -1369,13 +1419,13 @@ function renderOwnershipHistory(history, vehicle) {
             hour: '2-digit',
             minute: '2-digit'
         });
-        
+
         const action = record.action || 'UNKNOWN';
         const previousOwner = record.previous_owner_name || record.metadata?.previousOwnerName || 'N/A';
         const newOwner = record.new_owner_name || record.current_owner_name || record.metadata?.newOwnerName || 'N/A';
         const performedBy = record.performed_by_name || 'System';
         const transactionId = record.transaction_id || record.transactionId || 'N/A';
-        
+
         html += `
             <div class="timeline-item" style="position: relative; padding-bottom: 2rem; border-left: 2px solid ${isCurrent ? '#27ae60' : '#e9ecef'}; padding-left: 1.5rem; margin-left: -2rem;">
                 <div class="timeline-marker" style="position: absolute; left: -6px; top: 0; width: 12px; height: 12px; border-radius: 50%; background: ${isCurrent ? '#27ae60' : '#95a5a6'}; border: 2px solid white; box-shadow: 0 0 0 2px ${isCurrent ? '#27ae60' : '#95a5a6'};"></div>
@@ -1411,7 +1461,7 @@ function renderOwnershipHistory(history, vehicle) {
             </div>
         `;
     });
-    
+
     html += '</div>';
     contentEl.innerHTML = html;
 }
@@ -1420,11 +1470,11 @@ function toggleOwnershipHistory() {
     const section = document.getElementById('ownershipHistorySection');
     const icon = document.getElementById('ownershipHistoryIcon');
     const toggleText = document.getElementById('ownershipHistoryToggleText');
-    
+
     if (!section) return;
-    
+
     ownershipHistoryExpanded = !ownershipHistoryExpanded;
-    
+
     if (ownershipHistoryExpanded) {
         section.style.display = 'block';
         if (icon) icon.className = 'fas fa-chevron-up';

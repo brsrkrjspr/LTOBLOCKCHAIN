@@ -2203,6 +2203,13 @@ function createApplicationRow(application) {
     return row;
 }
 
+function escapeHtml(text) {
+    if (text === null || text === undefined) return '';
+    const div = document.createElement('div');
+    div.textContent = String(text);
+    return div.innerHTML;
+}
+
 function getStatusText(status) {
     // Use StatusUtils.getStatusText if available, otherwise fallback
     if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
@@ -3642,7 +3649,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Load registration applications
 // statusFilter: comma-separated statuses, defaults to in-flight application states
-async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BLOCKCHAIN,PROCESSING,APPROVED,REJECTED') {
+async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BLOCKCHAIN,PROCESSING,APPROVED,REJECTED,REGISTERED') {
     try {
         const tbody = document.getElementById('registration-applications-tbody');
         if (!tbody) return;
@@ -3650,7 +3657,7 @@ async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BL
         tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 2rem; color: #7f8c8d;"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
 
         const apiClient = window.apiClient || new APIClient();
-        const response = await apiClient.get(`/api/vehicles?status=${encodeURIComponent(statusFilter)}&limit=50&page=1`);
+        const response = await apiClient.get(`/api/vehicles?status=${encodeURIComponent(statusFilter)}&limit=50&page=1&includeHistory=true&historyLimit=5&version=v1`);
 
         console.log('[loadRegistrationApplications] API Response:', response);
 
@@ -3676,6 +3683,36 @@ async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BL
             const formattedDate = submittedDate ? new Date(submittedDate).toLocaleDateString() : 'N/A';
             const vin = v.vin || '';
             const vehicleId = v.id || '';
+            const historyItems = Array.isArray(v.history) ? v.history : [];
+            const historyRows = historyItems.map(entry => {
+                const timestamp = entry.performed_at || entry.timestamp;
+                const timestampText = timestamp ? new Date(timestamp).toLocaleString() : 'N/A';
+                const action = entry.action ? entry.action.replace(/_/g, ' ') : 'HISTORY';
+                const description = entry.description || '';
+                const performer = entry.performer_name || entry.performed_by || 'System';
+                const txId = entry.transaction_id || entry.transactionId;
+                const txDisplay = txId ? `${txId.substring(0, 12)}...` : 'N/A';
+                const txBadge = txId
+                    ? `<span style="margin-left: 0.5rem; background: #dcfce7; color: #166534; border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.75rem; font-weight: 600;"><i class="fas fa-lock"></i> Immutable</span>`
+                    : `<span style="margin-left: 0.5rem; background: #e2e8f0; color: #475569; border-radius: 999px; padding: 0.1rem 0.5rem; font-size: 0.75rem; font-weight: 600;"><i class="fas fa-database"></i> DB</span>`;
+
+                return `
+                    <div class="audit-history-row" style="display: flex; flex-direction: column; gap: 0.25rem; padding: 0.5rem 0; border-bottom: 1px dashed #e5e7eb;">
+                        <div style="display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                            <strong style="color: #0f172a;">${escapeHtml(action)}</strong>
+                            <span style="color: #64748b; font-size: 0.85rem;">${timestampText}</span>
+                        </div>
+                        <div style="color: #475569; font-size: 0.9rem;">${escapeHtml(description) || 'No description provided.'}</div>
+                        <div style="color: #64748b; font-size: 0.85rem;">
+                            <span>Performed by: ${escapeHtml(performer)}</span>
+                            <span style="margin-left: 1rem;">TX: ${escapeHtml(txDisplay)}</span>
+                            ${txBadge}
+                        </div>
+                    </div>
+                `;
+            }).join('') || `
+                <div style="color: #94a3b8; font-size: 0.9rem;">No audit history yet.</div>
+            `;
 
             console.log('[loadRegistrationApplications] Vehicle row:', {
                 id: v.id,
@@ -3703,6 +3740,15 @@ async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BL
                     </td>
                     <td>
                         <button class="btn-secondary btn-sm" onclick="viewApplication('${v.id}')">View</button>
+                    </td>
+                </tr>
+                <tr class="audit-history-row">
+                    <td colspan="8" style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 0.75rem 1.25rem;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; color: #0f172a; font-weight: 600;">
+                            <i class="fas fa-history" style="color: #0284c7;"></i>
+                            <span>Audit Trail (latest ${historyItems.length} event${historyItems.length === 1 ? '' : 's'})</span>
+                        </div>
+                        <div>${historyRows}</div>
                     </td>
                 </tr>
             `;
@@ -3829,7 +3875,7 @@ function filterRegistrations(status, btn) {
     if (btn) btn.classList.add('active');
 
     const statusMap = {
-        all: 'SUBMITTED,PENDING_BLOCKCHAIN,PROCESSING,APPROVED,REJECTED',
+        all: 'SUBMITTED,PENDING_BLOCKCHAIN,PROCESSING,APPROVED,REJECTED,REGISTERED',
         SUBMITTED: 'SUBMITTED',
         PROCESSING: 'PROCESSING',
         APPROVED: 'APPROVED',

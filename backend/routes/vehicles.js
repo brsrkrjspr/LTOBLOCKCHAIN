@@ -178,6 +178,12 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
             totalCount = parseInt(countResult.rows[0].count);
         }
 
+        const includeHistory = req.query.includeHistory === 'true' || req.query.includeHistory === '1';
+        const historyLimitRaw = parseInt(req.query.historyLimit || req.query.history_limit, 10);
+        const historyLimit = Number.isFinite(historyLimitRaw)
+            ? Math.min(Math.max(historyLimitRaw, 1), 20)
+            : 5;
+
         // Get verifications and documents for each vehicle (BATCH QUERIES - fixes N+1 problem)
         if (vehicles.length > 0) {
             const vehicleIds = vehicles.map(v => v.id);
@@ -215,6 +221,31 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
                 documentsByVehicle[d.vehicle_id].push(d);
             });
 
+            let historyByVehicle = null;
+            if (includeHistory) {
+                const historyQuery = `
+                    SELECT *
+                    FROM (
+                        SELECT vh.*,
+                               u.first_name || ' ' || u.last_name as performer_name,
+                               ROW_NUMBER() OVER (PARTITION BY vh.vehicle_id ORDER BY vh.performed_at DESC) AS rn
+                        FROM vehicle_history vh
+                        LEFT JOIN users u ON vh.performed_by = u.id
+                        WHERE vh.vehicle_id = ANY($1::uuid[])
+                    ) history
+                    WHERE history.rn <= $2
+                    ORDER BY history.performed_at DESC
+                `;
+                const historyResult = await dbModule.query(historyQuery, [vehicleIds, historyLimit]);
+                historyByVehicle = {};
+                historyResult.rows.forEach(h => {
+                    if (!historyByVehicle[h.vehicle_id]) {
+                        historyByVehicle[h.vehicle_id] = [];
+                    }
+                    historyByVehicle[h.vehicle_id].push(h);
+                });
+            }
+
             // Attach to vehicles
             for (let vehicle of vehicles) {
                 vehicle.verifications = verificationsByVehicle[vehicle.id] || [];
@@ -225,6 +256,10 @@ router.get('/', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_off
                 vehicle.verifications.forEach(v => {
                     vehicle.verificationStatus[v.verification_type] = v.status;
                 });
+
+                if (includeHistory) {
+                    vehicle.history = historyByVehicle?.[vehicle.id] || [];
+                }
             }
         }
 

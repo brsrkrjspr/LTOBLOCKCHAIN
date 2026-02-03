@@ -1554,7 +1554,6 @@ function renderStatusHistorySection(historyEntries, status) {
         `;
     }
 
-    const normalizedStatus = (status || '').toLowerCase();
     let currentUser = {};
     try {
         currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -1619,7 +1618,7 @@ function renderStatusHistorySection(historyEntries, status) {
     const formattedHistory = sortedHistory.map(entry => ({
         ...entry,
         performed_at: entry.performed_at || entry.performedAt || entry.timestamp,
-        action: normalizeStatusAction(entry.action),
+        action: (entry.action || 'UNKNOWN').toUpperCase().trim(),
         transaction_id: entry.transaction_id || entry.transactionId || null
     }));
 
@@ -1638,10 +1637,7 @@ function renderStatusHistorySection(historyEntries, status) {
     `;
 }
 
-function normalizeStatusAction(action) {
-    if (!action) return 'UNKNOWN';
-    return action.toUpperCase().trim();
-}
+// Status actions are normalized inline where history entries are formatted.
 
 // Render history item with blockchain icons (for use in history/audit sections)
 function renderHistoryItem(historyEntry) {
@@ -1944,7 +1940,7 @@ async function viewUserApplication(applicationId) {
                 application.blockchain_tx_id = vehicleResponse.vehicle.blockchain_tx_id || vehicleResponse.vehicle.blockchainTxId;
                 application.blockchainTxId = vehicleResponse.vehicle.blockchainTxId || vehicleResponse.vehicle.blockchain_tx_id;
                 application.history = vehicleResponse.vehicle.history || application.history || [];
-                application.statusHistory = application.history;
+                application.statusHistory = [...application.history];
                 
                 // Update documents if available
                 if (vehicleResponse.vehicle.documents && vehicleResponse.vehicle.documents.length > 0) {

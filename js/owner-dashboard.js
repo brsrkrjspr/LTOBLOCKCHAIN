@@ -1782,7 +1782,8 @@ function createUserApplicationRow(application) {
 function renderOriginBadge(originType) {
     if (!originType) return '';
     if (String(originType).toUpperCase() !== 'TRANSFER') return '';
-    return `<span class="badge badge-transfer-origin" aria-label="Vehicle origin: transfer">${escapeHtml(String(originType))}</span>`;
+    const safeOrigin = escapeHtml(String(originType));
+    return `<span class="badge badge-transfer-origin" aria-label="Vehicle origin: ${safeOrigin}">${safeOrigin}</span>`;
 }
 
 // Helper function for escaping HTML

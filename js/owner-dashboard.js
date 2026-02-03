@@ -1555,12 +1555,24 @@ function renderStatusHistorySection(historyEntries, status) {
     }
 
     const normalizedStatus = (status || '').toLowerCase();
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const currentUserId = currentUser.id || currentUser.userId || null;
+    const currentUserEmail = currentUser.email ? currentUser.email.toLowerCase() : null;
     const filteredHistory = historyEntries.filter(entry => {
         const action = (entry.action || '').toUpperCase();
         if (action.includes('REGISTRATION') || action.includes('STATUS_')) {
             return true;
         }
-        if (action.includes('TRANSFER')) {
+        if (action.includes('TRANSFER') || action.includes('OWNERSHIP_TRANSFERRED')) {
+            const metadata = entry.metadata || {};
+            const involvedIds = [metadata.previousOwnerId, metadata.newOwnerId].filter(Boolean);
+            const involvedEmails = [metadata.previousOwnerEmail, metadata.newOwnerEmail]
+                .filter(Boolean)
+                .map(email => String(email).toLowerCase());
+            if (involvedIds.length > 0 || involvedEmails.length > 0) {
+                return (currentUserId && involvedIds.includes(currentUserId)) ||
+                    (currentUserEmail && involvedEmails.includes(currentUserEmail));
+            }
             return true;
         }
         if (action.includes('HPG') || action.includes('INSURANCE') || action.includes('EMISSION')) {

@@ -56,6 +56,46 @@ function getStatusText(status) {
     return statusMap[normalizedStatus] || status;
 }
 
+function getTransferStatusLabel(status) {
+    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
+        return window.StatusUtils.getStatusText(status);
+    }
+    const normalized = (status || '').toLowerCase();
+    const fallbackMap = {
+        'pending': 'Pending',
+        'reviewing': 'Under Review',
+        'awaiting_buyer_docs': 'Awaiting Buyer Documents',
+        'under_review': 'Under Review',
+        'approved': 'Approved',
+        'rejected': 'Rejected',
+        'completed': 'Completed',
+        'expired': 'Expired',
+        'forwarded_to_hpg': 'Forwarded to HPG'
+    };
+    return fallbackMap[normalized] || status;
+}
+
+function getTransferStatusClass(status) {
+    if (!status || typeof status !== 'string') return 'pending';
+    const normalized = status.toLowerCase();
+    const statusClasses = {
+        pending: 'pending',
+        reviewing: 'reviewing',
+        under_review: 'reviewing',
+        approved: 'approved',
+        rejected: 'rejected',
+        completed: 'completed',
+        forwarded_to_hpg: 'forwarded'
+    };
+    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusBadgeClass) {
+        const badgeClass = window.StatusUtils.getStatusBadgeClass(normalized);
+        if (badgeClass && badgeClass.startsWith('status-')) {
+            return badgeClass.replace('status-', '');
+        }
+    }
+    return statusClasses[normalized] || 'pending';
+}
+
 /**
  * Get status badge CSS class
  * @param {string} status - Status value
@@ -127,7 +167,9 @@ if (typeof module !== 'undefined' && module.exports) {
         getStatusBadgeClass,
         isApprovedOrRegistered,
         isPendingOrSubmitted,
-        canUpdateDocuments
+        canUpdateDocuments,
+        getTransferStatusLabel,
+        getTransferStatusClass
     };
 }
 
@@ -139,5 +181,7 @@ window.StatusUtils = {
     getStatusBadgeClass,
     isApprovedOrRegistered,
     isPendingOrSubmitted,
-    canUpdateDocuments
+    canUpdateDocuments,
+    getTransferStatusLabel,
+    getTransferStatusClass
 };

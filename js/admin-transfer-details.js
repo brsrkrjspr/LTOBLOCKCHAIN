@@ -1286,42 +1286,17 @@ async function rejectTransfer() {
 }
 
 function getStatusClass(status) {
-    if (!status || typeof status !== 'string') return 'pending';
-    const normalized = status.toLowerCase();
-    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusBadgeClass) {
-        const badgeClass = window.StatusUtils.getStatusBadgeClass(normalized);
-        if (badgeClass && badgeClass.startsWith('status-')) {
-            return badgeClass.replace('status-', '');
-        }
+    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getTransferStatusClass) {
+        return window.StatusUtils.getTransferStatusClass(status);
     }
-    const statusClasses = {
-        pending: 'pending',
-        reviewing: 'reviewing',
-        under_review: 'reviewing',
-        approved: 'approved',
-        rejected: 'rejected',
-        completed: 'completed',
-        forwarded_to_hpg: 'forwarded'
-    };
-    return statusClasses[normalized] || 'pending';
+    return 'pending';
 }
 
 function getStatusLabel(status) {
-    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
-        return window.StatusUtils.getStatusText(status);
+    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getTransferStatusLabel) {
+        return window.StatusUtils.getTransferStatusLabel(status);
     }
-    const normalized = (status || '').toLowerCase();
-    const fallbackMap = {
-        'pending': 'Pending',
-        'awaiting_buyer_docs': 'Awaiting Buyer Documents',
-        'under_review': 'Under Review',
-        'approved': 'Approved',
-        'rejected': 'Rejected',
-        'completed': 'Completed',
-        'expired': 'Expired',
-        'forwarded_to_hpg': 'Forwarded to HPG'
-    };
-    return fallbackMap[normalized] || status;
+    return status;
 }
 
 function showLoading() {

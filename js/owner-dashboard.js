@@ -965,7 +965,6 @@ async function loadUserApplications(isSilent = false) {
                     }
                     
                     allApplications = response.vehicles.map(vehicle => mapper(vehicle));
-                    allApplications = allApplications.filter(app => !app.isTransferInProgress);
                     
                     // For vehicles with active transfer requests, use transfer request verification status
                     // Transfer requests need buyer documents before auto-verification can run

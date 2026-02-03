@@ -1555,12 +1555,18 @@ function renderStatusHistorySection(historyEntries, status) {
     }
 
     const normalizedStatus = (status || '').toLowerCase();
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    let currentUser = {};
+    try {
+        currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    } catch (error) {
+        console.warn('Failed to parse currentUser from localStorage:', error);
+        currentUser = {};
+    }
     const currentUserId = currentUser.id || currentUser.userId || null;
     const currentUserEmail = currentUser.email ? currentUser.email.toLowerCase() : null;
     const filteredHistory = historyEntries.filter(entry => {
         const action = (entry.action || '').toUpperCase();
-        if (action.includes('REGISTRATION') || action.includes('STATUS_')) {
+        if (action.includes('REGISTRATION') || action.startsWith('STATUS_')) {
             return true;
         }
         if (action.includes('TRANSFER') || action.includes('OWNERSHIP_TRANSFERRED')) {
@@ -1593,9 +1599,12 @@ function renderStatusHistorySection(historyEntries, status) {
     }
 
     const sortedHistory = [...filteredHistory].sort((a, b) => {
-        const dateA = new Date(a.performed_at || a.performedAt || a.timestamp || 0).getTime();
-        const dateB = new Date(b.performed_at || b.performedAt || b.timestamp || 0).getTime();
-        return dateB - dateA;
+        const dateA = a.performed_at || a.performedAt || a.timestamp;
+        const dateB = b.performed_at || b.performedAt || b.timestamp;
+        if (!dateA && !dateB) return 0;
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return new Date(dateB).getTime() - new Date(dateA).getTime();
     });
 
     const formattedHistory = sortedHistory.map(entry => ({

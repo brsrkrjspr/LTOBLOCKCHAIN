@@ -1798,7 +1798,16 @@ function getStatusText(status) {
     if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
         return window.StatusUtils.getStatusText(status);
     }
-    return status;
+    const normalized = (status || '').toLowerCase();
+    const fallbackMap = {
+        'submitted': 'Pending Review',
+        'pending_blockchain': 'Pending Blockchain',
+        'processing': 'Processing',
+        'approved': 'Approved',
+        'registered': 'Registered',
+        'rejected': 'Rejected'
+    };
+    return fallbackMap[normalized] || status;
 }
 
 function getVerificationStatusDisplay(verificationStatus, applicationStatus) {

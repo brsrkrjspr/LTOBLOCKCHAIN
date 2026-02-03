@@ -2223,7 +2223,16 @@ function getStatusText(status) {
     if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
         return window.StatusUtils.getStatusText(status);
     }
-    return status;
+    const normalized = (status || '').toLowerCase();
+    const fallbackMap = {
+        'submitted': 'Pending Review',
+        'pending_blockchain': 'Pending Blockchain',
+        'processing': 'Processing',
+        'approved': 'Approved',
+        'registered': 'Registered',
+        'rejected': 'Rejected'
+    };
+    return fallbackMap[normalized] || status;
 }
 
 async function viewApplication(applicationId) {
@@ -3729,7 +3738,7 @@ async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BL
                     <td>${ownerName}</td>
                     <td>${formattedDate}</td>
                     <td>${renderOrgStatusIndicators(v)}</td>
-        <td><span class="status-badge status-${(v.status || '').toLowerCase()}">${getStatusText(v.status)}</span></td>
+                    <td><span class="status-badge status-${(v.status || '').toLowerCase()}">${getStatusText(v.status)}</span></td>
                     <td class="integrity-status-cell" data-vehicle-id="${vehicleId}" data-vin="${vin}">
                         <span class="integrity-badge loading">
                             <i class="fas fa-spinner fa-spin"></i> Checking...

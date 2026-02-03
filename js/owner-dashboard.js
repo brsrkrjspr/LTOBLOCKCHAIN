@@ -1759,7 +1759,7 @@ function createUserApplicationRow(application) {
             <div class="vehicle-info">
                 <strong>${escapeHtml(application.vehicle?.make || '')} ${escapeHtml(application.vehicle?.model || '')} ${escapeHtml(application.vehicle?.year || '')}</strong>
                 <br><small>${escapeHtml(application.vehicle?.plateNumber || '')}</small>
-                ${application.vehicle?.originType && String(application.vehicle.originType).toUpperCase() === 'TRANSFER' ? `<span class="badge badge-transfer-origin">${escapeHtml('Transfer')}</span>` : ''}
+                ${application.vehicle?.originType && String(application.vehicle.originType).toUpperCase() === 'TRANSFER' ? `<span class="badge badge-transfer-origin">${escapeHtml(String(application.vehicle.originType))}</span>` : ''}
             </div>
         </td>
         <td><code style="font-size: 0.85rem;">${appId}</code></td>

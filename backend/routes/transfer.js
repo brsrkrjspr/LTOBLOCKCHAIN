@@ -2781,6 +2781,22 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
 
         request.documents = documents;
 
+        // Build categorized documents for admin details UI (vehicle/seller/buyer)
+        const vehicleDocs = await db.getDocumentsByVehicle(request.vehicle_id);
+        const normalizedDocs = documents.map(doc => {
+            const normalizedType = (doc.document_type || doc.type || doc.document_db_type || doc.documentType || '')
+                .toLowerCase();
+            return {
+                ...doc,
+                document_type: normalizedType
+            };
+        });
+        request.sellerDocuments = normalizedDocs.filter(doc => ['deed_of_sale', 'seller_id'].includes(doc.document_type));
+        request.buyerDocuments = normalizedDocs.filter(doc =>
+            ['buyer_id', 'buyer_tin', 'buyer_ctpl', 'buyer_hpg_clearance'].includes(doc.document_type)
+        );
+        request.vehicleDocuments = vehicleDocs || [];
+
         // Get verification history
         const verificationHistory = await db.getTransferVerificationHistory(id);
         request.verificationHistory = verificationHistory;
@@ -3145,7 +3161,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
 
         const presentRoles = new Set(
             (transferDocs || [])
-                .map(d => d.document_type)
+                .map(d => (d.document_type || '').toLowerCase())
                 .filter(Boolean)
         );
 
@@ -4317,4 +4333,3 @@ router.post('/requests/:id/link-document', authenticateToken, authorizeRole(['ve
 });
 
 module.exports = router;
-

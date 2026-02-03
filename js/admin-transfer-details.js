@@ -197,12 +197,19 @@ function renderTransferRequestDetails(request) {
         loadOwnershipHistory(request.vehicle_id || request.vehicle.id, false); // false = don't auto-expand
     }
 
-    // Update documents - use categorized documents from backend
-    renderDocuments({
-        vehicleDocuments: request.vehicleDocuments || [],
-        sellerDocuments: request.sellerDocuments || [],
-        buyerDocuments: request.buyerDocuments || []
-    });
+    // Update documents - use categorized documents from backend (fallback to legacy documents array)
+    const hasCategorizedDocuments = ['vehicleDocuments', 'sellerDocuments', 'buyerDocuments']
+        .every(key => Array.isArray(request[key])) &&
+        ['vehicleDocuments', 'sellerDocuments', 'buyerDocuments']
+            .some(key => (request[key] || []).length > 0);
+    const categorizedDocuments = hasCategorizedDocuments
+        ? {
+            vehicleDocuments: request.vehicleDocuments || [],
+            sellerDocuments: request.sellerDocuments || [],
+            buyerDocuments: request.buyerDocuments || []
+        }
+        : (request.documents || []);
+    renderDocuments(categorizedDocuments);
 
     // Update organization approval status display
     renderOrgApprovalStatus(request);
@@ -492,15 +499,17 @@ function renderSellerInfo(request) {
     if (sellerAddressEl) sellerAddressEl.textContent = sellerAddress;
 
     // Find seller ID document
-    const sellerIdDoc = (request.documents || []).find(doc =>
-        doc.document_type === 'SELLER_ID' || doc.type === 'seller_id'
-    );
+    const sellerIdDoc = (request.documents || []).find(doc => {
+        const docType = (doc.document_type || doc.type || '').toLowerCase();
+        return docType === 'seller_id';
+    });
     if (sellerIdEl && sellerIdDoc) {
+        const docId = sellerIdDoc.document_id || sellerIdDoc.id;
         sellerIdEl.innerHTML = `
-            <button class="btn-secondary btn-sm" onclick="viewDocument('${sellerIdDoc.id}')">
+            <button class="btn-secondary btn-sm" onclick="viewDocument('${docId}')">
                 <i class="fas fa-eye"></i> View
             </button>
-            <button class="btn-secondary btn-sm" onclick="downloadDocument('${sellerIdDoc.id}')">
+            <button class="btn-secondary btn-sm" onclick="downloadDocument('${docId}')">
                 <i class="fas fa-download"></i> Download
             </button>
         `;
@@ -631,15 +640,17 @@ function renderBuyerInfo(request) {
     if (buyerAddressEl) buyerAddressEl.textContent = buyerAddress;
 
     // Find buyer ID document
-    const buyerIdDoc = (request.documents || []).find(doc =>
-        doc.document_type === 'BUYER_ID' || doc.type === 'buyer_id'
-    );
+    const buyerIdDoc = (request.documents || []).find(doc => {
+        const docType = (doc.document_type || doc.type || '').toLowerCase();
+        return docType === 'buyer_id';
+    });
     if (buyerIdEl && buyerIdDoc) {
+        const docId = buyerIdDoc.document_id || buyerIdDoc.id;
         buyerIdEl.innerHTML = `
-            <button class="btn-secondary btn-sm" onclick="viewDocument('${buyerIdDoc.id}')">
+            <button class="btn-secondary btn-sm" onclick="viewDocument('${docId}')">
                 <i class="fas fa-eye"></i> View
             </button>
-            <button class="btn-secondary btn-sm" onclick="downloadDocument('${buyerIdDoc.id}')">
+            <button class="btn-secondary btn-sm" onclick="downloadDocument('${docId}')">
                 <i class="fas fa-download"></i> Download
             </button>
         `;
@@ -1341,6 +1352,9 @@ async function forwardToInsurance() {
     }
 }
 
+window.forwardToHPG = forwardToHPG;
+window.forwardToInsurance = forwardToInsurance;
+
 // Ownership History Functions
 let ownershipHistoryExpanded = false;
 
@@ -1490,3 +1504,9 @@ function toggleOwnershipHistory() {
 window.toggleOwnershipHistory = toggleOwnershipHistory;
 window.loadOwnershipHistory = loadOwnershipHistory;
 
+function viewVerification() {
+    if (!currentRequestId) return;
+    window.location.href = `admin-transfer-verification.html?id=${encodeURIComponent(currentRequestId)}`;
+}
+
+window.viewVerification = viewVerification;

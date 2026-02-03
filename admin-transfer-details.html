@@ -734,20 +734,20 @@
                             <div class="dashboard-card">
                                 <h3><span class="card-icon">⚙️</span> Admin Actions</h3>
                                 <div class="action-buttons">
-                                    <button class="btn-info btn-block" onclick="viewOwnershipHistory()" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); border: none;">
+                                    <button class="btn-info btn-block" onclick="toggleOwnershipHistory()" style="background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%); border: none;">
                                         <i class="fas fa-history"></i> View Ownership History
                                     </button>
-                                    <button class="btn-success btn-block" onclick="approveRequest()">
+                                    <button class="btn-success btn-block" onclick="approveTransfer()">
                                         <i class="fas fa-check-circle"></i> Approve Request
                                     </button>
-                                    <button class="btn-danger btn-block" onclick="rejectRequest()">
+                                    <button class="btn-danger btn-block" onclick="rejectTransfer()">
                                         <i class="fas fa-times-circle"></i> Reject Request
-                                    </button>
-                                    <button class="btn-secondary btn-block" onclick="requestAdditionalDocs()">
-                                        <i class="fas fa-file-plus"></i> Request Additional Documents
                                     </button>
                                     <button class="btn-primary btn-block" onclick="forwardToHPG()">
                                         <i class="fas fa-forward"></i> Forward to HPG for Clearance Review
+                                    </button>
+                                    <button class="btn-secondary btn-block" onclick="forwardToInsurance()">
+                                        <i class="fas fa-shield-alt"></i> Forward to Insurance Review
                                     </button>
                                     <button class="btn-secondary btn-block" onclick="viewVerification()">
                                         <i class="fas fa-search"></i> Document Verification Workspace
@@ -988,4 +988,3 @@
     </script>
 </body>
 </html>
-

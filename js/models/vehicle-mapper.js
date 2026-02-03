@@ -82,6 +82,7 @@ function mapVehicleToApplication(vehicle) {
         vin: vehicle.vin || '',
         color: vehicle.color || '',
         orCrNumber: vehicle.orCrNumber || vehicle.or_cr_number || null,
+        // originType indicates how the vehicle entered the owner's list (NEW_REG or TRANSFER).
         originType: vehicle.origin_type || vehicle.originType || ''
     };
     

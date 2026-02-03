@@ -1785,7 +1785,7 @@ const ORIGIN_LABELS = {
 
 function renderOriginBadge(originType) {
     if (!originType) return '';
-    const normalizedOrigin = originType.toUpperCase();
+    const normalizedOrigin = String(originType).toUpperCase();
     const label = ORIGIN_LABELS[normalizedOrigin];
     if (!label) return '';
     return `<span class="badge badge-transfer-origin" aria-label="Vehicle origin: ${label}">${label}</span>`;

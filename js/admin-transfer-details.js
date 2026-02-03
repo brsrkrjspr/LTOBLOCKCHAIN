@@ -1297,6 +1297,7 @@ function getStatusClass(status) {
     const statusClasses = {
         pending: 'pending',
         reviewing: 'reviewing',
+        under_review: 'reviewing',
         approved: 'approved',
         rejected: 'rejected',
         completed: 'completed',

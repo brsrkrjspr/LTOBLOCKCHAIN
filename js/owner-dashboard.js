@@ -1779,16 +1779,10 @@ function createUserApplicationRow(application) {
     return row;
 }
 
-const ORIGIN_LABELS = {
-    TRANSFER: 'Transfer'
-};
-
 function renderOriginBadge(originType) {
     if (!originType) return '';
-    const normalizedOrigin = String(originType).toUpperCase();
-    const label = ORIGIN_LABELS[normalizedOrigin];
-    if (!label) return '';
-    return `<span class="badge badge-transfer-origin" aria-label="Vehicle origin: ${label}">${label}</span>`;
+    if (String(originType).toUpperCase() !== 'TRANSFER') return '';
+    return '<span class="badge badge-transfer-origin" aria-label="Vehicle origin: Transfer">Transfer</span>';
 }
 
 // Helper function for escaping HTML

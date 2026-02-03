@@ -177,9 +177,7 @@ function renderTransferRequestDetails(request) {
 
     if (requestIdEl) requestIdEl.textContent = request.id.substring(0, 8) + '...';
     if (requestStatusEl) {
-        requestStatusEl.textContent = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText)
-            ? window.StatusUtils.getStatusText(request.status || 'PENDING')
-            : (request.status || 'PENDING');
+        requestStatusEl.textContent = getStatusLabel(request.status || 'PENDING');
         requestStatusEl.className = `status-badge ${getStatusClass(request.status)}`;
     }
 
@@ -187,9 +185,7 @@ function renderTransferRequestDetails(request) {
     const headerStatusEl = document.getElementById('pageStatusBadge');
     if (headerStatusEl) {
         const status = request.status || 'PENDING';
-        headerStatusEl.textContent = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText)
-            ? window.StatusUtils.getStatusText(status)
-            : status;
+        headerStatusEl.textContent = getStatusLabel(status);
         headerStatusEl.className = `status-badge status-badge-large ${getStatusClass(status)}`;
     }
     if (requestDateEl) {
@@ -1307,6 +1303,25 @@ function getStatusClass(status) {
         forwarded_to_hpg: 'forwarded'
     };
     return statusClasses[normalized] || 'pending';
+}
+
+function getStatusLabel(status) {
+    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
+        return window.StatusUtils.getStatusText(status);
+    }
+    const normalized = (status || '').toLowerCase();
+    const fallbackMap = {
+        'pending': 'Pending',
+        'reviewing': 'Under Review',
+        'awaiting_buyer_docs': 'Awaiting Buyer Documents',
+        'under_review': 'Under Review',
+        'approved': 'Approved',
+        'rejected': 'Rejected',
+        'completed': 'Completed',
+        'expired': 'Expired',
+        'forwarded_to_hpg': 'Forwarded to HPG'
+    };
+    return fallbackMap[normalized] || status;
 }
 
 function showLoading() {

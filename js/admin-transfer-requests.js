@@ -209,9 +209,7 @@ function renderTransferRequests(requests) {
         const submittedDate = new Date(request.submitted_at || request.created_at).toLocaleDateString('en-US');
         const status = request.status || 'PENDING';
         const statusClass = getStatusClass(status);
-        const statusLabel = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText)
-            ? window.StatusUtils.getStatusText(status)
-            : status;
+        const statusLabel = getStatusLabel(status);
 
         return `
             <tr>
@@ -275,6 +273,25 @@ function getStatusClass(status) {
         forwarded_to_hpg: 'forwarded'
     };
     return statusClasses[normalized] || 'pending';
+}
+
+function getStatusLabel(status) {
+    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
+        return window.StatusUtils.getStatusText(status);
+    }
+    const normalized = (status || '').toLowerCase();
+    const fallbackMap = {
+        'pending': 'Pending',
+        'reviewing': 'Under Review',
+        'awaiting_buyer_docs': 'Awaiting Buyer Documents',
+        'under_review': 'Under Review',
+        'approved': 'Approved',
+        'rejected': 'Rejected',
+        'completed': 'Completed',
+        'expired': 'Expired',
+        'forwarded_to_hpg': 'Forwarded to HPG'
+    };
+    return fallbackMap[normalized] || status;
 }
 
 function updatePagination(pagination) {

@@ -1600,9 +1600,10 @@ function renderStatusHistorySection(historyEntries) {
     const historyWithTimes = filteredHistory.map(entry => {
         const dateValue = entry.performed_at || entry.performedAt || entry.timestamp;
         const parsedTime = dateValue ? new Date(dateValue).getTime() : NaN;
+        const safeParsedTime = Number.isFinite(parsedTime) ? parsedTime : NaN;
         return {
             entry,
-            timeValue: parsedTime
+            timeValue: safeParsedTime
         };
     });
 
@@ -1642,7 +1643,7 @@ function renderStatusHistorySection(historyEntries) {
     `;
 }
 
-// Status action labels are normalized via formatAction during history rendering.
+// Status action labels are normalized via formatAction during history rendering in renderHistoryItem.
 
 // Render history item with blockchain icons (for use in history/audit sections)
 function renderHistoryItem(historyEntry) {
@@ -2321,9 +2322,25 @@ function showApplicationDetailsModal(application) {
                 <div class="detail-section">
                     <h4><i class="fas fa-history"></i> Application Timeline</h4>
                     <div class="mini-timeline">
-                        ${renderTimelineItem('Submitted', application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : 'N/A', status !== 'rejected', application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId, 'SUBMITTED')}
-                        ${renderTimelineItem('Under Review', null, status === 'processing' || status === 'approved' || status === 'completed', null, status === 'processing' ? 'PROCESSING' : 'PENDING')}
-                        ${renderTimelineItem(status === 'rejected' ? 'Rejected' : 'Approved', status === 'approved' || status === 'completed' || status === 'rejected' ? new Date().toLocaleDateString() : null, status === 'approved' || status === 'completed', (status === 'approved' || status === 'completed') ? (application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId) : null, status === 'rejected' ? 'REJECTED' : 'APPROVED')}
+                        ${(() => {
+                            const blockchainTx = application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId || null;
+                            const submittedLabel = 'Submitted';
+                            const submittedDate = application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : 'N/A';
+                            const submittedDone = status !== 'rejected';
+                            const reviewDone = ['processing', 'approved', 'completed'].includes(status);
+                            const reviewAction = status === 'processing' ? 'PROCESSING' : 'PENDING';
+                            const finalLabel = status === 'rejected' ? 'Rejected' : 'Approved';
+                            const finalDate = (status === 'approved' || status === 'completed' || status === 'rejected') ? new Date().toLocaleDateString() : null;
+                            const finalDone = status === 'approved' || status === 'completed';
+                            const finalTx = finalDone ? blockchainTx : null;
+                            const finalAction = status === 'rejected' ? 'REJECTED' : 'APPROVED';
+
+                            return [
+                                renderTimelineItem(submittedLabel, submittedDate, submittedDone, blockchainTx, 'SUBMITTED'),
+                                renderTimelineItem('Under Review', null, reviewDone, null, reviewAction),
+                                renderTimelineItem(finalLabel, finalDate, finalDone, finalTx, finalAction)
+                            ].join('');
+                        })()}
                     </div>
                     ${renderStatusHistorySection(application.history || [])}
                 </div>

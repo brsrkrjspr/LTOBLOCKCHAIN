@@ -965,6 +965,7 @@ async function loadUserApplications(isSilent = false) {
                     }
                     
                     allApplications = response.vehicles.map(vehicle => mapper(vehicle));
+                    allApplications = allApplications.filter(app => !app.isTransferInProgress);
                     
                     // For vehicles with active transfer requests, use transfer request verification status
                     // Transfer requests need buyer documents before auto-verification can run
@@ -1177,11 +1178,6 @@ async function loadOwnerTransferRequests() {
         const currentUserEmail = currentUser.email;
         
         const userRequests = response.requests.filter(r => {
-            // Exclude finalized/completed requests
-            if (['APPROVED', 'REJECTED', 'COMPLETED'].includes(r.status)) {
-                return false;
-            }
-            
             // User is seller
             if (r.seller_id === currentUserId || r.seller_email === currentUserEmail) {
                 return true;

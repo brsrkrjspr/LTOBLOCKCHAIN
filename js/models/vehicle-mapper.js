@@ -91,6 +91,7 @@ function mapVehicleToApplication(vehicle) {
     const status = vehicle.status 
         ? String(vehicle.status).toLowerCase() 
         : 'submitted';
+    const isTransferInProgress = ['transfer_in_progress'].includes(status);
     
     // Extract submitted date using safeDateIso helper
     const submittedDate = safeDateIso(
@@ -117,6 +118,7 @@ function mapVehicleToApplication(vehicle) {
         vehicle: vehicleInfo,
         or_cr_number: orCrNumber, // Keep snake_case for backward compatibility
         status,
+        isTransferInProgress,
         submittedDate,
         documents,
         verificationStatus
@@ -140,4 +142,3 @@ if (typeof window !== 'undefined') {
         mapVehicleToApplication
     };
 }
-

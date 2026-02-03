@@ -70,19 +70,19 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
     if (!transferRequest) {
         throw new Error('Transfer request not found');
     }
-    
+
     const isSeller = transferRequest && String(transferRequest.seller_id || transferRequest.seller?.id) === String(uploadedBy);
-    
+
     if (isSeller) {
         throw new Error('Sellers (initiators) are not allowed to upload or link documents to their own transfer requests. Only buyers can upload documents.');
     }
-    
+
     if (!documents || typeof documents !== 'object') return;
-    
+
     if (!uploadedBy) {
         throw new Error('uploadedBy is required for linking documents');
     }
-    
+
     if (!transferRequestId) {
         throw new Error('transferRequestId is required for linking documents');
     }
@@ -110,7 +110,7 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
         // 'transferCertificate': docTypes.TRANSFER_ROLES.TRANSFER_CERTIFICATE, // DEPRECATED
         // 'transfer_certificate': docTypes.TRANSFER_ROLES.TRANSFER_CERTIFICATE // DEPRECATED
     };
-    
+
     // Buyer-only allowed document types (when buyer is uploading)
     const buyerAllowedRoles = [
         docTypes.TRANSFER_ROLES.BUYER_ID,
@@ -118,7 +118,7 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
         docTypes.TRANSFER_ROLES.BUYER_CTPL,
         docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE
     ];
-    
+
     // Seller-only allowed document types (when seller is creating the request - handled elsewhere)
     const sellerOnlyRoles = [
         docTypes.TRANSFER_ROLES.DEED_OF_SALE,
@@ -175,8 +175,8 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
                     [transferRequestId, docId, transferRole]
                 );
             } catch (queryErr) {
-                console.error('❌ Error checking existing transfer document:', { 
-                    transferRequestId, docId, transferRole, error: queryErr.message 
+                console.error('❌ Error checking existing transfer document:', {
+                    transferRequestId, docId, transferRole, error: queryErr.message
                 });
                 throw new Error(`Failed to check existing document link: ${queryErr.message}`);
             }
@@ -190,7 +190,7 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
                     );
                     console.log(`✅ Linked document ${docId} as ${roleKey} (${transferRole}) to transfer ${transferRequestId}`);
                 } catch (insertErr) {
-                    console.error('❌ Error inserting transfer document:', { 
+                    console.error('❌ Error inserting transfer document:', {
                         transferRequestId, docId, transferRole, uploadedBy, error: insertErr.message,
                         code: insertErr.code, constraint: insertErr.constraint
                     });
@@ -209,6 +209,113 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
                 error: err.message,
                 stack: err.stack
             });
+            throw err;
+        }
+    }
+}
+
+/**
+ * Link seller documents (deed_of_sale, seller_id) to transfer request.
+ * Used when seller creates the request - linkTransferDocuments rejects sellers, so we insert directly.
+ * @param {Object} params
+ * @param {string} params.transferRequestId
+ * @param {Object} params.documents - key/value mapping of role -> documentId (deed_of_sale, seller_id)
+ * @param {string} params.uploadedBy - seller userId
+ */
+async function linkSellerDocumentsToTransfer({ transferRequestId, documents = {}, uploadedBy }) {
+    if (!documents || typeof documents !== 'object' || !uploadedBy || !transferRequestId) return;
+
+    const sellerRoles = {
+        deedOfSale: docTypes.TRANSFER_ROLES.DEED_OF_SALE,
+        deed_of_sale: docTypes.TRANSFER_ROLES.DEED_OF_SALE,
+        sellerId: docTypes.TRANSFER_ROLES.SELLER_ID,
+        seller_id: docTypes.TRANSFER_ROLES.SELLER_ID
+    };
+
+    for (const [roleKey, docId] of Object.entries(documents)) {
+        if (!docId) continue;
+        const transferRole = sellerRoles[roleKey];
+        if (!transferRole) continue;
+
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (!uuidRegex.test(docId)) {
+            console.warn('⚠️ Skipping invalid UUID for seller document:', { docId, roleKey, transferRequestId });
+            continue;
+        }
+
+        try {
+            const document = await db.getDocumentById(docId);
+            if (!document || !docTypes.isValidTransferRole(transferRole)) continue;
+
+            const existingDoc = await dbModule.query(
+                `SELECT id FROM transfer_documents 
+                 WHERE transfer_request_id = $1 AND document_id = $2 AND document_type = $3`,
+                [transferRequestId, docId, transferRole]
+            );
+
+            if (existingDoc.rows.length === 0) {
+                await dbModule.query(
+                    `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
+                     VALUES ($1, $2, $3, $4)`,
+                    [transferRequestId, transferRole, docId, uploadedBy]
+                );
+                console.log(`✅ Linked seller document ${docId} as ${roleKey} (${transferRole}) to transfer ${transferRequestId}`);
+            }
+        } catch (err) {
+            console.error('❌ Error linking seller document:', { roleKey, docId, transferRequestId, error: err.message });
+            throw err;
+        }
+    }
+}
+
+/**
+ * Link seller documents (deed_of_sale, seller_id) to transfer request.
+ * Sellers cannot use linkTransferDocuments (it rejects them), so this helper inserts directly.
+ * @param {Object} params
+ * @param {string} params.transferRequestId
+ * @param {Object} params.documents - key/value mapping of role -> documentId (deed_of_sale, seller_id)
+ * @param {string} params.uploadedBy - seller userId
+ */
+async function linkSellerDocumentsToTransfer({ transferRequestId, documents = {}, uploadedBy }) {
+    if (!documents || typeof documents !== 'object' || !uploadedBy || !transferRequestId) return;
+
+    const sellerRoles = {
+        deedOfSale: docTypes.TRANSFER_ROLES.DEED_OF_SALE,
+        deed_of_sale: docTypes.TRANSFER_ROLES.DEED_OF_SALE,
+        sellerId: docTypes.TRANSFER_ROLES.SELLER_ID,
+        seller_id: docTypes.TRANSFER_ROLES.SELLER_ID
+    };
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    for (const [roleKey, docId] of Object.entries(documents)) {
+        if (!docId || !sellerRoles[roleKey]) continue;
+        if (!uuidRegex.test(docId)) {
+            console.warn('⚠️ Skipping invalid UUID for seller document:', { docId, roleKey, transferRequestId });
+            continue;
+        }
+
+        const transferRole = sellerRoles[roleKey];
+        try {
+            const document = await db.getDocumentById(docId);
+            if (!document || !docTypes.isValidTransferRole(transferRole)) continue;
+
+            const existingDoc = await dbModule.query(
+                `SELECT id FROM transfer_documents 
+                 WHERE transfer_request_id = $1 AND document_id = $2 AND document_type = $3`,
+                [transferRequestId, docId, transferRole]
+            );
+
+            if (existingDoc.rows.length === 0) {
+                await dbModule.query(
+                    `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
+                     VALUES ($1, $2, $3, $4)`,
+                    [transferRequestId, transferRole, docId, uploadedBy]
+                );
+                console.log(`✅ Linked seller document ${docId} as ${roleKey} (${transferRole}) to transfer ${transferRequestId}`);
+            }
+        } catch (err) {
+            console.error('❌ Error linking seller document:', { roleKey, docId, transferRequestId, error: err.message });
             throw err;
         }
     }
@@ -420,7 +527,7 @@ TrustChain LTO System
  */
 async function sendTransferBuyerAcceptanceEmail({ to, sellerName, buyerName, vehicle }) {
     const subject = 'Transfer Request Accepted by Buyer - TrustChain LTO';
-    
+
     const safeSellerName = sellerName || 'Vehicle Owner';
     const safeBuyerName = buyerName || 'the buyer';
     const vehicleLabel = vehicle
@@ -555,7 +662,7 @@ TrustChain LTO System
  */
 async function sendTransferBuyerRejectionEmail({ to, sellerName, buyerName, vehicle }) {
     const subject = 'Transfer Request Rejected by Buyer - TrustChain LTO';
-    
+
     const safeSellerName = sellerName || 'Vehicle Owner';
     const safeBuyerName = buyerName || 'the buyer';
     const vehicleLabel = vehicle
@@ -703,10 +810,10 @@ function escapeHtml(text) {
  */
 async function sendTransferCompletionEmail({ to, sellerName, buyerName, vehicle, transferRequest, newOwner, blockchainTxId }) {
     const subject = 'Vehicle Ownership Transfer Completed - TrustChain LTO';
-    
+
     const safeSellerName = sellerName || 'Vehicle Owner';
     const safeBuyerName = buyerName || 'the buyer';
-    
+
     // Build comprehensive vehicle details
     const vehicleDetails = [];
     if (vehicle) {
@@ -719,11 +826,11 @@ async function sendTransferCompletionEmail({ to, sellerName, buyerName, vehicle,
         if (vehicle.engine_number) vehicleDetails.push(`<strong>Engine Number:</strong> ${escapeHtml(vehicle.engine_number)}`);
         if (vehicle.chassis_number) vehicleDetails.push(`<strong>Chassis Number:</strong> ${escapeHtml(vehicle.chassis_number)}`);
     }
-    
-    const vehicleDetailsHtml = vehicleDetails.length > 0 
+
+    const vehicleDetailsHtml = vehicleDetails.length > 0
         ? vehicleDetails.join('<br>')
         : 'Vehicle details not available';
-    
+
     // Build buyer information
     const buyerInfo = [];
     if (newOwner) {
@@ -736,11 +843,11 @@ async function sendTransferCompletionEmail({ to, sellerName, buyerName, vehicle,
     } else if (safeBuyerName && safeBuyerName !== 'the buyer') {
         buyerInfo.push(`<strong>Name:</strong> ${escapeHtml(safeBuyerName)}`);
     }
-    
-    const buyerInfoHtml = buyerInfo.length > 0 
+
+    const buyerInfoHtml = buyerInfo.length > 0
         ? buyerInfo.join('<br>')
         : 'Buyer information not available';
-    
+
     // Build transfer details
     const transferDetails = [];
     const transferDate = transferRequest?.reviewed_at || transferRequest?.updated_at || new Date().toISOString();
@@ -751,7 +858,7 @@ async function sendTransferCompletionEmail({ to, sellerName, buyerName, vehicle,
     if (blockchainTxId) {
         transferDetails.push(`<strong>Blockchain Transaction ID:</strong> ${escapeHtml(blockchainTxId)}`);
     }
-    
+
     const transferDetailsHtml = transferDetails.join('<br>');
 
     const html = `
@@ -883,7 +990,7 @@ async function sendTransferCompletionEmail({ to, sellerName, buyerName, vehicle,
         if (vehicle.engine_number) textDetails.push(`Engine Number: ${vehicle.engine_number}`);
         if (vehicle.chassis_number) textDetails.push(`Chassis Number: ${vehicle.chassis_number}`);
     }
-    
+
     const buyerTextInfo = [];
     if (newOwner) {
         if (newOwner.first_name && newOwner.last_name) {
@@ -895,7 +1002,7 @@ async function sendTransferCompletionEmail({ to, sellerName, buyerName, vehicle,
     } else if (safeBuyerName && safeBuyerName !== 'the buyer') {
         buyerTextInfo.push(`Name: ${safeBuyerName}`);
     }
-    
+
     const transferTextDetails = [];
     transferTextDetails.push(`Transfer Date: ${new Date(transferDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`);
     if (transferRequest?.id) {
@@ -955,9 +1062,9 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
     // But HPG may need existing OR/CR for clearance, so we pull it from vehicle records if available
     let orCrDoc = null;
     if (vehicleDocuments.length > 0) {
-        orCrDoc = vehicleDocuments.find(d => 
-            d.document_type === 'or_cr' || 
-            d.document_type === 'registration_cert' || 
+        orCrDoc = vehicleDocuments.find(d =>
+            d.document_type === 'or_cr' ||
+            d.document_type === 'registration_cert' ||
             d.document_type === 'registrationCert' ||
             d.document_type === 'registration' ||
             (d.original_name && (
@@ -972,8 +1079,8 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
     // Find Owner ID from transfer documents (document_type = 'seller_id') or vehicle documents
     let ownerIdDoc = transferDocuments.find(td => td.document_type === 'seller_id' && td.document_id);
     if (!ownerIdDoc && vehicleDocuments.length > 0) {
-        ownerIdDoc = vehicleDocuments.find(d => 
-            d.document_type === 'owner_id' || 
+        ownerIdDoc = vehicleDocuments.find(d =>
+            d.document_type === 'owner_id' ||
             d.document_type === 'ownerId' ||
             (d.original_name && d.original_name.toLowerCase().includes('id'))
         );
@@ -1029,10 +1136,10 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
     }
 
     // FIX 1: Add Buyer's HPG Clearance Certificate (HPG needs this to verify)
-    const buyerHpgTransferDoc = transferDocuments.find(td => 
+    const buyerHpgTransferDoc = transferDocuments.find(td =>
         td.document_type === docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE && td.document_id
     );
-    
+
     let buyerHpgDoc = null;
     if (buyerHpgTransferDoc && buyerHpgTransferDoc.document_id) {
         try {
@@ -1050,9 +1157,12 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
         } catch (hpgDocError) {
             console.warn(`[Transfer→HPG] Failed to fetch buyer's HPG clearance document:`, hpgDocError.message);
         }
+    } else {
+        // No buyer_hpg_clearance in transfer_documents - clearance will remain PENDING (no auto-verify)
+        console.warn(`[Transfer→HPG] No buyer HPG clearance in transfer_documents - clearance will remain PENDING until buyer uploads or manual review`);
     }
 
-    console.log(`[Transfer→HPG] ${autoTriggered ? 'Auto-forward' : 'Manual forward'} sending ${hpgDocuments.length} documents to HPG (filtered from ${transferDocuments.length} transfer docs + ${vehicleDocuments.length} vehicle docs)`);
+    console.log(`[Transfer→HPG] ${autoTriggered ? 'Auto-forward' : 'Manual forward'} sending ${hpgDocuments.length} documents to HPG (from transfer_documents + vehicle OR/CR)`);
     console.log(`[Transfer→HPG] Document types sent: ${hpgDocuments.map(d => d.type).join(', ')}`);
 
     // Create HPG clearance request with filtered documents
@@ -1120,10 +1230,10 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
                         chassisNumber: extractedData.chassisNumber
                     });
                     const dataMatch = {
-                        engineNumber: extractedData.engineNumber && request.vehicle.engine_number ? 
-                                     extractedData.engineNumber.toUpperCase().trim() === request.vehicle.engine_number.toUpperCase().trim() : null,
-                        chassisNumber: extractedData.chassisNumber && request.vehicle.chassis_number ? 
-                                      extractedData.chassisNumber.toUpperCase().trim() === request.vehicle.chassis_number.toUpperCase().trim() : null
+                        engineNumber: extractedData.engineNumber && request.vehicle.engine_number ?
+                            extractedData.engineNumber.toUpperCase().trim() === request.vehicle.engine_number.toUpperCase().trim() : null,
+                        chassisNumber: extractedData.chassisNumber && request.vehicle.chassis_number ?
+                            extractedData.chassisNumber.toUpperCase().trim() === request.vehicle.chassis_number.toUpperCase().trim() : null
                     };
                     extractedData.dataMatch = dataMatch;
                     extractedData.ocrExtracted = true;
@@ -1209,8 +1319,8 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
         description: `Transfer request forwarded to HPG for clearance review`,
         performedBy: requestedBy,
         transactionId: null,
-        metadata: { 
-            transferRequestId: request.id, 
+        metadata: {
+            transferRequestId: request.id,
             clearanceRequestId: clearanceRequest.id,
             documentsSent: hpgDocuments.length,
             autoTriggered
@@ -1220,7 +1330,7 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
     // Trigger auto-verification if HPG clearance document exists (buyer uploads this)
     // Note: buyerHpgTransferDoc is already declared above in the HPG forwarding section
     let autoVerificationResult = null;
-    
+
     if (buyerHpgTransferDoc && buyerHpgTransferDoc.document_id) {
         try {
             // Get actual document record
@@ -1228,22 +1338,22 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
             if (hpgClearanceDoc) {
                 const autoVerificationService = require('../services/autoVerificationService');
                 const vehicle = await db.getVehicleById(request.vehicle_id);
-                
+
                 // Prepare documents array for auto-verification (HPG expects array)
                 const documentsForVerification = [hpgClearanceDoc];
                 if (orCrDoc && orCrDoc.document_id) {
                     const orCrDocRecord = await db.getDocumentById(orCrDoc.document_id);
                     if (orCrDocRecord) documentsForVerification.push(orCrDocRecord);
                 }
-                
+
                 autoVerificationResult = await autoVerificationService.autoVerifyHPG(
                     request.vehicle_id,
                     documentsForVerification,
                     vehicle
                 );
-                
+
                 console.log(`[Transfer→HPG Auto-Verify] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
-                
+
                 // Update clearance request metadata with auto-verification result
                 const updatedMetadata = {
                     ...clearanceRequest.metadata,
@@ -1256,18 +1366,18 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
                         authenticityCheck: autoVerificationResult.authenticityCheck || {}
                     }
                 };
-                
+
                 await dbModule.query(
                     `UPDATE clearance_requests SET metadata = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
                     [JSON.stringify(updatedMetadata), clearanceRequest.id]
                 );
-                
+
                 // Add auto-verification result to history
                 if (autoVerificationResult.automated) {
                     await db.addVehicleHistory({
                         vehicleId: request.vehicle_id,
-                        action: autoVerificationResult.status === 'APPROVED' 
-                            ? 'TRANSFER_HPG_AUTO_VERIFIED_APPROVED' 
+                        action: autoVerificationResult.status === 'APPROVED'
+                            ? 'TRANSFER_HPG_AUTO_VERIFIED_APPROVED'
                             : 'TRANSFER_HPG_AUTO_VERIFIED_PENDING',
                         description: autoVerificationResult.status === 'APPROVED'
                             ? `Transfer HPG auto-verified and approved. Score: ${autoVerificationResult.score}%`
@@ -1280,12 +1390,12 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
                             autoVerificationResult
                         }
                     });
-                    
+
                     // Send notification to buyer if auto-verification failed (status is PENDING, not APPROVED)
                     if (autoVerificationResult.status === 'PENDING' && autoVerificationResult.reason) {
                         const buyerId = request.buyer_id || request.buyer_user_id;
                         const buyerEmail = request.buyer_email || (request.buyer_info && request.buyer_info.email);
-                        
+
                         if (buyerId) {
                             try {
                                 await db.createNotification({
@@ -1313,33 +1423,25 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
 }
 
 async function forwardTransferToInsurance({ request, requestedBy, purpose, notes, autoTriggered = false }) {
-    // Get transfer documents (buyer uploads CTPL)
+    // Get transfer documents - use ONLY buyer's CTPL from transfer_documents (not vehicle registration docs)
     const transferDocuments = await db.getTransferRequestDocuments(request.id);
-    const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
-    
+
     // Find CTPL from transfer documents (buyer uploads this)
+    // Do NOT fallback to vehicle documents - transfer requires buyer's new CTPL, not seller's old one
     let insuranceDoc = null;
-    const buyerCtplTransferDoc = transferDocuments.find(td => 
+    const buyerCtplTransferDoc = transferDocuments.find(td =>
         td.document_type === docTypes.TRANSFER_ROLES.BUYER_CTPL && td.document_id
     );
-    
+
     if (buyerCtplTransferDoc && buyerCtplTransferDoc.document_id) {
-        // Get actual document record
         insuranceDoc = await db.getDocumentById(buyerCtplTransferDoc.document_id);
     }
-    
-    // Fallback: check vehicle documents for insurance/CTPL
-    // Note: CTPL certificates are stored as 'insurance_cert' type (CTPL is distinguished via metadata)
+
+    // If no buyer_ctpl in transfer_documents, do NOT auto-verify - status remains PENDING
     if (!insuranceDoc) {
-        insuranceDoc = vehicleDocuments.find(d => 
-            d.document_type === 'insurance_cert' || 
-            d.document_type === 'insuranceCert' ||
-            d.document_type === 'insurance' ||
-            (d.original_name && d.original_name.toLowerCase().includes('insurance')) ||
-            (d.original_name && d.original_name.toLowerCase().includes('ctpl'))
-        );
+        console.warn(`[Transfer→Insurance] No buyer CTPL in transfer_documents - clearance will remain PENDING until buyer uploads or manual review`);
     }
-    
+
     const insuranceDocuments = insuranceDoc ? [{
         id: insuranceDoc.id,
         type: insuranceDoc.document_type,
@@ -1348,11 +1450,7 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
         filename: insuranceDoc.original_name
     }] : [];
 
-    if (!insuranceDoc) {
-        console.warn(`[Transfer→Insurance] Warning: No insurance/CTPL certificate found for vehicle ${request.vehicle_id}`);
-    }
-
-    console.log(`[Transfer→Insurance] ${autoTriggered ? 'Auto-forward' : 'Manual forward'} sending ${insuranceDocuments.length} document(s) to Insurance (filtered from ${vehicleDocuments.length} total)`);
+    console.log(`[Transfer→Insurance] ${autoTriggered ? 'Auto-forward' : 'Manual forward'} sending ${insuranceDocuments.length} document(s) to Insurance (from transfer_documents)`);
     console.log(`[Transfer→Insurance] Document type sent: ${insuranceDoc?.document_type || 'none'}`);
 
     const clearanceRequest = await db.createClearanceRequest({
@@ -1394,8 +1492,8 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
         action: 'TRANSFER_FORWARDED_TO_INSURANCE',
         description: `Transfer request forwarded to Insurance for clearance review`,
         performedBy: requestedBy,
-        metadata: { 
-            transferRequestId: request.id, 
+        metadata: {
+            transferRequestId: request.id,
             clearanceRequestId: clearanceRequest.id,
             documentsSent: insuranceDocuments.length,
             autoTriggered
@@ -1413,9 +1511,9 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
                 insuranceDoc,
                 vehicle
             );
-            
+
             console.log(`[Transfer→Insurance Auto-Verify] Result: ${autoVerificationResult.status}, Automated: ${autoVerificationResult.automated}`);
-            
+
             // Update clearance request status if auto-approved
             if (autoVerificationResult.automated && autoVerificationResult.status === 'APPROVED') {
                 await db.updateClearanceRequestStatus(clearanceRequest.id, 'APPROVED', {
@@ -1426,7 +1524,7 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
                     autoVerificationResult
                 });
                 console.log(`[Transfer→Insurance Auto-Verify] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
-                
+
                 // FIX 2: Update transfer request insurance approval status
                 try {
                     await dbModule.query(
@@ -1445,13 +1543,13 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
                     // Don't fail the whole process if status update fails
                 }
             }
-            
+
             // Add auto-verification result to history
             if (autoVerificationResult.automated) {
                 await db.addVehicleHistory({
                     vehicleId: request.vehicle_id,
-                    action: autoVerificationResult.status === 'APPROVED' 
-                        ? 'TRANSFER_INSURANCE_AUTO_VERIFIED_APPROVED' 
+                    action: autoVerificationResult.status === 'APPROVED'
+                        ? 'TRANSFER_INSURANCE_AUTO_VERIFIED_APPROVED'
                         : 'TRANSFER_INSURANCE_AUTO_VERIFIED_PENDING',
                     description: autoVerificationResult.status === 'APPROVED'
                         ? `Transfer Insurance auto-verified and approved. Score: ${autoVerificationResult.score}%`
@@ -1464,12 +1562,12 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
                         autoVerificationResult
                     }
                 });
-                
+
                 // Send notification to buyer if auto-verification failed (status is PENDING, not APPROVED)
                 if (autoVerificationResult.status === 'PENDING' && autoVerificationResult.reason) {
                     const buyerId = request.buyer_id || request.buyer_user_id;
                     const buyerEmail = request.buyer_email || (request.buyer_info && request.buyer_info.email);
-                    
+
                     if (buyerId) {
                         try {
                             await db.createNotification({
@@ -1584,14 +1682,14 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             documents
         } = req.body;
         const expiresAt = computeExpiresAt();
-        
+
         if (!vehicleId) {
             return res.status(400).json({
                 success: false,
                 error: 'Vehicle ID is required'
             });
         }
-        
+
         // NEW: Only require buyer email (simplified workflow)
         if (!buyerEmail && !buyerId) {
             return res.status(400).json({
@@ -1599,7 +1697,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 error: 'Buyer email is required'
             });
         }
-        
+
         // Get vehicle
         const vehicle = await db.getVehicleById(vehicleId);
         if (!vehicle) {
@@ -1608,7 +1706,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 error: 'Vehicle not found'
             });
         }
-        
+
         // Check if user is the owner (unless admin)
         if (req.user.role !== 'admin' && String(vehicle.owner_id) !== String(req.user.userId)) {
             return res.status(403).json({
@@ -1616,7 +1714,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 error: 'You can only create transfer requests for your own vehicles'
             });
         }
-        
+
         // Prevent seller from transferring to themselves
         if (buyerEmail && buyerEmail.toLowerCase() === req.user.email.toLowerCase()) {
             return res.status(400).json({
@@ -1624,7 +1722,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 error: 'You cannot transfer ownership to yourself. Please enter a different buyer email address.'
             });
         }
-        
+
         // Validate seller profile - ensure seller has complete profile information
         const seller = await db.getUserById(req.user.userId);
         if (!seller) {
@@ -1633,7 +1731,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 error: 'Seller account not found'
             });
         }
-        
+
         if (!seller.first_name || !seller.last_name) {
             return res.status(400).json({
                 success: false,
@@ -1641,7 +1739,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 requiresProfileUpdate: true
             });
         }
-        
+
         // Check if there's already a pending transfer request for this vehicle
         let existingRequests = [];
         try {
@@ -1677,12 +1775,12 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                     // Buyer has account - use their account info
                     resolvedBuyerId = existingBuyer.id;
                     // Store buyer info from their account (real data, no placeholders)
-                        resolvedBuyerInfo = {
-                            email: buyerEmail,
-                            firstName: existingBuyer.first_name,
-                            lastName: existingBuyer.last_name,
+                    resolvedBuyerInfo = {
+                        email: buyerEmail,
+                        firstName: existingBuyer.first_name,
+                        lastName: existingBuyer.last_name,
                         phone: existingBuyer.phone || null
-                        };
+                    };
                 } else {
                     // Buyer doesn't have account yet - store email only
                     // Name/phone will be collected when buyer accepts or registers
@@ -1699,7 +1797,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 });
             }
         }
-        
+
         // Create transfer request
         let transferRequest;
         try {
@@ -1728,78 +1826,83 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             });
             throw createError;
         }
-        
+
         // Set vehicle status to transfer in progress
         try {
             await db.updateVehicle(vehicleId, { status: VEHICLE_STATUS.TRANSFER_IN_PROGRESS });
         } catch (statusError) {
             console.warn('⚠️ Failed to set vehicle status to TRANSFER_IN_PROGRESS:', statusError.message);
         }
-        
-        // Link documents - supports explicit roles and legacy array
-        try {
-            await linkTransferDocuments({
-                    transferRequestId: transferRequest.id,
-                documents,
-                uploadedBy: req.user.userId
-            });
 
+        // Link documents - seller uploads deed_of_sale and seller_id at creation
+        // linkTransferDocuments rejects sellers, so we use linkSellerDocumentsToTransfer for seller docs
+        try {
+            // 1. Link seller documents (deed_of_sale, seller_id) - seller is the creator
+            if (documents && typeof documents === 'object' && Object.keys(documents).length > 0) {
+                await linkSellerDocumentsToTransfer({
+                    transferRequestId: transferRequest.id,
+                    documents,
+                    uploadedBy: req.user.userId
+                });
+            }
+
+            // 2. Legacy: infer and link from documentIds array
             if (documentIds && Array.isArray(documentIds) && documentIds.length > 0) {
-            console.log('📋 Linking transfer documents (legacy mode):', {
-                transferRequestId: transferRequest.id,
-                documentCount: documentIds.length,
-                note: 'Using legacy inference - consider migrating to explicit document roles'
-            });
-            
-            for (const docId of documentIds) {
-                // Determine document type from document (legacy inference)
-                const document = await db.getDocumentById(docId);
-                if (document) {
-                    let docType = null;
-                    if (document.document_type === 'owner_id') {
-                        // Check if it's seller or buyer ID based on uploader (legacy inference)
-                        docType = String(document.uploaded_by) === String(req.user.userId) 
-                            ? docTypes.TRANSFER_ROLES.SELLER_ID 
-                            : docTypes.TRANSFER_ROLES.BUYER_ID;
-                    } else if (document.document_type === 'registration_cert') {
-                        // OR/CR removed: Not required for transfer requests. System automatically generates new OR/CR after transfer completion.
-                        // docType = docTypes.TRANSFER_ROLES.OR_CR; // DEPRECATED
-                        docType = null; // Skip OR/CR documents in legacy inference
-                    } else if (document.document_type === 'deed_of_sale') {
-                        docType = docTypes.TRANSFER_ROLES.DEED_OF_SALE;
-                    }
-                    
-                    // Only insert if we have a valid transfer role
-                    if (docType && docTypes.isValidTransferRole(docType)) {
-                        // Check if already exists
-                        const existingDoc = await dbModule.query(
-                            `SELECT id FROM transfer_documents 
-                             WHERE transfer_request_id = $1 AND document_id = $2 AND document_type = $3`,
-                            [transferRequest.id, docId, docType]
-                        );
-                        
-                        if (existingDoc.rows.length === 0) {
-                            await dbModule.query(
-                                `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
-                                 VALUES ($1, $2, $3, $4)`,
-                                [transferRequest.id, docType, docId, req.user.userId]
-                            );
+                console.log('📋 Linking transfer documents (legacy mode):', {
+                    transferRequestId: transferRequest.id,
+                    documentCount: documentIds.length,
+                    note: 'Using legacy inference - consider migrating to explicit document roles'
+                });
+
+                for (const docId of documentIds) {
+                    // Determine document type from document (legacy inference)
+                    const document = await db.getDocumentById(docId);
+                    if (document) {
+                        let docType = null;
+                        if (document.document_type === 'owner_id') {
+                            // Check if it's seller or buyer ID based on uploader (legacy inference)
+                            docType = String(document.uploaded_by) === String(req.user.userId)
+                                ? docTypes.TRANSFER_ROLES.SELLER_ID
+                                : docTypes.TRANSFER_ROLES.BUYER_ID;
+                        } else if (document.document_type === 'registration_cert') {
+                            // OR/CR removed: Not required for transfer requests. System automatically generates new OR/CR after transfer completion.
+                            // docType = docTypes.TRANSFER_ROLES.OR_CR; // DEPRECATED
+                            docType = null; // Skip OR/CR documents in legacy inference
+                        } else if (document.document_type === 'deed_of_sale') {
+                            docType = docTypes.TRANSFER_ROLES.DEED_OF_SALE;
                         }
-                    } else {
-                        console.warn('⚠️ Could not determine transfer role for document:', { 
-                            docId, 
-                            documentType: document.document_type 
-                        });
+
+                        // Only insert if we have a valid transfer role
+                        if (docType && docTypes.isValidTransferRole(docType)) {
+                            // Check if already exists
+                            const existingDoc = await dbModule.query(
+                                `SELECT id FROM transfer_documents 
+                             WHERE transfer_request_id = $1 AND document_id = $2 AND document_type = $3`,
+                                [transferRequest.id, docId, docType]
+                            );
+
+                            if (existingDoc.rows.length === 0) {
+                                await dbModule.query(
+                                    `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
+                                 VALUES ($1, $2, $3, $4)`,
+                                    [transferRequest.id, docType, docId, req.user.userId]
+                                );
+                            }
+                        } else {
+                            console.warn('⚠️ Could not determine transfer role for document:', {
+                                docId,
+                                documentType: document.document_type
+                            });
+                        }
                     }
                 }
             }
-        }
         } catch (docLinkError) {
             // Don't fail the whole request if document linking fails
             console.error('⚠️ Error linking documents (transfer request still created):', docLinkError);
             console.error('Document linking error details:', docLinkError.message, docLinkError.stack);
         }
-        
+
         // Log transfer request creation
         console.log('✅ Transfer request created:', {
             transferRequestId: transferRequest.id,
@@ -1809,7 +1912,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
             documentCount: documents ? Object.keys(documents).length : (documentIds?.length || 0),
             mode: documents ? 'explicit_roles' : 'legacy_inference'
         });
-        
+
         // Add to vehicle history
         await db.addVehicleHistory({
             vehicleId,
@@ -1824,7 +1927,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
         if (buyerEmail) {
             try {
                 const inviteToken = generateTransferInviteToken(transferRequest.id, buyerEmail);
-                
+
                 // Get buyer name from database if buyer has account, otherwise use email
                 let buyerDisplayName = buyerEmail;
                 if (resolvedBuyerId && resolvedBuyerInfo) {
@@ -1834,12 +1937,12 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                         buyerDisplayName = resolvedBuyerInfo.firstName;
                     }
                 }
-                
+
                 // Get seller full name from database (already fetched above)
-                const sellerFullName = seller 
+                const sellerFullName = seller
                     ? `${seller.first_name || ''} ${seller.last_name || ''}`.trim() || seller.email
                     : req.user.email;
-                
+
                 await sendTransferInviteEmail({
                     to: buyerEmail,
                     buyerName: buyerDisplayName,
@@ -1847,13 +1950,13 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                     vehicle,
                     inviteToken
                 });
-                
+
                 console.log('✅ Transfer invite email sent to buyer:', {
                     buyerEmail: buyerEmail,
                     buyerName: buyerDisplayName,
                     sellerName: sellerFullName
                 });
-                
+
                 // Create in-app notification for buyer if they have an account
                 if (resolvedBuyerId) {
                     try {
@@ -1879,7 +1982,7 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 // Continue - request is created, buyer can still access via notifications or direct link
             }
         }
-        
+
         // Get full request with relations
         let fullRequest;
         try {
@@ -1900,19 +2003,19 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 }
             };
         }
-        
+
         res.status(201).json({
             success: true,
             message: 'Transfer request created successfully',
             transferRequest: fullRequest
         });
-        
+
     } catch (error) {
         console.error('Create transfer request error:', error);
         console.error('Error stack:', error.stack);
         console.error('Request body:', JSON.stringify(req.body, null, 2));
         console.error('User:', { userId: req.user?.userId, email: req.user?.email, role: req.user?.role });
-        
+
         res.status(500).json({
             success: false,
             error: 'Internal server error',
@@ -1962,10 +2065,10 @@ router.get('/requests/pending-for-buyer', authenticateToken, authorizeRole(['veh
                 model: row.model,
                 year: row.year
             };
-            
+
             // Remove vehicle fields from the main object to avoid duplication
             const { vin, plate_number, make, model, year, ...transferRequest } = row;
-            
+
             return {
                 ...transferRequest,
                 vehicle: vehicle, // Nested vehicle object for frontend compatibility
@@ -2036,7 +2139,7 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
                  WHERE id = $3`,
                 [currentUserId, currentUserEmail, id]
             );
-            
+
             // Create notification for buyer now that account is linked
             // Get seller and vehicle info for notification message
             const sellerName = request.seller_first_name && request.seller_last_name
@@ -2044,7 +2147,7 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
                 : request.seller_email;
             const vehicle = await db.getVehicleById(request.vehicle_id);
             const vehicleLabel = vehicle?.plate_number || vehicle?.vin || 'a vehicle';
-            
+
             try {
                 await db.createNotification({
                     userId: currentUserId,
@@ -2114,7 +2217,7 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
             // Note: MVIR auto-verification removed - MVIR comes from LTO inspection (vehicles.inspection_documents),
             // not from buyer uploads. MVIR is verified during LTO inspection process, not during transfer acceptance.
 
-        const metadataUpdate = {
+            const metadataUpdate = {
                 buyerAcceptedAt: nowIso,
                 buyerAcceptedBy: currentUserId,
                 buyerSubmittedAt: nowIso,
@@ -2156,13 +2259,13 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
             console.error('Failed to get vehicle:', vehicleError);
             // Don't fail the request if vehicle lookup fails - continue with null vehicle
         }
-        
+
         // Get seller information
         const sellerEmail = request.seller_email;
         const sellerName = request.seller_first_name && request.seller_last_name
             ? `${request.seller_first_name} ${request.seller_last_name}`
             : request.seller_email;
-        
+
         // Get buyer name for email
         const buyerName = request.buyer_first_name && request.buyer_last_name
             ? `${request.buyer_first_name} ${request.buyer_last_name}`
@@ -2170,31 +2273,31 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
 
         // Send notifications only when buyer docs have been submitted (UNDER_REVIEW)
         if (statusAfterAccept === TRANSFER_STATUS.UNDER_REVIEW) {
-        if (sellerEmail) {
-            try {
-                await sendTransferBuyerAcceptanceEmail({
-                    to: sellerEmail,
-                    sellerName: sellerName,
-                    buyerName: buyerName,
-                    vehicle: vehicle
-                });
-                console.log('✅ Buyer acceptance email sent to seller:', sellerEmail);
-            } catch (emailError) {
-                console.error('❌ Failed to send buyer acceptance email to seller:', emailError);
-                // Don't fail the request if email fails
+            if (sellerEmail) {
+                try {
+                    await sendTransferBuyerAcceptanceEmail({
+                        to: sellerEmail,
+                        sellerName: sellerName,
+                        buyerName: buyerName,
+                        vehicle: vehicle
+                    });
+                    console.log('✅ Buyer acceptance email sent to seller:', sellerEmail);
+                } catch (emailError) {
+                    console.error('❌ Failed to send buyer acceptance email to seller:', emailError);
+                    // Don't fail the request if email fails
+                }
             }
-        }
 
-        try {
-            await db.createNotification({
-                userId: request.seller_id,
-                title: 'Transfer Request Accepted by Buyer',
+            try {
+                await db.createNotification({
+                    userId: request.seller_id,
+                    title: 'Transfer Request Accepted by Buyer',
                     message: `${buyerName} has accepted your transfer request for vehicle ${vehicle?.plate_number || vehicle?.vin || 'your vehicle'}. The request is now under review.`,
-                type: 'success'
-            });
-            console.log('✅ Created notification for seller about buyer acceptance');
-        } catch (notifError) {
-            console.warn('⚠️ Failed to create seller notification:', notifError.message);
+                    type: 'success'
+                });
+                console.log('✅ Created notification for seller about buyer acceptance');
+            } catch (notifError) {
+                console.warn('⚠️ Failed to create seller notification:', notifError.message);
             }
         }
 
@@ -2207,13 +2310,13 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
                 if (autoForward?.transferRequest) {
                     updatedRequest = autoForward.transferRequest;
                 }
-                
+
                 // Notify buyer about auto-forward status
                 if (autoForward && !autoForward.skipped) {
                     const forwardedOrgs = [];
                     if (autoForward.results?.hpg?.success) forwardedOrgs.push('HPG');
                     if (autoForward.results?.insurance?.success) forwardedOrgs.push('Insurance');
-                    
+
                     if (forwardedOrgs.length > 0) {
                         try {
                             await db.createNotification({
@@ -2317,13 +2420,13 @@ router.post('/requests/:id/reject-by-buyer', authenticateToken, authorizeRole(['
 
         // Get vehicle information for email
         const vehicle = await db.getVehicleById(request.vehicle_id);
-        
+
         // Get seller information
         const sellerEmail = request.seller_email;
         const sellerName = request.seller_first_name && request.seller_last_name
             ? `${request.seller_first_name} ${request.seller_last_name}`
             : request.seller_email;
-        
+
         // Get buyer name for email
         const buyerName = request.buyer_first_name && request.buyer_last_name
             ? `${request.buyer_first_name} ${request.buyer_last_name}`
@@ -2454,7 +2557,7 @@ router.get('/requests/preview-from-token', async (req, res) => {
 router.get('/requests', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer', 'vehicle_owner']), async (req, res) => {
     try {
         const { status, sellerId, buyerId, vehicleId, dateFrom, dateTo, plateNumber, page = 1, limit = 50 } = req.query;
-        
+
         // Build filters
         const filters = {};
         if (status) {
@@ -2470,27 +2573,27 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'lto_admin', 
         if (plateNumber) filters.plateNumber = plateNumber;
         filters.page = parseInt(page);
         filters.limit = parseInt(limit);
-        
+
         // If vehicle_owner, only show their requests
         if (req.user.role === 'vehicle_owner') {
             filters.sellerId = req.user.userId;
         }
-        
+
         // Only apply status filter if user explicitly provided one
         // No default filtering - show all requests unless user filters
         // (The UI can handle filtering on the frontend if needed)
-        
+
         const requests = await db.getTransferRequests(filters);
-        
+
         // Get total count for pagination
         const dbModule = require('../database/db');
         let countQuery = 'SELECT COUNT(*) FROM transfer_requests WHERE 1=1';
         const countParams = [];
         let paramCount = 0;
-        
+
         // Use the same status filter as the main query (only if explicitly provided)
         const statusFilter = filters.status;
-        
+
         if (statusFilter) {
             paramCount++;
             // Handle both single status and array of statuses
@@ -2498,20 +2601,20 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'lto_admin', 
                 countQuery += ` AND status = ANY($${paramCount})`;
                 countParams.push(statusFilter);
             } else {
-            countQuery += ` AND status = $${paramCount}`;
+                countQuery += ` AND status = $${paramCount}`;
                 countParams.push(statusFilter);
             }
         }
-        
+
         if (req.user.role === 'vehicle_owner') {
             paramCount++;
             countQuery += ` AND seller_id = $${paramCount}`;
             countParams.push(req.user.userId);
         }
-        
+
         const countResult = await dbModule.query(countQuery, countParams);
         const totalCount = parseInt(countResult.rows[0]?.count || 0);
-        
+
         res.json({
             success: true,
             transferRequests: requests, // Frontend expects 'transferRequests'
@@ -2524,7 +2627,7 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'lto_admin', 
                 hasPrev: parseInt(page) > 1
             }
         });
-        
+
     } catch (error) {
         console.error('Get transfer requests error:', error);
         console.error('Error details:', error.message, error.stack);
@@ -2541,7 +2644,7 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'lto_admin', 
 router.get('/requests/stats', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const dbModule = require('../database/db');
-        
+
         const stats = {
             total: 0,
             pending: 0,
@@ -2552,13 +2655,13 @@ router.get('/requests/stats', authenticateToken, authorizeRole(['admin', 'lto_ad
             expired: 0,
             completed: 0
         };
-        
+
         const result = await dbModule.query(
             `SELECT status, COUNT(*) as count 
              FROM transfer_requests 
              GROUP BY status`
         );
-        
+
         result.rows.forEach(row => {
             stats.total += parseInt(row.count);
             const status = row.status.toLowerCase();
@@ -2566,12 +2669,12 @@ router.get('/requests/stats', authenticateToken, authorizeRole(['admin', 'lto_ad
                 stats[status] = parseInt(row.count);
             }
         });
-        
+
         res.json({
             success: true,
             stats
         });
-        
+
     } catch (error) {
         console.error('Get transfer stats error:', error);
         res.status(500).json({
@@ -2624,7 +2727,7 @@ router.post('/requests/expire-stale', authenticateToken, authorizeRole(['admin',
 router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_owner']), async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         const request = await db.getTransferRequestById(id);
         if (!request) {
             return res.status(404).json({
@@ -2632,30 +2735,30 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
                 error: 'Transfer request not found'
             });
         }
-        
+
         // Check permissions - allow seller OR buyer
         const isSeller = req.user.role === 'vehicle_owner' && String(request.seller_id) === String(req.user.userId);
         const buyerInfo = request.buyer_info;
         const buyerId = request.buyer_id || request.buyer_user_id;
         const isBuyer = buyerId && String(buyerId) === String(req.user.userId);
         const isBuyerByEmail = !buyerId && buyerInfo && buyerInfo.email && buyerInfo.email.toLowerCase() === req.user.email.toLowerCase();
-        
+
         if (req.user.role === 'vehicle_owner' && !isSeller && !isBuyer && !isBuyerByEmail) {
             return res.status(403).json({
                 success: false,
                 error: 'Access denied. You must be the seller or buyer for this transfer request.'
             });
         }
-        
+
         // Get documents
         const documents = await db.getTransferRequestDocuments(id);
-        
+
         // Automatically include OR/CR from vehicle records (even though seller didn't upload it)
         // OR/CR is linked to the vehicle, so it's automatically compiled with the transfer application
         const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
-        const orCrDoc = vehicleDocuments.find(d => 
-            d.document_type === 'or_cr' || 
-            d.document_type === 'registration_cert' || 
+        const orCrDoc = vehicleDocuments.find(d =>
+            d.document_type === 'or_cr' ||
+            d.document_type === 'registration_cert' ||
             d.document_type === 'registrationCert' ||
             d.document_type === 'registration' ||
             (d.original_name && (
@@ -2665,7 +2768,7 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
                 d.original_name.toLowerCase().includes('registration')
             ))
         );
-        
+
         // Add OR/CR to documents array if found (marked as auto-included from vehicle)
         if (orCrDoc) {
             documents.push({
@@ -2675,18 +2778,18 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
                 source: 'vehicle_record'
             });
         }
-        
+
         request.documents = documents;
-        
+
         // Get verification history
         const verificationHistory = await db.getTransferVerificationHistory(id);
         request.verificationHistory = verificationHistory;
-        
+
         res.json({
             success: true,
             transferRequest: request
         });
-        
+
     } catch (error) {
         console.error('Get transfer request error:', error);
         res.status(500).json({
@@ -2700,7 +2803,7 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
 router.get('/requests/:id/documents', authenticateToken, authorizeRole(['admin', 'vehicle_owner']), async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         const request = await db.getTransferRequestById(id);
         if (!request) {
             return res.status(404).json({
@@ -2708,31 +2811,31 @@ router.get('/requests/:id/documents', authenticateToken, authorizeRole(['admin',
                 error: 'Transfer request not found'
             });
         }
-        
+
         // Check permissions - allow seller OR buyer
         const isSeller = req.user.role === 'vehicle_owner' && String(request.seller_id) === String(req.user.userId);
         const buyerInfo = request.buyer_info;
         const buyerId = request.buyer_id || request.buyer_user_id;
         const isBuyer = buyerId && String(buyerId) === String(req.user.userId);
         const isBuyerByEmail = !buyerId && buyerInfo && buyerInfo.email && buyerInfo.email.toLowerCase() === req.user.email.toLowerCase();
-        
+
         if (req.user.role === 'vehicle_owner' && !isSeller && !isBuyer && !isBuyerByEmail) {
             return res.status(403).json({
                 success: false,
                 error: 'Access denied. You must be the seller or buyer for this transfer request.'
             });
         }
-        
+
         const documents = await db.getTransferRequestDocuments(id);
-        
+
         // Automatically include OR/CR from vehicle records (even though seller didn't upload it)
         // OR/CR is linked to the vehicle, so it's automatically compiled with the transfer application
         const vehicle = await db.getVehicleById(request.vehicle_id);
         if (vehicle) {
             const vehicleDocuments = await db.getDocumentsByVehicle(request.vehicle_id);
-            const orCrDoc = vehicleDocuments.find(d => 
-                d.document_type === 'or_cr' || 
-                d.document_type === 'registration_cert' || 
+            const orCrDoc = vehicleDocuments.find(d =>
+                d.document_type === 'or_cr' ||
+                d.document_type === 'registration_cert' ||
                 d.document_type === 'registrationCert' ||
                 d.document_type === 'registration' ||
                 (d.original_name && (
@@ -2742,7 +2845,7 @@ router.get('/requests/:id/documents', authenticateToken, authorizeRole(['admin',
                     d.original_name.toLowerCase().includes('registration')
                 ))
             );
-            
+
             // Add OR/CR to documents array if found (marked as auto-included from vehicle)
             if (orCrDoc) {
                 documents.push({
@@ -2753,12 +2856,12 @@ router.get('/requests/:id/documents', authenticateToken, authorizeRole(['admin',
                 });
             }
         }
-        
+
         res.json({
             success: true,
             documents
         });
-        
+
     } catch (error) {
         console.error('Get transfer request documents error:', error);
         res.status(500).json({
@@ -2773,14 +2876,14 @@ router.get('/requests/:id/documents', authenticateToken, authorizeRole(['admin',
 router.get('/requests/:id/verification-history', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         const history = await db.getTransferVerificationHistory(id);
-        
+
         res.json({
             success: true,
             verificationHistory: history
         });
-        
+
     } catch (error) {
         console.error('Get verification history error:', error);
         res.status(500).json({
@@ -2796,11 +2899,11 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
     try {
         const { id } = req.params;
         const { notes } = req.body;
-        
+
         // Get current user to check role for transfer value limits
         const currentUser = await db.getUserById(req.user.userId);
         const userRole = currentUser?.role || req.user.role;
-        
+
         const request = await db.getTransferRequestById(id);
         if (!request) {
             return res.status(404).json({
@@ -2808,7 +2911,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 error: 'Transfer request not found'
             });
         }
-        
+
         // STRICT: lto_officer can only approve transfers under 500k PHP value
         // NOTE: Transfer value is not currently stored in transfer_requests table
         // If transfer value tracking is added, implement check here:
@@ -2819,12 +2922,12 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
         //         message: 'Transfers over 500,000 PHP require lto_admin or admin approval'
         //     });
         // }
-        
+
         // PHASE 3: Validate transfer status transition before updating
         // Handle status transition properly: UNDER_REVIEW must go through APPROVED first
         let currentStatus = request.status;
         let needsApprovalTransition = false;
-        
+
         // Check if we need to transition through APPROVED first
         if (currentStatus === TRANSFER_STATUS.UNDER_REVIEW) {
             // UNDER_REVIEW cannot directly transition to COMPLETED
@@ -2842,7 +2945,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             }
             needsApprovalTransition = true;
         }
-        
+
         // Validate final transition to COMPLETED
         const targetStatus = TRANSFER_STATUS.COMPLETED;
         const finalStatus = needsApprovalTransition ? TRANSFER_STATUS.APPROVED : currentStatus;
@@ -2876,12 +2979,12 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 error: `Cannot approve request with status: ${request.status}`
             });
         }
-        
+
         // Check if all organization approvals are complete
         // Only check organizations that were actually forwarded to
         const pendingApprovals = [];
         const rejectedApprovals = [];
-        
+
         // Check HPG approval only if it was forwarded to HPG
         if (request.hpg_clearance_request_id) {
             if (!request.hpg_approval_status || request.hpg_approval_status === 'PENDING') {
@@ -2890,7 +2993,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 rejectedApprovals.push('HPG');
             }
         }
-        
+
         // Check Insurance approval only if it was forwarded to Insurance
         if (request.insurance_clearance_request_id) {
             if (!request.insurance_approval_status || request.insurance_approval_status === 'PENDING') {
@@ -2899,9 +3002,9 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 rejectedApprovals.push('Insurance');
             }
         }
-        
+
         // HPG and Insurance are the only required organizations for transfer approval.
-        
+
         if (pendingApprovals.length > 0) {
             return res.status(400).json({
                 success: false,
@@ -2910,7 +3013,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 message: `The following organizations must approve before LTO can finalize: ${pendingApprovals.join(', ')}`
             });
         }
-        
+
         if (rejectedApprovals.length > 0) {
             return res.status(400).json({
                 success: false,
@@ -2919,7 +3022,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 message: `The following organizations have rejected: ${rejectedApprovals.join(', ')}`
             });
         }
-        
+
         // Get vehicle
         const vehicle = await db.getVehicleById(request.vehicle_id);
         if (!vehicle) {
@@ -2988,7 +3091,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
         } else if (mvirAutoVerification && mvirAutoVerification.status === 'APPROVED' && mvirAutoVerification.automated === true) {
             console.log(`[Transfer Approval] ✅ MVIR auto-verified successfully`);
         }
-        
+
         // Determine buyer ID (create user if buyer_info exists)
         let buyerId = request.buyer_id;
         if (!buyerId && request.buyer_info) {
@@ -2996,7 +3099,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             const bcrypt = require('bcryptjs');
             const buyerInfo = typeof request.buyer_info === 'string' ? JSON.parse(request.buyer_info) : request.buyer_info;
             const tempPassword = await bcrypt.hash('temp_password_' + Date.now(), 12);
-            
+
             const buyerUser = await db.createUser({
                 email: buyerInfo.email,
                 passwordHash: tempPassword,
@@ -3006,9 +3109,9 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 organization: 'Individual',
                 phone: buyerInfo.phone
             });
-            
+
             buyerId = buyerUser.id;
-            
+
             // Update request with buyer_id
             const dbModule = require('../database/db');
             await dbModule.query(
@@ -3016,7 +3119,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 [buyerId, id]
             );
         }
-        
+
         if (!buyerId) {
             return res.status(400).json({
                 success: false,
@@ -3071,7 +3174,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 }
             });
         }
-        
+
         // Update vehicle ownership and set origin type to TRANSFER for the new owner
         // After transfer completion, vehicle should remain REGISTERED (or APPROVED) so it shows up properly for the new owner
         // TRANSFER_COMPLETED and TRANSFER_IN_PROGRESS are temporary statuses - we should restore the vehicle to its active status
@@ -3086,12 +3189,12 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             // For any other status, default to REGISTERED
             vehicleStatusAfterTransfer = VEHICLE_STATUS.REGISTERED;
         }
-        
+
         // Transfer ownership on blockchain FIRST to get transaction ID
         // CRITICAL: Blockchain transaction is MANDATORY for ownership transfers
         // If blockchain fails, the entire transfer must fail (blockchain is source of truth)
         let blockchainTxId = null;
-        
+
         // STRICT FABRIC: Enforce real blockchain service - NO FALLBACKS ALLOWED
         const blockchainMode = process.env.BLOCKCHAIN_MODE || 'fabric';
         if (blockchainMode !== 'fabric') {
@@ -3102,7 +3205,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 message: 'BLOCKCHAIN_MODE must be set to "fabric". System requires real Hyperledger Fabric network. No fallback modes allowed.'
             });
         }
-        
+
         // Validate Fabric connection - MANDATORY
         if (!fabricService.isConnected || fabricService.mode !== 'fabric') {
             return res.status(503).json({
@@ -3111,19 +3214,19 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 message: 'Cannot complete transfer: Hyperledger Fabric network is not connected. Please ensure the blockchain network is running.'
             });
         }
-        
+
         // Blockchain is ALWAYS required - proceed with transfer
         try {
             const buyer = await db.getUserById(buyerId);
             // Fetch current user to get employee_id
             const currentUser = await db.getUserById(req.user.userId);
-            
+
             // Initialize Fabric service with current user context for dynamic identity selection
             await fabricService.initialize({
                 role: req.user.role,
                 email: req.user.email
             });
-            
+
             const transferData = {
                 reason: 'Ownership transfer approved',
                 transferDate: new Date().toISOString(),
@@ -3139,7 +3242,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 approvedByEmail: req.user.email,
                 approvedByName: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
             };
-            
+
             const result = await fabricService.transferOwnership(
                 vehicle.vin,
                 {
@@ -3149,22 +3252,22 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 },
                 transferData
             );
-            
+
             blockchainTxId = result.transactionId;
-            
+
             if (!blockchainTxId) {
                 throw new Error('Blockchain transfer completed but no transaction ID returned');
             }
-            
+
             console.log(`✅ Blockchain transfer successful. TX ID: ${blockchainTxId}`);
-            
+
             // PHASE 3: Add BLOCKCHAIN_TRANSFERRED history entry immediately after successful blockchain transfer
             // This mirrors the BLOCKCHAIN_REGISTERED pattern from registration workflow
             // Get vehicle for metadata before updating it
             const vehicleForHistory = await db.getVehicleById(request.vehicle_id);
             const previousOwnerForHistory = vehicleForHistory.owner_id ? await db.getUserById(vehicleForHistory.owner_id) : null;
             const buyerForHistory = await db.getUserById(buyerId);
-            
+
             await db.addVehicleHistory({
                 vehicleId: request.vehicle_id,
                 action: TRANSFER_ACTIONS.BLOCKCHAIN_TRANSFERRED, // PHASE 3: Use standardized action constant
@@ -3190,7 +3293,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 message: `Cannot complete transfer: ${blockchainError.message}. The ownership transfer must be recorded on the blockchain. Please try again or contact support if the issue persists.`
             });
         }
-        
+
         // STRICT FABRIC: Validate blockchain transaction ID exists - MANDATORY
         if (!blockchainTxId) {
             console.error('❌ CRITICAL: Blockchain transaction ID missing after transfer');
@@ -3200,15 +3303,15 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 message: 'Transfer completed but blockchain transaction ID was not recorded. This should not happen. Please contact support.'
             });
         }
-        
+
         // Update vehicle with new owner, status, and blockchain transaction ID
-        await db.updateVehicle(request.vehicle_id, { 
-            ownerId: buyerId, 
-            originType: 'TRANSFER', 
+        await db.updateVehicle(request.vehicle_id, {
+            ownerId: buyerId,
+            originType: 'TRANSFER',
             status: vehicleStatusAfterTransfer,
             blockchainTxId: blockchainTxId  // Save blockchain transaction ID (MANDATORY - always required)
         });
-        
+
         // Update transfer request status with proper transition
         // If we need to transition through APPROVED first, do it now
         if (needsApprovalTransition) {
@@ -3218,7 +3321,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             });
             console.log(`✅ [Phase 3] Transitioned transfer status: ${currentStatus} → ${TRANSFER_STATUS.APPROVED}`);
         }
-        
+
         // Now transition to COMPLETED
         await db.updateTransferRequestStatus(id, TRANSFER_STATUS.COMPLETED, req.user.userId, null, {
             blockchainTxId,
@@ -3305,11 +3408,11 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             console.warn('⚠️ Failed to generate transfer package document:', packageError.message);
         }
         */
-        
+
         // Get full owner details for history (after vehicle update)
         const previousOwner = await db.getUserById(request.seller_id);
         const newOwner = await db.getUserById(buyerId);
-        
+
         // PHASE 3: Add TRANSFER_COMPLETED history entry with standardized action name
         // This represents the completion of the transfer workflow (separate from blockchain entry)
         await db.addVehicleHistory({
@@ -3332,7 +3435,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 blockchainTxId: blockchainTxId
             }
         });
-        
+
         // Create notifications
         await db.createNotification({
             userId: request.seller_id,
@@ -3340,7 +3443,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             message: `Your transfer request for vehicle ${vehicle.plate_number || vehicle.vin} has been approved.`,
             type: 'success'
         });
-        
+
         if (buyerId) {
             await db.createNotification({
                 userId: buyerId,
@@ -3349,10 +3452,10 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 type: 'info'
             });
         }
-        
+
         // Get updated request
         const updatedRequest = await db.getTransferRequestById(id);
-        
+
         // Send email notification to seller
         if (previousOwner && previousOwner.email) {
             try {
@@ -3371,14 +3474,14 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 // Don't fail the request if email fails
             }
         }
-        
+
         res.json({
             success: true,
             message: 'Transfer request approved successfully',
             transferRequest: updatedRequest,
             blockchainTxId
         });
-        
+
     } catch (error) {
         console.error('Approve transfer request error:', error);
         res.status(500).json({
@@ -3395,14 +3498,14 @@ router.post('/requests/:id/reject', authenticateToken, authorizeRole(['admin', '
     try {
         const { id } = req.params;
         const { reason } = req.body;
-        
+
         if (!reason || !reason.trim()) {
             return res.status(400).json({
                 success: false,
                 error: 'Rejection reason is required'
             });
         }
-        
+
         const request = await db.getTransferRequestById(id);
         if (!request) {
             return res.status(404).json({
@@ -3410,14 +3513,14 @@ router.post('/requests/:id/reject', authenticateToken, authorizeRole(['admin', '
                 error: 'Transfer request not found'
             });
         }
-        
+
         if (request.status === TRANSFER_STATUS.COMPLETED) {
             return res.status(400).json({
                 success: false,
                 error: 'Cannot reject an already approved or completed request'
             });
         }
-        
+
         // Update transfer request status
         await db.updateTransferRequestStatus(id, TRANSFER_STATUS.REJECTED, req.user.userId, reason);
 
@@ -3448,7 +3551,7 @@ router.post('/requests/:id/reject', authenticateToken, authorizeRole(['admin', '
         } catch (statusErr) {
             console.warn('⚠️ Failed to revert vehicle status after admin rejection:', statusErr.message);
         }
-        
+
         // Add to vehicle history
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
@@ -3458,7 +3561,7 @@ router.post('/requests/:id/reject', authenticateToken, authorizeRole(['admin', '
             transactionId: null,
             metadata: { transferRequestId: id, rejectionReason: reason }
         });
-        
+
         // Create notification
         await db.createNotification({
             userId: request.seller_id,
@@ -3466,7 +3569,7 @@ router.post('/requests/:id/reject', authenticateToken, authorizeRole(['admin', '
             message: `Your transfer request has been rejected. Reason: ${reason}`,
             type: 'error'
         });
-        
+
         // Send email notification to seller
         try {
             const vehicle = await db.getVehicleById(request.vehicle_id);
@@ -3474,12 +3577,12 @@ router.post('/requests/:id/reject', authenticateToken, authorizeRole(['admin', '
             const sellerName = request.seller_first_name && request.seller_last_name
                 ? `${request.seller_first_name} ${request.seller_last_name}`
                 : sellerEmail || 'Vehicle Owner';
-            
+
             if (sellerEmail) {
                 const gmailApiService = require('../services/gmailApiService');
                 const appUrl = process.env.APP_URL || 'http://localhost:3000';
                 const dashboardUrl = `${appUrl}/owner-dashboard.html`;
-                
+
                 const subject = 'Transfer Request Rejected - TrustChain LTO';
                 const html = `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -3528,7 +3631,7 @@ router.post('/requests/:id/reject', authenticateToken, authorizeRole(['admin', '
                         </p>
                     </div>
                 `;
-                
+
                 const text = `
 Transfer Request Rejected - TrustChain LTO
 
@@ -3562,21 +3665,21 @@ If you have any questions, please contact LTO Lipa City.
 Best regards,
 LTO Lipa City Team
                 `;
-                
+
                 await gmailApiService.sendMail({
                     to: sellerEmail,
                     subject,
                     text,
                     html
                 });
-                
+
                 console.log(`✅ Rejection email sent to seller ${sellerEmail} for transfer request ${id}`);
             }
         } catch (emailError) {
             console.error('❌ Failed to send rejection email:', emailError);
             // Don't fail the request if email fails
         }
-        
+
         // Send email notification to buyer if buyer email exists
         try {
             const buyerEmail = request.buyer_email;
@@ -3585,11 +3688,11 @@ LTO Lipa City Team
                 const buyerName = request.buyer_first_name && request.buyer_last_name
                     ? `${request.buyer_first_name} ${request.buyer_last_name}`
                     : buyerEmail;
-                
+
                 const gmailApiService = require('../services/gmailApiService');
                 const appUrl = process.env.APP_URL || 'http://localhost:3000';
                 const dashboardUrl = `${appUrl}/my-vehicle-ownership.html`;
-                
+
                 const subject = 'Transfer Request Rejected - TrustChain LTO';
                 const html = `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -3622,7 +3725,7 @@ LTO Lipa City Team
                         </p>
                     </div>
                 `;
-                
+
                 const text = `
 Transfer Request Rejected - TrustChain LTO
 
@@ -3646,30 +3749,30 @@ Please contact the seller or LTO Lipa City if you have any questions.
 Best regards,
 LTO Lipa City Team
                 `;
-                
+
                 await gmailApiService.sendMail({
                     to: buyerEmail,
                     subject,
                     text,
                     html
                 });
-                
+
                 console.log(`✅ Rejection email sent to buyer ${buyerEmail} for transfer request ${id}`);
             }
         } catch (emailError) {
             console.error('❌ Failed to send rejection email to buyer:', emailError);
             // Don't fail the request if email fails
         }
-        
+
         // Get updated request
         const updatedRequest = await db.getTransferRequestById(id);
-        
+
         res.json({
             success: true,
             message: 'Transfer request rejected',
             transferRequest: updatedRequest
         });
-        
+
     } catch (error) {
         console.error('Reject transfer request error:', error);
         res.status(500).json({
@@ -3701,14 +3804,14 @@ router.post('/requests/:id/forward-hpg', authenticateToken, authorizeRole(['admi
             notes,
             autoTriggered: false
         });
-        
+
         res.json({
             success: true,
             message: 'Transfer request forwarded to HPG',
             transferRequest: updatedRequest,
             clearanceRequest
         });
-        
+
     } catch (error) {
         console.error('Forward to HPG error:', error);
         res.status(500).json({
@@ -3794,14 +3897,14 @@ router.post('/requests/:id/documents/:docId/verify', authenticateToken, authoriz
     try {
         const { id, docId } = req.params;
         const { status, notes, checklist, flagged } = req.body;
-        
+
         if (!status || !['APPROVED', 'REJECTED', 'PENDING'].includes(status)) {
             return res.status(400).json({
                 success: false,
                 error: 'Valid status is required (APPROVED, REJECTED, or PENDING)'
             });
         }
-        
+
         const request = await db.getTransferRequestById(id);
         if (!request) {
             return res.status(404).json({
@@ -3817,7 +3920,7 @@ router.post('/requests/:id/documents/:docId/verify', authenticateToken, authoriz
                 error: 'Cannot modify document verification for a finalized transfer request'
             });
         }
-        
+
         const document = await db.getDocumentById(docId);
         if (!document) {
             return res.status(404).json({
@@ -3825,7 +3928,7 @@ router.post('/requests/:id/documents/:docId/verify', authenticateToken, authoriz
                 error: 'Document not found'
             });
         }
-        
+
         // Create verification record
         const verification = await db.createTransferVerification({
             transferRequestId: id,
@@ -3836,14 +3939,14 @@ router.post('/requests/:id/documents/:docId/verify', authenticateToken, authoriz
             checklist: checklist || {},
             flagged: flagged || false
         });
-        
+
         // Update document verification status (only if approved)
         // Note: verifyDocument always sets verified=true, so only call for APPROVED status
         if (status === 'APPROVED') {
             await db.verifyDocument(docId, req.user.userId);
         }
         // For REJECTED/PENDING, the verification record is created but document verified flag is not updated
-        
+
         // Add to vehicle history
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
@@ -3858,13 +3961,13 @@ router.post('/requests/:id/documents/:docId/verify', authenticateToken, authoriz
                 flagged: flagged || false
             }
         });
-        
+
         res.json({
             success: true,
             message: 'Document verification saved',
             verification
         });
-        
+
     } catch (error) {
         console.error('Verify document error:', {
             error: error.message,
@@ -3887,7 +3990,7 @@ router.post('/requests/:id/documents/:docId/verify', authenticateToken, authoriz
 router.post('/requests/bulk-approve', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const { requestIds } = req.body;
-        
+
         if (!Array.isArray(requestIds) || requestIds.length === 0) {
             return res.status(400).json({
                 success: false,
@@ -3899,10 +4002,10 @@ router.post('/requests/bulk-approve', authenticateToken, authorizeRole(['admin',
             success: false,
             error: 'Bulk approve is not supported for the gated transfer flow. Please approve individually to ensure ownership, documents, and blockchain updates are applied correctly.'
         });
-        
+
         const results = [];
         const errors = [];
-        
+
         for (const requestId of requestIds) {
             try {
                 const request = await db.getTransferRequestById(requestId);
@@ -3910,30 +4013,30 @@ router.post('/requests/bulk-approve', authenticateToken, authorizeRole(['admin',
                     errors.push({ requestId, error: 'Request not found' });
                     continue;
                 }
-                
+
                 if (![TRANSFER_STATUS.PENDING, TRANSFER_STATUS.AWAITING_BUYER_DOCS, TRANSFER_STATUS.UNDER_REVIEW].includes(request.status)) {
                     errors.push({ requestId, error: `Cannot approve request with status: ${request.status}` });
                     continue;
                 }
-                
+
                 // Approve the request (reuse approve logic)
                 // For simplicity, we'll update status directly here
                 // In production, you might want to call the approve endpoint logic
                 await db.updateTransferRequestStatus(requestId, 'APPROVED', req.user.userId);
-                
+
                 results.push({ requestId, status: 'approved' });
             } catch (error) {
                 errors.push({ requestId, error: error.message });
             }
         }
-        
+
         res.json({
             success: true,
             message: `Processed ${results.length} requests, ${errors.length} errors`,
             results,
             errors: errors.length > 0 ? errors : undefined
         });
-        
+
     } catch (error) {
         console.error('Bulk approve error:', error);
         res.status(500).json({
@@ -3948,24 +4051,24 @@ router.post('/requests/bulk-approve', authenticateToken, authorizeRole(['admin',
 router.post('/requests/bulk-reject', authenticateToken, authorizeRole(['admin', 'lto_admin']), async (req, res) => {
     try {
         const { requestIds, reason } = req.body;
-        
+
         if (!Array.isArray(requestIds) || requestIds.length === 0) {
             return res.status(400).json({
                 success: false,
                 error: 'requestIds array is required'
             });
         }
-        
+
         if (!reason || !reason.trim()) {
             return res.status(400).json({
                 success: false,
                 error: 'Rejection reason is required'
             });
         }
-        
+
         const results = [];
         const errors = [];
-        
+
         for (const requestId of requestIds) {
             try {
                 const request = await db.getTransferRequestById(requestId);
@@ -3973,27 +4076,27 @@ router.post('/requests/bulk-reject', authenticateToken, authorizeRole(['admin', 
                     errors.push({ requestId, error: 'Request not found' });
                     continue;
                 }
-                
+
                 if (request.status === 'APPROVED' || request.status === 'COMPLETED') {
                     errors.push({ requestId, error: 'Cannot reject an already approved request' });
                     continue;
                 }
-                
+
                 await db.updateTransferRequestStatus(requestId, 'REJECTED', req.user.userId, reason);
-                
+
                 results.push({ requestId, status: 'rejected' });
             } catch (error) {
                 errors.push({ requestId, error: error.message });
             }
         }
-        
+
         res.json({
             success: true,
             message: `Processed ${results.length} requests, ${errors.length} errors`,
             results,
             errors: errors.length > 0 ? errors : undefined
         });
-        
+
     } catch (error) {
         console.error('Bulk reject error:', error);
         res.status(500).json({
@@ -4008,7 +4111,7 @@ router.post('/requests/:id/hpg-approve', authenticateToken, authorizeRole(['admi
     try {
         const { id } = req.params;
         const { notes } = req.body;
-        
+
         const request = await db.getTransferRequestById(id);
         if (!request) {
             return res.status(404).json({
@@ -4016,7 +4119,7 @@ router.post('/requests/:id/hpg-approve', authenticateToken, authorizeRole(['admi
                 error: 'Transfer request not found'
             });
         }
-        
+
         // Update HPG approval status
         const dbModule = require('../database/db');
         await dbModule.query(
@@ -4033,7 +4136,7 @@ router.post('/requests/:id/hpg-approve', authenticateToken, authorizeRole(['admi
                 id
             ]
         );
-        
+
         // Add to vehicle history
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
@@ -4042,15 +4145,15 @@ router.post('/requests/:id/hpg-approve', authenticateToken, authorizeRole(['admi
             performedBy: req.user.userId,
             metadata: { transferRequestId: id, notes: notes || null }
         });
-        
+
         const updatedRequest = await db.getTransferRequestById(id);
-        
+
         res.json({
             success: true,
             message: 'HPG approval recorded successfully',
             transferRequest: updatedRequest
         });
-        
+
     } catch (error) {
         console.error('HPG approve transfer error:', error);
         res.status(500).json({
@@ -4065,7 +4168,7 @@ router.post('/requests/:id/insurance-approve', authenticateToken, authorizeRole(
     try {
         const { id } = req.params;
         const { notes } = req.body;
-        
+
         const request = await db.getTransferRequestById(id);
         if (!request) {
             return res.status(404).json({
@@ -4073,7 +4176,7 @@ router.post('/requests/:id/insurance-approve', authenticateToken, authorizeRole(
                 error: 'Transfer request not found'
             });
         }
-        
+
         // Update Insurance approval status
         const dbModule = require('../database/db');
         await dbModule.query(
@@ -4090,7 +4193,7 @@ router.post('/requests/:id/insurance-approve', authenticateToken, authorizeRole(
                 id
             ]
         );
-        
+
         // Add to vehicle history
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
@@ -4099,15 +4202,15 @@ router.post('/requests/:id/insurance-approve', authenticateToken, authorizeRole(
             performedBy: req.user.userId,
             metadata: { transferRequestId: id, notes: notes || null }
         });
-        
+
         const updatedRequest = await db.getTransferRequestById(id);
-        
+
         res.json({
             success: true,
             message: 'Insurance approval recorded successfully',
             transferRequest: updatedRequest
         });
-        
+
     } catch (error) {
         console.error('Insurance approve transfer error:', error);
         res.status(500).json({
@@ -4161,14 +4264,14 @@ router.post('/requests/:id/link-document', authenticateToken, authorizeRole(['ve
     try {
         const { id } = req.params;
         const { documents } = req.body;
-        
+
         if (!documents || typeof documents !== 'object') {
             return res.status(400).json({
                 success: false,
                 error: 'Documents object is required'
             });
         }
-        
+
         const request = await db.getTransferRequestById(id);
         if (!request) {
             return res.status(404).json({
@@ -4176,33 +4279,33 @@ router.post('/requests/:id/link-document', authenticateToken, authorizeRole(['ve
                 error: 'Transfer request not found'
             });
         }
-        
+
         // Check permissions - user must be seller OR buyer
         const isSeller = req.user.role === 'vehicle_owner' && String(request.seller_id) === String(req.user.userId);
         const buyerInfo = request.buyer_info;
         const buyerId = request.buyer_id || request.buyer_user_id;
         const isBuyer = buyerId && String(buyerId) === String(req.user.userId);
         const isBuyerByEmail = !buyerId && buyerInfo && buyerInfo.email && buyerInfo.email.toLowerCase() === req.user.email.toLowerCase();
-        
+
         if (req.user.role === 'vehicle_owner' && !isSeller && !isBuyer && !isBuyerByEmail) {
             return res.status(403).json({
                 success: false,
                 error: 'Access denied. You must be the seller or buyer for this transfer request.'
             });
         }
-        
+
         // Link documents using the existing linkTransferDocuments function
         await linkTransferDocuments({
             transferRequestId: id,
             documents: documents,
             uploadedBy: req.user.userId
         });
-        
+
         res.json({
             success: true,
             message: 'Document linked to transfer request successfully'
         });
-        
+
     } catch (error) {
         console.error('Link document to transfer request error:', error);
         res.status(500).json({

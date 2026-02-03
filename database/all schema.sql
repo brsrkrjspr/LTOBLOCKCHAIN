@@ -2,12 +2,12 @@
 -- PostgreSQL database dump
 --
 
-\restrict BMAhqcumkskXQqJaK9JD1nib9hGBeC6tEE28hPpBGlATyyqklU1WG3EGagXWaex
+\restrict 45G0AIirgjgpMswTdmRPS5FOKgIrIl5TBPt24v8g7p5pAC8scj0a4JEgIJnno5S
 
 -- Dumped from database version 15.15
 -- Dumped by pg_dump version 18.1
 
--- Started on 2026-02-02 18:57:15
+-- Started on 2026-02-03 19:44:25
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -158,17 +158,28 @@ ALTER TYPE public.verification_status OWNER TO lto_user;
 
 CREATE FUNCTION public.auto_cleanup_old_tokens() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$
-BEGIN
-    -- Run cleanup function occasionally (every ~50 inserts would be ~1/50 = 2%)
-    IF RANDOM() < 0.02 THEN
-        DELETE FROM email_verification_tokens
-        WHERE expires_at < CURRENT_TIMESTAMP
-        OR (used_at IS NOT NULL AND used_at < CURRENT_TIMESTAMP - INTERVAL '30 days');
-    END IF;
-    
-    RETURN NEW;
-END;
+    AS $$
+
+BEGIN
+
+    -- Run cleanup function occasionally (every ~50 inserts would be ~1/50 = 2%)
+
+    IF RANDOM() < 0.02 THEN
+
+        DELETE FROM email_verification_tokens
+
+        WHERE expires_at < CURRENT_TIMESTAMP
+
+        OR (used_at IS NOT NULL AND used_at < CURRENT_TIMESTAMP - INTERVAL '30 days');
+
+    END IF;
+
+    
+
+    RETURN NEW;
+
+END;
+
 $$;
 
 
@@ -201,19 +212,32 @@ ALTER FUNCTION public.cleanup_expired_blacklist() OWNER TO lto_user;
 
 CREATE FUNCTION public.cleanup_expired_tokens() RETURNS integer
     LANGUAGE plpgsql
-    AS $$
-DECLARE
-    deleted_count INTEGER;
-BEGIN
-    -- Delete expired refresh tokens
-    DELETE FROM refresh_tokens WHERE expires_at < CURRENT_TIMESTAMP;
-    GET DIAGNOSTICS deleted_count = ROW_COUNT;
-    
-    -- Delete expired sessions
-    DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP;
-    
-    RETURN deleted_count;
-END;
+    AS $$
+
+DECLARE
+
+    deleted_count INTEGER;
+
+BEGIN
+
+    -- Delete expired refresh tokens
+
+    DELETE FROM refresh_tokens WHERE expires_at < CURRENT_TIMESTAMP;
+
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+
+    
+
+    -- Delete expired sessions
+
+    DELETE FROM sessions WHERE expires_at < CURRENT_TIMESTAMP;
+
+    
+
+    RETURN deleted_count;
+
+END;
+
 $$;
 
 
@@ -226,18 +250,30 @@ ALTER FUNCTION public.cleanup_expired_tokens() OWNER TO lto_user;
 
 CREATE FUNCTION public.cleanup_expired_verification_tokens() RETURNS integer
     LANGUAGE plpgsql
-    AS $$
-DECLARE
-    deleted_count INTEGER;
-BEGIN
-    DELETE FROM email_verification_tokens
-    WHERE expires_at < CURRENT_TIMESTAMP
-    OR (used_at IS NOT NULL AND used_at < CURRENT_TIMESTAMP - INTERVAL '30 days');
-    
-    GET DIAGNOSTICS deleted_count = ROW_COUNT;
-    
-    RETURN deleted_count;
-END;
+    AS $$
+
+DECLARE
+
+    deleted_count INTEGER;
+
+BEGIN
+
+    DELETE FROM email_verification_tokens
+
+    WHERE expires_at < CURRENT_TIMESTAMP
+
+    OR (used_at IS NOT NULL AND used_at < CURRENT_TIMESTAMP - INTERVAL '30 days');
+
+    
+
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+
+    
+
+    RETURN deleted_count;
+
+END;
+
 $$;
 
 
@@ -250,37 +286,68 @@ ALTER FUNCTION public.cleanup_expired_verification_tokens() OWNER TO lto_user;
 
 CREATE FUNCTION public.log_officer_vehicle_action() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$
-BEGIN
-    -- Only log if performed_by is set and refers to an LTO officer/admin
-    IF NEW.performed_by IS NOT NULL THEN
-        INSERT INTO officer_activity_log (
-            officer_id,
-            activity_type,
-            entity_type,
-            entity_id,
-            action,
-            notes,
-            metadata
-        )
-        SELECT 
-            NEW.performed_by,
-            'registration',
-            'vehicle',
-            NEW.vehicle_id,
-            NEW.action,
-            NEW.description,
-            jsonb_build_object(
-                'transaction_id', NEW.transaction_id,
-                'vehicle_history_id', NEW.id
-            )
-        FROM users
-        WHERE id = NEW.performed_by 
-        AND role IN ('lto_officer', 'lto_supervisor', 'lto_admin', 'staff', 'admin');
-    END IF;
-    
-    RETURN NEW;
-END;
+    AS $$
+
+BEGIN
+
+    -- Only log if performed_by is set and refers to an LTO officer/admin
+
+    IF NEW.performed_by IS NOT NULL THEN
+
+        INSERT INTO officer_activity_log (
+
+            officer_id,
+
+            activity_type,
+
+            entity_type,
+
+            entity_id,
+
+            action,
+
+            notes,
+
+            metadata
+
+        )
+
+        SELECT 
+
+            NEW.performed_by,
+
+            'registration',
+
+            'vehicle',
+
+            NEW.vehicle_id,
+
+            NEW.action,
+
+            NEW.description,
+
+            jsonb_build_object(
+
+                'transaction_id', NEW.transaction_id,
+
+                'vehicle_history_id', NEW.id
+
+            )
+
+        FROM users
+
+        WHERE id = NEW.performed_by 
+
+        AND role IN ('lto_officer', 'lto_supervisor', 'lto_admin', 'staff', 'admin');
+
+    END IF;
+
+    
+
+    RETURN NEW;
+
+END;
+
 $$;
 
 
@@ -302,11 +369,16 @@ COMMENT ON FUNCTION public.log_officer_vehicle_action() IS 'Automatically logs o
 
 CREATE FUNCTION public.update_clearance_requests_updated_at() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
+    AS $$
+
+BEGIN
+
+    NEW.updated_at = CURRENT_TIMESTAMP;
+
+    RETURN NEW;
+
+END;
+
 $$;
 
 
@@ -319,11 +391,16 @@ ALTER FUNCTION public.update_clearance_requests_updated_at() OWNER TO lto_user;
 
 CREATE FUNCTION public.update_document_requirements_updated_at() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
+    AS $$
+
+BEGIN
+
+    NEW.updated_at = CURRENT_TIMESTAMP;
+
+    RETURN NEW;
+
+END;
+
 $$;
 
 
@@ -336,11 +413,16 @@ ALTER FUNCTION public.update_document_requirements_updated_at() OWNER TO lto_use
 
 CREATE FUNCTION public.update_transfer_requests_updated_at() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$
-BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
-    RETURN NEW;
-END;
+    AS $$
+
+BEGIN
+
+    NEW.updated_at = CURRENT_TIMESTAMP;
+
+    RETURN NEW;
+
+END;
+
 $$;
 
 
@@ -353,31 +435,56 @@ ALTER FUNCTION public.update_transfer_requests_updated_at() OWNER TO lto_user;
 
 CREATE FUNCTION public.update_updated_at_column() RETURNS trigger
     LANGUAGE plpgsql
-    AS $$
-BEGIN
-    -- For vehicles table, update last_updated
-    IF TG_TABLE_NAME = 'vehicles' THEN
-        NEW.last_updated := CURRENT_TIMESTAMP;
-    -- For other tables, try updated_at first, then last_updated
-    ELSE
-        -- Try to update updated_at if it exists (for users, verifications, etc.)
-        BEGIN
-            NEW.updated_at := CURRENT_TIMESTAMP;
-        EXCEPTION
-            WHEN undefined_column THEN
-                -- Column doesn't exist, try last_updated instead
-                BEGIN
-                    NEW.last_updated := CURRENT_TIMESTAMP;
-                EXCEPTION
-                    WHEN undefined_column THEN
-                        -- Neither column exists, do nothing
-                        NULL;
-                END;
-        END;
-    END IF;
-    
-    RETURN NEW;
-END;
+    AS $$
+
+BEGIN
+
+    -- For vehicles table, update last_updated
+
+    IF TG_TABLE_NAME = 'vehicles' THEN
+
+        NEW.last_updated := CURRENT_TIMESTAMP;
+
+    -- For other tables, try updated_at first, then last_updated
+
+    ELSE
+
+        -- Try to update updated_at if it exists (for users, verifications, etc.)
+
+        BEGIN
+
+            NEW.updated_at := CURRENT_TIMESTAMP;
+
+        EXCEPTION
+
+            WHEN undefined_column THEN
+
+                -- Column doesn't exist, try last_updated instead
+
+                BEGIN
+
+                    NEW.last_updated := CURRENT_TIMESTAMP;
+
+                EXCEPTION
+
+                    WHEN undefined_column THEN
+
+                        -- Neither column exists, do nothing
+
+                        NULL;
+
+                END;
+
+        END;
+
+    END IF;
+
+    
+
+    RETURN NEW;
+
+END;
+
 $$;
 
 
@@ -3327,11 +3434,11 @@ ALTER TABLE ONLY public.vehicles
     ADD CONSTRAINT vehicles_scrapped_by_fkey FOREIGN KEY (scrapped_by) REFERENCES public.users(id);
 
 
--- Completed on 2026-02-02 18:57:19
+-- Completed on 2026-02-03 19:44:44
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict BMAhqcumkskXQqJaK9JD1nib9hGBeC6tEE28hPpBGlATyyqklU1WG3EGagXWaex
+\unrestrict 45G0AIirgjgpMswTdmRPS5FOKgIrIl5TBPt24v8g7p5pAC8scj0a4JEgIJnno5S
 

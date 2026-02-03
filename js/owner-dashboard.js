@@ -1592,15 +1592,15 @@ function renderStatusHistorySection(historyEntries, status) {
         `;
     }
 
-        const sortedHistory = [...filteredHistory].sort((a, b) => {
-            const dateA = new Date(a.performed_at || a.performedAt || a.timestamp || 0).getTime();
-            const dateB = new Date(b.performed_at || b.performedAt || b.timestamp || 0).getTime();
-            return dateB - dateA;
-        });
+    const sortedHistory = [...filteredHistory].sort((a, b) => {
+        const dateA = new Date(a.performed_at || a.performedAt || a.timestamp || 0).getTime();
+        const dateB = new Date(b.performed_at || b.performedAt || b.timestamp || 0).getTime();
+        return dateB - dateA;
+    });
 
     const formattedHistory = sortedHistory.map(entry => ({
         ...entry,
-        performed_at: entry.performed_at || entry.performedAt || entry.timestamp || entry.performed_at,
+        performed_at: entry.performed_at || entry.performedAt || entry.timestamp,
         action: normalizeHistoryAction(entry.action),
         transaction_id: entry.transaction_id || entry.transactionId || null
     }));

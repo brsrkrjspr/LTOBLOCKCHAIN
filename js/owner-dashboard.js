@@ -1600,10 +1600,9 @@ function renderStatusHistorySection(historyEntries) {
     const historyWithTimes = filteredHistory.map(entry => {
         const dateValue = entry.performed_at || entry.performedAt || entry.timestamp;
         const parsedTime = dateValue ? new Date(dateValue).getTime() : NaN;
-        const timeValue = Number.isNaN(parsedTime) ? NaN : parsedTime;
         return {
             entry,
-            timeValue
+            timeValue: Number.isNaN(parsedTime) ? NaN : parsedTime
         };
     });
 
@@ -1946,7 +1945,6 @@ async function viewUserApplication(applicationId) {
                 application.blockchain_tx_id = vehicleResponse.vehicle.blockchain_tx_id || vehicleResponse.vehicle.blockchainTxId;
                 application.blockchainTxId = vehicleResponse.vehicle.blockchainTxId || vehicleResponse.vehicle.blockchain_tx_id;
                 application.history = vehicleResponse.vehicle.history || application.history || [];
-                application.statusHistory = application.history;
                 
                 // Update documents if available
                 if (vehicleResponse.vehicle.documents && vehicleResponse.vehicle.documents.length > 0) {
@@ -2327,7 +2325,7 @@ function showApplicationDetailsModal(application) {
                         ${renderTimelineItem('Under Review', null, status === 'processing' || status === 'approved' || status === 'completed', null, status === 'processing' ? 'PROCESSING' : 'PENDING')}
                         ${renderTimelineItem(status === 'rejected' ? 'Rejected' : 'Approved', status === 'approved' || status === 'completed' || status === 'rejected' ? new Date().toLocaleDateString() : null, status === 'approved' || status === 'completed', (status === 'approved' || status === 'completed') ? (application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId) : null, status === 'rejected' ? 'REJECTED' : 'APPROVED')}
                     </div>
-                    ${renderStatusHistorySection(application.statusHistory || application.history || [])}
+                    ${renderStatusHistorySection(application.history || [])}
                 </div>
             </div>
             

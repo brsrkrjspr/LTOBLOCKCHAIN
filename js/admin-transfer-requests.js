@@ -262,8 +262,8 @@ function getStatusClass(status) {
     const normalized = status.toLowerCase();
     if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusBadgeClass) {
         const badgeClass = window.StatusUtils.getStatusBadgeClass(normalized);
-        if (badgeClass) {
-            return badgeClass.startsWith('status-') ? badgeClass.replace('status-', '') : badgeClass;
+        if (badgeClass && badgeClass.startsWith('status-')) {
+            return badgeClass.replace('status-', '');
         }
     }
     const statusClasses = {

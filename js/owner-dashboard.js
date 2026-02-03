@@ -1780,8 +1780,7 @@ function createUserApplicationRow(application) {
 }
 
 function renderOriginBadge(originType) {
-    if (!originType) return '';
-    if (originType?.toUpperCase() !== 'TRANSFER') return '';
+    if (!originType || originType?.toUpperCase() !== 'TRANSFER') return '';
     return '<span class="badge badge-transfer-origin" aria-label="Vehicle origin: Transfer">Transfer</span>';
 }
 

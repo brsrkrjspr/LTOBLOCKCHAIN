@@ -1554,6 +1554,7 @@ function renderStatusHistorySection(historyEntries, status) {
         `;
     }
 
+    const normalizedStatus = (status || '').toLowerCase().trim();
     let currentUser = {};
     try {
         currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -1940,7 +1941,7 @@ async function viewUserApplication(applicationId) {
                 application.blockchain_tx_id = vehicleResponse.vehicle.blockchain_tx_id || vehicleResponse.vehicle.blockchainTxId;
                 application.blockchainTxId = vehicleResponse.vehicle.blockchainTxId || vehicleResponse.vehicle.blockchain_tx_id;
                 application.history = vehicleResponse.vehicle.history || application.history || [];
-                application.statusHistory = [...application.history];
+                application.statusHistory = application.history;
                 
                 // Update documents if available
                 if (vehicleResponse.vehicle.documents && vehicleResponse.vehicle.documents.length > 0) {

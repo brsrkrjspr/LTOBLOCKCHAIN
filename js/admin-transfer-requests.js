@@ -282,7 +282,6 @@ function getStatusLabel(status) {
     const normalized = (status || '').toLowerCase();
     const fallbackMap = {
         'pending': 'Pending',
-        'reviewing': 'Under Review',
         'awaiting_buyer_docs': 'Awaiting Buyer Documents',
         'under_review': 'Under Review',
         'approved': 'Approved',

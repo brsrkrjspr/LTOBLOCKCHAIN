@@ -1545,7 +1545,7 @@ function renderTimelineItem(title, date, isCompleted, transactionId, action) {
     `;
 }
 
-function renderStatusHistorySection(historyEntries, status) {
+function renderStatusHistorySection(historyEntries) {
     if (!Array.isArray(historyEntries) || historyEntries.length === 0) {
         return `
             <div style="margin-top: 1rem; color: #6c757d; font-size: 0.85rem;">
@@ -1599,7 +1599,8 @@ function renderStatusHistorySection(historyEntries, status) {
 
     const historyWithTimes = filteredHistory.map(entry => {
         const dateValue = entry.performed_at || entry.performedAt || entry.timestamp;
-        const timeValue = dateValue ? new Date(dateValue).getTime() : NaN;
+        const parsedTime = dateValue ? new Date(dateValue).getTime() : NaN;
+        const timeValue = Number.isNaN(parsedTime) ? NaN : parsedTime;
         return {
             entry,
             timeValue
@@ -2326,7 +2327,7 @@ function showApplicationDetailsModal(application) {
                         ${renderTimelineItem('Under Review', null, status === 'processing' || status === 'approved' || status === 'completed', null, status === 'processing' ? 'PROCESSING' : 'PENDING')}
                         ${renderTimelineItem(status === 'rejected' ? 'Rejected' : 'Approved', status === 'approved' || status === 'completed' || status === 'rejected' ? new Date().toLocaleDateString() : null, status === 'approved' || status === 'completed', (status === 'approved' || status === 'completed') ? (application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId) : null, status === 'rejected' ? 'REJECTED' : 'APPROVED')}
                     </div>
-                    ${renderStatusHistorySection(application.statusHistory || application.history || [], status)}
+                    ${renderStatusHistorySection(application.statusHistory || application.history || [])}
                 </div>
             </div>
             

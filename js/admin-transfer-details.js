@@ -1350,6 +1350,9 @@ async function forwardToInsurance() {
     }
 }
 
+window.forwardToHPG = forwardToHPG;
+window.forwardToInsurance = forwardToInsurance;
+
 // Ownership History Functions
 let ownershipHistoryExpanded = false;
 

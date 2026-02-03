@@ -1798,7 +1798,7 @@ function getStatusText(status) {
     if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
         return window.StatusUtils.getStatusText(status);
     }
-    return status || '';
+    return status;
 }
 
 function getVerificationStatusDisplay(verificationStatus, applicationStatus) {

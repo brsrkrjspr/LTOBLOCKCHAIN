@@ -1603,7 +1603,7 @@ function renderStatusHistorySection(historyEntries, status) {
         const timeValue = dateValue ? new Date(dateValue).getTime() : NaN;
         return {
             entry,
-            timeValue: Number.isNaN(timeValue) ? NaN : timeValue
+            timeValue
         };
     });
 
@@ -1640,14 +1640,7 @@ function renderStatusHistorySection(historyEntries, status) {
 
 function normalizeStatusAction(action) {
     if (!action) return 'UNKNOWN';
-    const normalized = action.toUpperCase().trim();
-    if (normalized.startsWith('STATUS_')) {
-        const statusValue = normalized.replace('STATUS_', '');
-        if (statusValue) {
-            return `STATUS_${statusValue}`;
-        }
-    }
-    return normalized;
+    return action.toUpperCase().trim();
 }
 
 // Render history item with blockchain icons (for use in history/audit sections)

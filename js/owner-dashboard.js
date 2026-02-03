@@ -1805,6 +1805,7 @@ function getStatusText(status) {
         'processing': 'Processing',
         'approved': 'Approved',
         'registered': 'Registered',
+        'completed': 'Completed',
         'rejected': 'Rejected'
     };
     return fallbackMap[normalized] || status;

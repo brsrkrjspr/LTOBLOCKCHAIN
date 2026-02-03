@@ -3179,47 +3179,6 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
         const missingSellerRoles = sellerRequiredRoles.filter(role => !presentRoles.has(role));
         const missingBuyerRoles = buyerRequiredRoles.filter(role => !presentRoles.has(role));
 
-        // Admin fallback: allow seller docs if they are attached to the vehicle but not linked to transfer
-        if (missingSellerRoles.length > 0) {
-            try {
-                const vehicleDocs = await db.getDocumentsByVehicle(request.vehicle_id);
-                const vehicleDocTypes = new Set(
-                    (vehicleDocs || [])
-                        .map(doc => (doc.document_type || '').toLowerCase())
-                        .filter(Boolean)
-                );
-                const stillMissingSellerRoles = missingSellerRoles.filter(role => !vehicleDocTypes.has(role));
-
-                if (stillMissingSellerRoles.length !== missingSellerRoles.length) {
-                    const inferredSellerDocs = missingSellerRoles.filter(role => vehicleDocTypes.has(role));
-                    if (inferredSellerDocs.length > 0) {
-                        const dbModule = require('../database/db');
-                        for (const role of inferredSellerDocs) {
-                            const candidate = (vehicleDocs || []).find(doc => (doc.document_type || '').toLowerCase() === role);
-                            if (!candidate) continue;
-                            try {
-                                await dbModule.query(
-                                    `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
-                                     VALUES ($1, $2, $3, $4)
-                                     ON CONFLICT DO NOTHING`,
-                                    [id, role, candidate.id, request.seller_id]
-                                );
-                                presentRoles.add(role);
-                            } catch (linkErr) {
-                                console.warn(`[Transfer Approval] Failed to link seller doc from vehicle record: ${role}`, linkErr.message);
-                            }
-                        }
-                    }
-                }
-
-                const refreshedMissingSellerRoles = sellerRequiredRoles.filter(role => !presentRoles.has(role));
-                missingSellerRoles.length = 0;
-                missingSellerRoles.push(...refreshedMissingSellerRoles);
-            } catch (fallbackErr) {
-                console.warn('[Transfer Approval] Failed to apply seller document fallback:', fallbackErr.message);
-            }
-        }
-
         if (missingSellerRoles.length > 0 || missingBuyerRoles.length > 0) {
             return res.status(400).json({
                 success: false,

@@ -1554,7 +1554,6 @@ function renderStatusHistorySection(historyEntries, status) {
         `;
     }
 
-    const normalizedStatus = (status || '').toLowerCase().trim();
     let currentUser = {};
     try {
         currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -1584,7 +1583,7 @@ function renderStatusHistorySection(historyEntries, status) {
         if (action.includes('HPG') || action.includes('INSURANCE') || action.includes('EMISSION')) {
             return true;
         }
-        if (normalizedStatus === 'rejected' && action.includes('REJECTED')) {
+        if (action.includes('REJECTED')) {
             return true;
         }
         return false;
@@ -1616,12 +1615,17 @@ function renderStatusHistorySection(historyEntries, status) {
         return timeB - timeA;
     }).map(item => item.entry);
 
-    const formattedHistory = sortedHistory.map(entry => ({
-        ...entry,
-        performed_at: entry.performed_at || entry.performedAt || entry.timestamp,
-        action: (entry.action || 'UNKNOWN').toUpperCase().trim(),
-        transaction_id: entry.transaction_id || entry.transactionId || null
-    }));
+    const formattedHistory = sortedHistory.map(entry => {
+        if (!entry.action) {
+            console.warn('History entry missing action:', entry);
+        }
+        return {
+            ...entry,
+            performed_at: entry.performed_at || entry.performedAt || entry.timestamp,
+            action: (entry.action || 'ACTION_NOT_SPECIFIED').toUpperCase().trim(),
+            transaction_id: entry.transaction_id || entry.transactionId || null
+        };
+    });
 
     const historyHtml = formattedHistory.map(entry => renderHistoryItem(entry)).join('');
 

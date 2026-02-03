@@ -2785,7 +2785,6 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
         const vehicleDocs = await db.getDocumentsByVehicle(request.vehicle_id);
         const normalizedDocs = documents.map(doc => {
             const normalizedType = (doc.document_type || doc.type || doc.document_db_type || doc.documentType || '')
-                .toString()
                 .toLowerCase();
             return {
                 ...doc,
@@ -2793,7 +2792,9 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
             };
         });
         request.sellerDocuments = normalizedDocs.filter(doc => ['deed_of_sale', 'seller_id'].includes(doc.document_type));
-        request.buyerDocuments = normalizedDocs.filter(doc => doc.document_type && doc.document_type.startsWith('buyer_'));
+        request.buyerDocuments = normalizedDocs.filter(doc =>
+            ['buyer_id', 'buyer_tin', 'buyer_ctpl', 'buyer_hpg_clearance'].includes(doc.document_type)
+        );
         request.vehicleDocuments = vehicleDocs || [];
 
         // Get verification history

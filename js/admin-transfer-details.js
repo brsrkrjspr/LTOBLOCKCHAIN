@@ -199,7 +199,9 @@ function renderTransferRequestDetails(request) {
 
     // Update documents - use categorized documents from backend (fallback to legacy documents array)
     const hasCategorizedDocuments = ['vehicleDocuments', 'sellerDocuments', 'buyerDocuments']
-        .every(key => Array.isArray(request[key]));
+        .every(key => Array.isArray(request[key])) &&
+        ['vehicleDocuments', 'sellerDocuments', 'buyerDocuments']
+            .some(key => (request[key] || []).length > 0);
     const categorizedDocuments = hasCategorizedDocuments
         ? {
             vehicleDocuments: request.vehicleDocuments || [],
@@ -498,7 +500,7 @@ function renderSellerInfo(request) {
 
     // Find seller ID document
     const sellerIdDoc = (request.documents || []).find(doc => {
-        const docType = (doc.document_type || doc.type || '').toString().toLowerCase();
+        const docType = (doc.document_type || doc.type || '').toLowerCase();
         return docType === 'seller_id';
     });
     if (sellerIdEl && sellerIdDoc) {
@@ -639,7 +641,7 @@ function renderBuyerInfo(request) {
 
     // Find buyer ID document
     const buyerIdDoc = (request.documents || []).find(doc => {
-        const docType = (doc.document_type || doc.type || '').toString().toLowerCase();
+        const docType = (doc.document_type || doc.type || '').toLowerCase();
         return docType === 'buyer_id';
     });
     if (buyerIdEl && buyerIdDoc) {

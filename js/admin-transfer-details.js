@@ -177,7 +177,9 @@ function renderTransferRequestDetails(request) {
 
     if (requestIdEl) requestIdEl.textContent = request.id.substring(0, 8) + '...';
     if (requestStatusEl) {
-        requestStatusEl.textContent = request.status || 'PENDING';
+        requestStatusEl.textContent = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText)
+            ? window.StatusUtils.getStatusText(request.status || 'PENDING')
+            : (request.status || 'PENDING');
         requestStatusEl.className = `status-badge ${getStatusClass(request.status)}`;
     }
 
@@ -185,7 +187,9 @@ function renderTransferRequestDetails(request) {
     const headerStatusEl = document.getElementById('pageStatusBadge');
     if (headerStatusEl) {
         const status = request.status || 'PENDING';
-        headerStatusEl.textContent = status;
+        headerStatusEl.textContent = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText)
+            ? window.StatusUtils.getStatusText(status)
+            : status;
         headerStatusEl.className = `status-badge status-badge-large ${getStatusClass(status)}`;
     }
     if (requestDateEl) {
@@ -1286,15 +1290,23 @@ async function rejectTransfer() {
 }
 
 function getStatusClass(status) {
+    if (!status || typeof status !== 'string') return 'pending';
+    const normalized = status.toLowerCase();
+    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusBadgeClass) {
+        const badgeClass = window.StatusUtils.getStatusBadgeClass(normalized);
+        if (badgeClass && badgeClass.startsWith('status-')) {
+            return badgeClass.replace('status-', '');
+        }
+    }
     const statusClasses = {
-        'PENDING': 'pending',
-        'REVIEWING': 'reviewing',
-        'APPROVED': 'approved',
-        'REJECTED': 'rejected',
-        'COMPLETED': 'completed',
-        'FORWARDED_TO_HPG': 'forwarded'
+        pending: 'pending',
+        reviewing: 'reviewing',
+        approved: 'approved',
+        rejected: 'rejected',
+        completed: 'completed',
+        forwarded_to_hpg: 'forwarded'
     };
-    return statusClasses[status] || 'pending';
+    return statusClasses[normalized] || 'pending';
 }
 
 function showLoading() {

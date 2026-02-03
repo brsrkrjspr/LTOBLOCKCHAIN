@@ -1798,16 +1798,7 @@ function getStatusText(status) {
     if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
         return window.StatusUtils.getStatusText(status);
     }
-    // Fallback for backward compatibility
-    const statusMap = {
-        'submitted': 'Pending Review',
-        'approved': 'Approved',
-        'rejected': 'Rejected',
-        'processing': 'Processing',
-        'completed': 'Completed'
-    };
-    const normalized = (status || '').toLowerCase();
-    return statusMap[normalized] || status;
+    return status || '';
 }
 
 function getVerificationStatusDisplay(verificationStatus, applicationStatus) {

@@ -42,6 +42,7 @@ function getStatusText(status) {
         'pending': 'Pending',
         
         // Transfer statuses
+        'reviewing': 'Under Review',
         'awaiting_buyer_docs': 'Awaiting Buyer Documents',
         'under_review': 'Under Review',
         'expired': 'Expired',

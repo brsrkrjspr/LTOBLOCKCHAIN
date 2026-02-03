@@ -2223,18 +2223,7 @@ function getStatusText(status) {
     if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
         return window.StatusUtils.getStatusText(status);
     }
-    // Fallback for backward compatibility
-    const normalizedStatus = (status || '').toLowerCase();
-    const statusMap = {
-        'submitted': 'Pending Review',
-        'approved': 'Approved',
-        'rejected': 'Rejected',
-        'processing': 'Processing',
-        'completed': 'Completed',
-        'registered': 'Registered',
-        'pending_blockchain': 'Pending Blockchain'
-    };
-    return statusMap[normalizedStatus] || status;
+    return status || '';
 }
 
 async function viewApplication(applicationId) {
@@ -3740,7 +3729,7 @@ async function loadRegistrationApplications(statusFilter = 'SUBMITTED,PENDING_BL
                     <td>${ownerName}</td>
                     <td>${formattedDate}</td>
                     <td>${renderOrgStatusIndicators(v)}</td>
-                    <td><span class="status-badge status-${(v.status || '').toLowerCase()}">${v.status || 'N/A'}</span></td>
+        <td><span class="status-badge status-${(v.status || '').toLowerCase()}">${getStatusText(v.status)}</span></td>
                     <td class="integrity-status-cell" data-vehicle-id="${vehicleId}" data-vin="${vin}">
                         <span class="integrity-badge loading">
                             <i class="fas fa-spinner fa-spin"></i> Checking...
@@ -3818,7 +3807,7 @@ async function loadTransferApplications() {
                 </td>
                 <td>${r.created_at ? new Date(r.created_at).toLocaleDateString() : 'N/A'}</td>
                 <td>${renderTransferOrgStatus(r)}</td>
-                <td><span class="status-badge status-${(r.status || '').toLowerCase()}">${r.status || 'N/A'}</span></td>
+                <td><span class="status-badge status-${(r.status || '').toLowerCase()}">${getStatusText(r.status)}</span></td>
                 <td>
                     <a href="admin-transfer-details.html?id=${r.id}" class="btn-secondary btn-sm">View</a>
                 </td>

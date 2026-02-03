@@ -209,6 +209,9 @@ function renderTransferRequests(requests) {
         const submittedDate = new Date(request.submitted_at || request.created_at).toLocaleDateString('en-US');
         const status = request.status || 'PENDING';
         const statusClass = getStatusClass(status);
+        const statusLabel = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText)
+            ? window.StatusUtils.getStatusText(status)
+            : status;
 
         return `
             <tr>
@@ -222,7 +225,7 @@ function renderTransferRequests(requests) {
                 <td>${submittedDate}</td>
                 <td>
                     <span class="status-badge ${statusClass}" title="${status === 'PENDING' ? 'Waiting for buyer to accept the transfer request' : status === 'REVIEWING' ? 'Buyer has accepted, waiting for admin review' : ''}">
-                        ${escapeHtml(status)}
+                        ${escapeHtml(statusLabel)}
                         ${status === 'PENDING' ? ' <i class="fas fa-info-circle" style="font-size: 0.8em; opacity: 0.7;"></i>' : ''}
                     </span>
                 </td>
@@ -255,15 +258,23 @@ function renderTransferRequests(requests) {
 }
 
 function getStatusClass(status) {
+    if (!status || typeof status !== 'string') return 'pending';
+    const normalized = status.toLowerCase();
+    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusBadgeClass) {
+        const badgeClass = window.StatusUtils.getStatusBadgeClass(normalized);
+        if (badgeClass && badgeClass.startsWith('status-')) {
+            return badgeClass.replace('status-', '');
+        }
+    }
     const statusClasses = {
-        'PENDING': 'pending',
-        'REVIEWING': 'reviewing',
-        'APPROVED': 'approved',
-        'REJECTED': 'rejected',
-        'COMPLETED': 'completed',
-        'FORWARDED_TO_HPG': 'forwarded'
+        pending: 'pending',
+        reviewing: 'reviewing',
+        approved: 'approved',
+        rejected: 'rejected',
+        completed: 'completed',
+        forwarded_to_hpg: 'forwarded'
     };
-    return statusClasses[status] || 'pending';
+    return statusClasses[normalized] || 'pending';
 }
 
 function updatePagination(pagination) {
@@ -678,4 +689,3 @@ window.bulkReject = bulkReject;
 window.approveTransfer = approveTransfer;
 window.rejectTransfer = rejectTransfer;
 window.viewTransferDetails = viewTransferDetails;
-

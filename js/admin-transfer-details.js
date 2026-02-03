@@ -1296,7 +1296,18 @@ function getStatusLabel(status) {
     if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getTransferStatusLabel) {
         return window.StatusUtils.getTransferStatusLabel(status);
     }
-    return status;
+    const normalized = (status || '').toLowerCase();
+    const fallbackMap = {
+        'pending': 'Pending',
+        'awaiting_buyer_docs': 'Awaiting Buyer Documents',
+        'under_review': 'Under Review',
+        'approved': 'Approved',
+        'rejected': 'Rejected',
+        'completed': 'Completed',
+        'expired': 'Expired',
+        'forwarded_to_hpg': 'Forwarded to HPG'
+    };
+    return fallbackMap[normalized] || status;
 }
 
 function showLoading() {

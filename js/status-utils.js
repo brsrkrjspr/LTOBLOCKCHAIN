@@ -63,7 +63,6 @@ function getTransferStatusLabel(status) {
     const normalized = (status || '').toLowerCase();
     const fallbackMap = {
         'pending': 'Pending',
-        'reviewing': 'Under Review',
         'awaiting_buyer_docs': 'Awaiting Buyer Documents',
         'under_review': 'Under Review',
         'approved': 'Approved',
@@ -78,21 +77,20 @@ function getTransferStatusLabel(status) {
 function getTransferStatusClass(status) {
     if (!status || typeof status !== 'string') return 'pending';
     const normalized = status.toLowerCase();
-    const statusClasses = {
-        pending: 'pending',
-        reviewing: 'reviewing',
-        under_review: 'reviewing',
-        approved: 'approved',
-        rejected: 'rejected',
-        completed: 'completed',
-        forwarded_to_hpg: 'forwarded'
-    };
     if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusBadgeClass) {
         const badgeClass = window.StatusUtils.getStatusBadgeClass(normalized);
         if (badgeClass && badgeClass.startsWith('status-')) {
             return badgeClass.replace('status-', '');
         }
     }
+    const statusClasses = {
+        pending: 'pending',
+        under_review: 'reviewing',
+        approved: 'approved',
+        rejected: 'rejected',
+        completed: 'completed',
+        forwarded_to_hpg: 'forwarded'
+    };
     return statusClasses[normalized] || 'pending';
 }
 

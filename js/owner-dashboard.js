@@ -1598,16 +1598,23 @@ function renderStatusHistorySection(historyEntries, status) {
         `;
     }
 
-    const sortedHistory = [...filteredHistory].sort((a, b) => {
-        const dateA = a.performed_at || a.performedAt || a.timestamp;
-        const dateB = b.performed_at || b.performedAt || b.timestamp;
-        const timeA = dateA ? new Date(dateA).getTime() : NaN;
-        const timeB = dateB ? new Date(dateB).getTime() : NaN;
+    const historyWithTimes = filteredHistory.map(entry => {
+        const dateValue = entry.performed_at || entry.performedAt || entry.timestamp;
+        const timeValue = dateValue ? new Date(dateValue).getTime() : NaN;
+        return {
+            entry,
+            timeValue
+        };
+    });
+
+    const sortedHistory = historyWithTimes.sort((a, b) => {
+        const timeA = a.timeValue;
+        const timeB = b.timeValue;
         if (Number.isNaN(timeA) && Number.isNaN(timeB)) return 0;
         if (Number.isNaN(timeA)) return 1;
         if (Number.isNaN(timeB)) return -1;
         return timeB - timeA;
-    });
+    }).map(item => item.entry);
 
     const formattedHistory = sortedHistory.map(entry => ({
         ...entry,
@@ -1633,13 +1640,14 @@ function renderStatusHistorySection(historyEntries, status) {
 
 function normalizeStatusAction(action) {
     if (!action) return action;
-    if (action.startsWith('STATUS_')) {
-        const statusValue = action.replace('STATUS_', '').trim();
+    const normalized = action.toUpperCase().trim();
+    if (normalized.startsWith('STATUS_')) {
+        const statusValue = normalized.replace('STATUS_', '').trim();
         if (statusValue) {
-            return `STATUS_${statusValue.toUpperCase()}`;
+            return `STATUS_${statusValue}`;
         }
     }
-    return action;
+    return normalized;
 }
 
 // Render history item with blockchain icons (for use in history/audit sections)

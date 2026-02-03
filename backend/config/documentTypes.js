@@ -15,6 +15,9 @@ const LOGICAL_TYPES = {
     DEED_OF_SALE: 'deedOfSale',
     SELLER_ID: 'sellerId',
     BUYER_ID: 'buyerId',
+    BUYER_TIN: 'buyerTin',
+    BUYER_CTPL: 'buyerCtpl',
+    BUYER_HPG_CLEARANCE: 'buyerHpgClearance',
     CSR: 'csr',
     HPG_CLEARANCE: 'hpgClearance',
     SALES_INVOICE: 'salesInvoice',
@@ -53,6 +56,9 @@ const DB_TYPES = {
     DEED_OF_SALE: 'deed_of_sale', // Requires migration: add-new-document-types.sql
     SELLER_ID: 'seller_id', // Requires migration: add-new-document-types.sql
     BUYER_ID: 'buyer_id', // Requires migration: add-new-document-types.sql
+    BUYER_TIN: 'tin_id',
+    BUYER_CTPL: 'insurance_cert',
+    BUYER_HPG_CLEARANCE: 'hpg_clearance',
     CSR: 'csr', // Requires migration: add-vehicle-registration-document-types.sql
     HPG_CLEARANCE: 'hpg_clearance', // Requires migration: add-vehicle-registration-document-types.sql
     SALES_INVOICE: 'sales_invoice', // Requires migration: add-vehicle-registration-document-types.sql
@@ -96,6 +102,9 @@ function mapToDbType(logicalType) {
         [LOGICAL_TYPES.DEED_OF_SALE]: DB_TYPES.DEED_OF_SALE,
         [LOGICAL_TYPES.SELLER_ID]: DB_TYPES.SELLER_ID,
         [LOGICAL_TYPES.BUYER_ID]: DB_TYPES.BUYER_ID,
+        [LOGICAL_TYPES.BUYER_TIN]: DB_TYPES.BUYER_TIN,
+        [LOGICAL_TYPES.BUYER_CTPL]: DB_TYPES.BUYER_CTPL,
+        [LOGICAL_TYPES.BUYER_HPG_CLEARANCE]: DB_TYPES.BUYER_HPG_CLEARANCE,
         [LOGICAL_TYPES.CSR]: DB_TYPES.CSR,
         [LOGICAL_TYPES.HPG_CLEARANCE]: DB_TYPES.HPG_CLEARANCE,
         [LOGICAL_TYPES.SALES_INVOICE]: DB_TYPES.SALES_INVOICE,
@@ -265,6 +274,12 @@ function mapLegacyType(oldType) {
         'sellerId': LOGICAL_TYPES.SELLER_ID,
         'buyer_id': LOGICAL_TYPES.BUYER_ID,
         'buyerId': LOGICAL_TYPES.BUYER_ID,
+        'buyer_tin': LOGICAL_TYPES.BUYER_TIN,
+        'buyerTin': LOGICAL_TYPES.BUYER_TIN,
+        'buyer_ctpl': LOGICAL_TYPES.BUYER_CTPL,
+        'buyerCtpl': LOGICAL_TYPES.BUYER_CTPL,
+        'buyer_hpg_clearance': LOGICAL_TYPES.BUYER_HPG_CLEARANCE,
+        'buyerHpgClearance': LOGICAL_TYPES.BUYER_HPG_CLEARANCE,
         'csr': LOGICAL_TYPES.CSR,
         'certificateOfStockReport': LOGICAL_TYPES.CSR,
         'hpg_clearance': LOGICAL_TYPES.HPG_CLEARANCE,

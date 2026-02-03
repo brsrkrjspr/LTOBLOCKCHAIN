@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 let currentTransferRequest = null;
 let currentRequestId = null;
+let isLoggingOut = false;
 
 function isFinalizedStatus(status) {
     return status === 'APPROVED' || status === 'REJECTED' || status === 'COMPLETED';
@@ -71,9 +72,21 @@ function initializeTransferDetails() {
     // Logout
     const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
     if (sidebarLogoutBtn) {
-        sidebarLogoutBtn.addEventListener('click', function (e) {
+        sidebarLogoutBtn.addEventListener('click', async function (e) {
             e.preventDefault();
             if (confirm('Are you sure you want to logout?')) {
+                isLoggingOut = true;
+                hideLoading();
+                stopAutoRefresh();
+                try {
+                    if (window.authManager && typeof window.authManager.logout === 'function') {
+                        await window.authManager.logout();
+                        return;
+                    }
+                } catch (error) {
+                    console.warn('Logout via authManager failed:', error);
+                }
+
                 if (typeof AuthUtils !== 'undefined') {
                     AuthUtils.logout();
                 } else {
@@ -117,7 +130,9 @@ async function loadTransferRequestDetails() {
 
     } catch (error) {
         console.error('Load transfer request details error:', error);
-        showError(error.message || 'Failed to load transfer request details');
+        if (!isLoggingOut) {
+            showError(error.message || 'Failed to load transfer request details');
+        }
         hideLoading();
     }
 }
@@ -500,7 +515,7 @@ function renderSellerInfo(request) {
 
     // Find seller ID document
     const sellerIdDoc = (request.documents || []).find(doc => {
-        const docType = (doc.document_type || doc.type || '').toLowerCase();
+        const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
         return docType === 'seller_id';
     });
     if (sellerIdEl && sellerIdDoc) {
@@ -641,7 +656,7 @@ function renderBuyerInfo(request) {
 
     // Find buyer ID document
     const buyerIdDoc = (request.documents || []).find(doc => {
-        const docType = (doc.document_type || doc.type || '').toLowerCase();
+        const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
         return docType === 'buyer_id';
     });
     if (buyerIdEl && buyerIdDoc) {
@@ -771,7 +786,7 @@ function renderDocuments(documentCategories) {
         const buyerDocuments = [];
 
         documentCategories.forEach(doc => {
-            const docType = (doc.document_type || doc.type || '').toLowerCase();
+            const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
             if (doc.is_vehicle_document || doc.source === 'vehicle' || doc.auto_included) {
                 vehicleDocuments.push(doc);
             } else if (docType === 'deed_of_sale' || docType === 'seller_id') {
@@ -789,13 +804,30 @@ function renderDocuments(documentCategories) {
 
     const { vehicleDocuments = [], sellerDocuments = [], buyerDocuments = [] } = documentCategories;
 
+    const additionalSellerDocuments = vehicleDocuments.filter(doc => {
+        const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
+        return ['deed_of_sale', 'seller_id'].includes(docType);
+    });
+    const mergedSellerDocuments = [...sellerDocuments];
+    additionalSellerDocuments.forEach(doc => {
+        const docId = doc.document_id || doc.id;
+        if (!mergedSellerDocuments.some(existing => (existing.document_id || existing.id) === docId)) {
+            mergedSellerDocuments.push(doc);
+        }
+    });
+
+    const normalizedVehicleDocuments = vehicleDocuments.filter(doc => {
+        const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
+        return !['deed_of_sale', 'seller_id', 'buyer_id', 'buyer_tin', 'buyer_ctpl', 'buyer_hpg_clearance'].includes(docType);
+    });
+
     console.log('[renderDocuments] Rendering categorized documents:', {
-        vehicle: vehicleDocuments.length,
-        seller: sellerDocuments.length,
+        vehicle: normalizedVehicleDocuments.length,
+        seller: mergedSellerDocuments.length,
         buyer: buyerDocuments.length
     });
 
-    const totalDocs = vehicleDocuments.length + sellerDocuments.length + buyerDocuments.length;
+    const totalDocs = normalizedVehicleDocuments.length + mergedSellerDocuments.length + buyerDocuments.length;
     if (totalDocs === 0) {
         documentsContainer.innerHTML = `
             <div class="empty-state" style="text-align: center; padding: 2rem; color: #7f8c8d;">
@@ -810,7 +842,7 @@ function renderDocuments(documentCategories) {
     let html = '';
 
     // Vehicle Original Documents Section (owned by seller while transfer is not approved)
-    if (vehicleDocuments.length > 0) {
+    if (normalizedVehicleDocuments.length > 0) {
         html += `
             <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
                 <h4 style="color: #7c3aed; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -821,14 +853,14 @@ function renderDocuments(documentCategories) {
                     </span>
                 </h4>
                 <div class="documents-grid" style="margin-top: 0;">
-                    ${vehicleDocuments.map(doc => renderDocumentCard(doc)).join('')}
+                    ${normalizedVehicleDocuments.map(doc => renderDocumentCard(doc)).join('')}
                 </div>
             </div>
         `;
     }
 
     // Seller Submitted Documents Section
-    if (sellerDocuments.length > 0) {
+    if (mergedSellerDocuments.length > 0) {
         html += `
             <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
                 <h4 style="color: #1e40af; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -836,7 +868,7 @@ function renderDocuments(documentCategories) {
                     Seller Submitted Documents
                 </h4>
                 <div class="documents-grid" style="margin-top: 0;">
-                    ${sellerDocuments.map(doc => renderDocumentCard(doc)).join('')}
+                    ${mergedSellerDocuments.map(doc => renderDocumentCard(doc)).join('')}
                 </div>
             </div>
         `;

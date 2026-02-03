@@ -689,6 +689,12 @@ router.get('/:id/certificate-data', optionalAuth, async (req, res) => {
             }
         }
 
+        // Attach history to support QR code generation
+        vehicle.history = await db.getVehicleHistory(vehicle.id);
+
+        // Generate QR code for certificate data response
+        vehicle.qr_code_base64 = await generateVehicleQRCode(vehicle);
+
         // Format vehicle response
         const formattedVehicle = formatVehicleResponse(vehicle, req, res);
 

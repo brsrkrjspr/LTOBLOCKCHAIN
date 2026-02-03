@@ -2223,7 +2223,6 @@ function getStatusText(status) {
     if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
         return window.StatusUtils.getStatusText(status);
     }
-    const normalized = (status || '').toLowerCase();
     const fallbackMap = {
         'submitted': 'Pending Review',
         'pending_blockchain': 'Pending Blockchain',
@@ -2233,6 +2232,7 @@ function getStatusText(status) {
         'completed': 'Completed',
         'rejected': 'Rejected'
     };
+    const normalized = (status || '').toLowerCase();
     return fallbackMap[normalized] || status;
 }
 

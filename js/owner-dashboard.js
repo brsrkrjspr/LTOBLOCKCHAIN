@@ -1601,16 +1601,18 @@ function renderStatusHistorySection(historyEntries, status) {
     const sortedHistory = [...filteredHistory].sort((a, b) => {
         const dateA = a.performed_at || a.performedAt || a.timestamp;
         const dateB = b.performed_at || b.performedAt || b.timestamp;
-        if (!dateA && !dateB) return 0;
-        if (!dateA) return 1;
-        if (!dateB) return -1;
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
+        const timeA = dateA ? new Date(dateA).getTime() : NaN;
+        const timeB = dateB ? new Date(dateB).getTime() : NaN;
+        if (Number.isNaN(timeA) && Number.isNaN(timeB)) return 0;
+        if (Number.isNaN(timeA)) return 1;
+        if (Number.isNaN(timeB)) return -1;
+        return timeB - timeA;
     });
 
     const formattedHistory = sortedHistory.map(entry => ({
         ...entry,
         performed_at: entry.performed_at || entry.performedAt || entry.timestamp,
-        action: normalizeHistoryAction(entry.action),
+        action: normalizeStatusAction(entry.action),
         transaction_id: entry.transaction_id || entry.transactionId || null
     }));
 
@@ -1629,7 +1631,7 @@ function renderStatusHistorySection(historyEntries, status) {
     `;
 }
 
-function normalizeHistoryAction(action) {
+function normalizeStatusAction(action) {
     if (!action) return action;
     if (action.startsWith('STATUS_')) {
         const statusValue = action.replace('STATUS_', '').trim();

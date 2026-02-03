@@ -2789,7 +2789,7 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
                 .toLowerCase();
             return {
                 ...doc,
-                document_type: normalizedType || doc.document_type || doc.type || doc.document_db_type || doc.documentType
+                document_type: normalizedType
             };
         });
         request.sellerDocuments = normalizedDocs.filter(doc => ['deed_of_sale', 'seller_id'].includes(doc.document_type));

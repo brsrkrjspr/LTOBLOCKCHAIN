@@ -198,7 +198,9 @@ function renderTransferRequestDetails(request) {
     }
 
     // Update documents - use categorized documents from backend (fallback to legacy documents array)
-    const categorizedDocuments = (request.vehicleDocuments || request.sellerDocuments || request.buyerDocuments)
+    const hasCategorizedDocuments = ['vehicleDocuments', 'sellerDocuments', 'buyerDocuments']
+        .every(key => Array.isArray(request[key]));
+    const categorizedDocuments = hasCategorizedDocuments
         ? {
             vehicleDocuments: request.vehicleDocuments || [],
             sellerDocuments: request.sellerDocuments || [],

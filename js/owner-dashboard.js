@@ -1781,9 +1781,8 @@ function createUserApplicationRow(application) {
 
 function renderOriginBadge(originType) {
     if (!originType) return '';
-    const normalizedOrigin = String(originType).toUpperCase();
-    if (normalizedOrigin !== 'TRANSFER') return '';
-    return `<span class="badge badge-transfer-origin">${escapeHtml(normalizedOrigin)}</span>`;
+    if (String(originType).toUpperCase() !== 'TRANSFER') return '';
+    return `<span class="badge badge-transfer-origin">${escapeHtml(String(originType))}</span>`;
 }
 
 // Helper function for escaping HTML

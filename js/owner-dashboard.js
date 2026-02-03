@@ -1602,7 +1602,7 @@ function renderStatusHistorySection(historyEntries) {
         const parsedTime = dateValue ? new Date(dateValue).getTime() : NaN;
         return {
             entry,
-            timeValue: Number.isNaN(parsedTime) ? NaN : parsedTime
+            timeValue: parsedTime
         };
     });
 
@@ -1642,7 +1642,7 @@ function renderStatusHistorySection(historyEntries) {
     `;
 }
 
-// Status actions are normalized inline where history entries are formatted.
+// Status action labels are normalized via formatAction during history rendering.
 
 // Render history item with blockchain icons (for use in history/audit sections)
 function renderHistoryItem(historyEntry) {

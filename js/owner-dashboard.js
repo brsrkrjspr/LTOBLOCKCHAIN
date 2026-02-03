@@ -1545,6 +1545,80 @@ function renderTimelineItem(title, date, isCompleted, transactionId, action) {
     `;
 }
 
+function renderStatusHistorySection(historyEntries, status) {
+    if (!Array.isArray(historyEntries) || historyEntries.length === 0) {
+        return `
+            <div style="margin-top: 1rem; color: #6c757d; font-size: 0.85rem;">
+                No detailed status history available for this application yet.
+            </div>
+        `;
+    }
+
+    const normalizedStatus = (status || '').toLowerCase();
+    const filteredHistory = historyEntries.filter(entry => {
+        const action = (entry.action || '').toUpperCase();
+        if (action.includes('REGISTRATION') || action.includes('STATUS_')) {
+            return true;
+        }
+        if (action.includes('TRANSFER')) {
+            return true;
+        }
+        if (action.includes('HPG') || action.includes('INSURANCE') || action.includes('EMISSION')) {
+            return true;
+        }
+        if (normalizedStatus === 'rejected' && action.includes('REJECTED')) {
+            return true;
+        }
+        return false;
+    });
+
+    if (filteredHistory.length === 0) {
+        return `
+            <div style="margin-top: 1rem; color: #6c757d; font-size: 0.85rem;">
+                Status history is not yet recorded for this application.
+            </div>
+        `;
+    }
+
+        const sortedHistory = [...filteredHistory].sort((a, b) => {
+            const dateA = new Date(a.performed_at || a.performedAt || a.timestamp || 0).getTime();
+            const dateB = new Date(b.performed_at || b.performedAt || b.timestamp || 0).getTime();
+            return dateB - dateA;
+        });
+
+    const formattedHistory = sortedHistory.map(entry => ({
+        ...entry,
+        performed_at: entry.performed_at || entry.performedAt || entry.timestamp || entry.performed_at,
+        action: normalizeHistoryAction(entry.action),
+        transaction_id: entry.transaction_id || entry.transactionId || null
+    }));
+
+    const historyHtml = formattedHistory.map(entry => renderHistoryItem(entry)).join('');
+
+    return `
+        <div style="margin-top: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; color: #1f2937; font-weight: 600; font-size: 0.9rem;">
+                <i class="fas fa-stream" style="color: #3498db;"></i>
+                <span>Status History</span>
+            </div>
+            <div class="history-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                ${historyHtml}
+            </div>
+        </div>
+    `;
+}
+
+function normalizeHistoryAction(action) {
+    if (!action) return action;
+    if (action.startsWith('STATUS_')) {
+        const statusValue = action.replace('STATUS_', '').trim();
+        if (statusValue) {
+            return `STATUS_${statusValue.toUpperCase()}`;
+        }
+    }
+    return action;
+}
+
 // Render history item with blockchain icons (for use in history/audit sections)
 function renderHistoryItem(historyEntry) {
     const hasBlockchainTx = historyEntry.transaction_id && !historyEntry.transaction_id.includes('-');
@@ -1590,6 +1664,29 @@ function formatAction(action) {
         'REJECTED': 'Application Rejected',
         'OWNERSHIP_TRANSFERRED': 'Ownership Transferred',
         'VERIFICATION_APPROVED': 'Verification Approved',
+        'REGISTRATION_SUBMITTED': 'Registration Submitted',
+        'REGISTRATION_APPROVED': 'Registration Approved',
+        'REGISTRATION_REJECTED': 'Registration Rejected',
+        'REGISTRATION_PENDING_REVIEW': 'Registration Pending Review',
+        'TRANSFER_REQUESTED': 'Transfer Requested',
+        'TRANSFER_BUYER_ACCEPTED': 'Transfer Accepted by Buyer',
+        'TRANSFER_APPROVED': 'Transfer Approved',
+        'TRANSFER_REJECTED': 'Transfer Rejected',
+        'TRANSFER_REQUEST_REJECTED': 'Transfer Request Rejected',
+        'TRANSFER_COMPLETED': 'Transfer Completed',
+        'TRANSFER_EXPIRED': 'Transfer Expired',
+        'TRANSFER_HPG_REJECTED': 'Transfer HPG Rejected',
+        'TRANSFER_INSURANCE_REJECTED': 'Transfer Insurance Rejected',
+        'HPG_CLEARANCE_REJECTED': 'HPG Clearance Rejected',
+        'INSURANCE_VERIFICATION_REJECTED': 'Insurance Verification Rejected',
+        'INSURANCE_MANUAL_VERIFICATION': 'Insurance Manual Verification',
+        'LTO_INSPECTION_COMPLETED': 'LTO Inspection Completed',
+        'STATUS_APPROVED': 'Status Updated: Approved',
+        'STATUS_REJECTED': 'Status Updated: Rejected',
+        'STATUS_REGISTERED': 'Status Updated: Registered',
+        'STATUS_SUBMITTED': 'Status Updated: Submitted',
+        'STATUS_PENDING': 'Status Updated: Pending',
+        'STATUS_PROCESSING': 'Status Updated: Processing',
         'STATUS_UPDATED': 'Status Updated'
     };
     return actionMap[action] || action.replace(/_/g, ' ');
@@ -1822,6 +1919,8 @@ async function viewUserApplication(applicationId) {
                 // Also update application-level blockchain fields
                 application.blockchain_tx_id = vehicleResponse.vehicle.blockchain_tx_id || vehicleResponse.vehicle.blockchainTxId;
                 application.blockchainTxId = vehicleResponse.vehicle.blockchainTxId || vehicleResponse.vehicle.blockchain_tx_id;
+                application.history = vehicleResponse.vehicle.history || application.history || [];
+                application.statusHistory = application.history;
                 
                 // Update documents if available
                 if (vehicleResponse.vehicle.documents && vehicleResponse.vehicle.documents.length > 0) {
@@ -2202,6 +2301,7 @@ function showApplicationDetailsModal(application) {
                         ${renderTimelineItem('Under Review', null, status === 'processing' || status === 'approved' || status === 'completed', null, status === 'processing' ? 'PROCESSING' : 'PENDING')}
                         ${renderTimelineItem(status === 'rejected' ? 'Rejected' : 'Approved', status === 'approved' || status === 'completed' || status === 'rejected' ? new Date().toLocaleDateString() : null, status === 'approved' || status === 'completed', (status === 'approved' || status === 'completed') ? (application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId) : null, status === 'rejected' ? 'REJECTED' : 'APPROVED')}
                     </div>
+                    ${renderStatusHistorySection(application.statusHistory || application.history || [], status)}
                 </div>
             </div>
             

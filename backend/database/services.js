@@ -919,8 +919,84 @@ async function getTransferRequestById(id) {
     };
 }
 
+function buildTransferRequestFilterClause(filters = {}) {
+    const {
+        status,
+        sellerId,
+        buyerId,
+        buyerEmail,
+        involvedUserId,
+        involvedUserEmail,
+        vehicleId,
+        dateFrom,
+        dateTo,
+        plateNumber
+    } = filters;
+    const params = [];
+    const clauses = [];
+    const nextParam = (value) => {
+        params.push(value);
+        return `$${params.length}`;
+    };
+
+    if (status) {
+        if (Array.isArray(status)) {
+            clauses.push(`tr.status = ANY(${nextParam(status)})`);
+        } else {
+            clauses.push(`tr.status = ${nextParam(status)}`);
+        }
+    }
+
+    if (involvedUserId) {
+        const userParam = nextParam(involvedUserId);
+        if (involvedUserEmail) {
+            const emailParam = nextParam(involvedUserEmail);
+            clauses.push(`(tr.seller_id = ${userParam} OR tr.buyer_id = ${userParam} OR (tr.buyer_id IS NULL AND (tr.buyer_info::jsonb)->>'email' = ${emailParam}))`);
+        } else {
+            clauses.push(`(tr.seller_id = ${userParam} OR tr.buyer_id = ${userParam})`);
+        }
+    } else {
+        // When sellerId and buyerId are the same, treat as "involved user" (seller or buyer, email-only buyer too).
+        if (sellerId && buyerId && sellerId === buyerId) {
+            const userParam = nextParam(sellerId);
+            if (buyerEmail) {
+                const emailParam = nextParam(buyerEmail);
+                clauses.push(`(tr.seller_id = ${userParam} OR tr.buyer_id = ${userParam} OR (tr.buyer_id IS NULL AND (tr.buyer_info::jsonb)->>'email' = ${emailParam}))`);
+            } else {
+                clauses.push(`(tr.seller_id = ${userParam} OR tr.buyer_id = ${userParam})`);
+            }
+        } else {
+            if (sellerId) {
+                clauses.push(`tr.seller_id = ${nextParam(sellerId)}`);
+            }
+            if (buyerId) {
+                clauses.push(`tr.buyer_id = ${nextParam(buyerId)}`);
+            }
+        }
+    }
+
+    if (vehicleId) {
+        clauses.push(`tr.vehicle_id = ${nextParam(vehicleId)}`);
+    }
+
+    if (dateFrom) {
+        clauses.push(`tr.created_at >= ${nextParam(dateFrom)}`);
+    }
+
+    if (dateTo) {
+        clauses.push(`tr.created_at <= ${nextParam(dateTo)}`);
+    }
+
+    if (plateNumber) {
+        clauses.push(`v.plate_number ILIKE ${nextParam(`%${plateNumber}%`)}`);
+    }
+
+    const whereClause = clauses.length > 0 ? ` AND ${clauses.join(' AND ')}` : '';
+    return { whereClause, params };
+}
+
 async function getTransferRequests(filters = {}) {
-    const { status, sellerId, buyerId, vehicleId, dateFrom, dateTo, plateNumber, page = 1, limit = 50 } = filters;
+    const { page = 1, limit = 50 } = filters;
     const offset = (page - 1) * limit;
     
     let query = `
@@ -948,58 +1024,8 @@ async function getTransferRequests(filters = {}) {
         WHERE 1=1
     `;
     
-    const params = [];
-    let paramCount = 0;
-    
-    if (status) {
-        paramCount++;
-        // Handle both single status and array of statuses
-        if (Array.isArray(status)) {
-            query += ` AND tr.status = ANY($${paramCount})`;
-            params.push(status);
-        } else {
-            query += ` AND tr.status = $${paramCount}`;
-            params.push(status);
-        }
-    }
-    
-    if (sellerId) {
-        paramCount++;
-        query += ` AND tr.seller_id = $${paramCount}`;
-        params.push(sellerId);
-    }
-    
-    if (buyerId) {
-        paramCount++;
-        query += ` AND tr.buyer_id = $${paramCount}`;
-        params.push(buyerId);
-    }
-    
-    if (vehicleId) {
-        paramCount++;
-        query += ` AND tr.vehicle_id = $${paramCount}`;
-        params.push(vehicleId);
-    }
-    
-    if (dateFrom) {
-        paramCount++;
-        query += ` AND tr.created_at >= $${paramCount}`;
-        params.push(dateFrom);
-    }
-    
-    if (dateTo) {
-        paramCount++;
-        query += ` AND tr.created_at <= $${paramCount}`;
-        params.push(dateTo);
-    }
-    
-    if (plateNumber) {
-        paramCount++;
-        query += ` AND v.plate_number ILIKE $${paramCount}`;
-        params.push(`%${plateNumber}%`);
-    }
-    
-    query += ` ORDER BY tr.created_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    const { whereClause, params } = buildTransferRequestFilterClause(filters);
+    query += `${whereClause} ORDER BY tr.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
     params.push(limit, offset);
     
     let result;
@@ -1153,6 +1179,18 @@ async function getTransferRequestDocuments(transferRequestId) {
          WHERE td.transfer_request_id = $1
          ORDER BY td.uploaded_at DESC`,
         [transferRequestId]
+    );
+    return result.rows;
+}
+
+async function getTransferDocumentsByVehicle(vehicleId) {
+    const result = await db.query(
+        `SELECT td.*
+         FROM transfer_documents td
+         JOIN transfer_requests tr ON td.transfer_request_id = tr.id
+         WHERE tr.vehicle_id = $1
+         ORDER BY td.uploaded_at DESC`,
+        [vehicleId]
     );
     return result.rows;
 }
@@ -1932,10 +1970,12 @@ module.exports = {
     
     // Transfer request operations
     createTransferRequest,
+    buildTransferRequestFilterClause,
     getTransferRequestById,
     getTransferRequests,
     updateTransferRequestStatus,
     getTransferRequestDocuments,
+    getTransferDocumentsByVehicle,
     createTransferVerification,
     getTransferVerificationHistory,
     getOwnershipHistory,
@@ -1960,4 +2000,3 @@ module.exports = {
     updateDocumentRequirement,
     deleteDocumentRequirement
 };
-

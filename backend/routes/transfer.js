@@ -2586,7 +2586,8 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'lto_admin', 
 
         // If vehicle_owner, only show their requests
         if (req.user.role === 'vehicle_owner') {
-            filters.sellerId = req.user.userId;
+            filters.involvedUserId = req.user.userId;
+            filters.involvedUserEmail = req.user.email;
         }
 
         // Only apply status filter if user explicitly provided one
@@ -2601,28 +2602,10 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'lto_admin', 
         const countParams = [];
         let paramCount = 0;
 
-        // Use the same status filter as the main query (only if explicitly provided)
-        const statusFilter = filters.status;
-
-        if (statusFilter) {
-            paramCount++;
-            // Handle both single status and array of statuses
-            if (Array.isArray(statusFilter)) {
-                countQuery += ` AND status = ANY($${paramCount})`;
-                countParams.push(statusFilter);
-            } else {
-                countQuery += ` AND status = $${paramCount}`;
-                countParams.push(statusFilter);
-            }
-        }
-
-        if (req.user.role === 'vehicle_owner') {
-            paramCount++;
-            countQuery += ` AND seller_id = $${paramCount}`;
-            countParams.push(req.user.userId);
-        }
-
-        const countResult = await dbModule.query(countQuery, countParams);
+        countQuery = `SELECT COUNT(*) FROM transfer_requests tr JOIN vehicles v ON tr.vehicle_id = v.id WHERE 1=1`;
+        const { whereClause, params } = db.buildTransferRequestFilterClause(filters);
+        countQuery += whereClause;
+        const countResult = await dbModule.query(countQuery, params);
         const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
         res.json({

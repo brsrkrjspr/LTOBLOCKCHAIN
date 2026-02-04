@@ -1676,7 +1676,7 @@ async function loadSubmittedApplications() {
                             verifications: vehicle.verifications || [],
                             // Add flat status properties for insurance verifier compatibility
                             insuranceStatus: verificationStatus.insurance || 'pending',
-                            emissionStatus: verificationStatus.emission || 'pending',
+        emissionStatus: verificationStatus.emission || null,
                             hpgStatus: verificationStatus.hpg || 'pending',
                             // Ensure status is lowercase for filter matching
                             status: (vehicle.status || 'SUBMITTED').toLowerCase()
@@ -1758,7 +1758,7 @@ async function loadSubmittedApplications() {
                                     priority: oldApp.priority || 'MEDIUM',
                                     verifications: oldApp.verifications || [],
                                     insuranceStatus: verificationStatus.insurance || oldApp.insuranceStatus || 'pending',
-                                    emissionStatus: verificationStatus.emission || oldApp.emissionStatus || 'pending',
+                                    emissionStatus: verificationStatus.emission || oldApp.emissionStatus || null,
                                     hpgStatus: verificationStatus.hpg || oldApp.hpgStatus || 'pending'
                                 });
                             }
@@ -2126,15 +2126,7 @@ function createApplicationRow(application) {
         </span>`;
     }
 
-    if (emissionVerification && emissionVerification.automated) {
-        const score = emissionVerification.verification_score || 0;
-        const status = emissionVerification.status || 'PENDING';
-        const badgeClass = status === 'APPROVED' ? 'badge-success' : 'badge-warning';
-        const icon = status === 'APPROVED' ? 'fa-robot' : 'fa-exclamation-triangle';
-        autoVerificationBadges += `<span class="badge ${badgeClass}" title="Emission Auto-Verified: ${status} (Score: ${score}%)" style="margin-top: 0.25rem; display: inline-block; margin-right: 0.25rem;">
-            <i class="fas ${icon}"></i> Emission: ${status === 'APPROVED' ? 'Auto-Approved' : 'Auto-Flagged'} (${score}%)
-        </span>`;
-    }
+    // Emission workflow is deprecated; hide emission auto-verification badges in admin view
 
     if (hpgVerification && hpgVerification.automated) {
         const score = hpgVerification.verification_score || 0;
@@ -2317,7 +2309,7 @@ async function viewApplication(applicationId) {
                             verifications: vehicle.verifications || [],
                             // Add flat status properties for insurance verifier compatibility
                             insuranceStatus: verificationStatus.insurance || 'pending',
-                            emissionStatus: verificationStatus.emission || 'pending',
+                            emissionStatus: verificationStatus.emission || null,
                             hpgStatus: verificationStatus.hpg || 'pending'
                         });
                     } else {
@@ -3419,7 +3411,7 @@ function updateWorkflowUI() {
     const finalizeBtn = document.getElementById('finalizeBtn');
 
     if (emissionDocItem) {
-        emissionDocItem.style.display = workflowState.emissionRequested ? 'flex' : 'none';
+        emissionDocItem.style.display = 'none';
         if (workflowState.emissionReceived) {
             document.getElementById('emissionStatus').textContent = 'Test Result Received';
             document.getElementById('emissionStatus').className = 'status-badge status-approved';
@@ -3456,8 +3448,7 @@ function updateWorkflowUI() {
 
     // Enable finalize button only when all three are complete
     if (finalizeBtn) {
-        const allComplete = workflowState.emissionReceived &&
-            workflowState.insuranceReceived &&
+        const allComplete = workflowState.insuranceReceived &&
             workflowState.hpgReceived;
         finalizeBtn.disabled = !allComplete;
         if (allComplete) {
@@ -3484,14 +3475,11 @@ async function requestEmissionTest() {
     });
 
     if (confirmed) {
-        workflowState.emissionRequested = true;
-        workflowState.emissionReceived = false;
+        workflowState.emissionRequested = false;
+        workflowState.emissionReceived = true;
         saveWorkflowState();
 
-        ToastNotification.show('Request sent to Emission. Status: Awaiting Test Result', 'success');
-
-        // Simulate receiving result after delay (for demo)
-        // In real app, this would be triggered by Emission sending the result
+        ToastNotification.show('Emission workflow is deprecated. No action required.', 'info');
     }
 }
 
@@ -3637,7 +3625,7 @@ async function approveHPGClearance() {
 }
 
 async function finalizeRegistration() {
-    if (!workflowState.emissionReceived || !workflowState.insuranceReceived || !workflowState.hpgReceived) {
+    if (!workflowState.insuranceReceived || !workflowState.hpgReceived) {
         ToastNotification.show('Cannot finalize: All verifications must be complete', 'error');
         return;
     }

@@ -1,10 +1,10 @@
 // TrustChain LTO - Fabric-Postgres Sync Service
 // Runs batch integrity checks and sends email alerts on discrepancies
 
-const db = require('../database/db.js');
+const db = require('../database/db');
 const integrityService = require('./integrityService');
-const fabricService = require('./optimizedFabricService');
 const gmailApiService = require('./gmailApiService');
+const fabricService = require('./optimizedFabricService');
 
 const ALERT_EMAIL = process.env.SYNC_ALERT_EMAIL || 'ltolipablockchain@gmail.com';
 

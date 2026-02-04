@@ -8,7 +8,6 @@ describe('FabricSyncService', function () {
     let gmailApiServiceMock;
 
     beforeEach(function () {
-        jest.resetModules();
         // Mock dependencies
         dbMock = {
             query: sinon.stub()
@@ -22,6 +21,7 @@ describe('FabricSyncService', function () {
             sendMail: sinon.stub().resolves({ id: 'mock-email-id' })
         };
 
+        jest.resetModules();
         const dbPath = path.resolve(__dirname, '../../database/db.js');
         const integrityPath = path.resolve(__dirname, '../integrityService.js');
         const gmailPath = path.resolve(__dirname, '../gmailApiService.js');

@@ -121,7 +121,7 @@ router.post('/vehicles/register', authenticateToken, async (req, res) => {
                                 cr_issued_at = COALESCE(cr_issued_at, $3),
                                 status = 'REGISTERED',
                                 registration_date = COALESCE(registration_date, $3),
-                                date_of_registration = COALESCE(date_of_registration, registration_date, $3),
+                                date_of_registration = COALESCE(date_of_registration, $3),
                                 updated_at = NOW()
                             WHERE vin = $4
                         `, [orNumber, crNumber, registrationTimestamp, vehicleData.vin]);

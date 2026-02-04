@@ -15,6 +15,16 @@ const { sendMail } = require('../services/gmailApiService');
 const dbModule = require('../database/db');
 const { TRANSFER_STATUS, VEHICLE_STATUS } = require('../config/statusConstants');
 const { TRANSFER_ACTIONS, REGISTRATION_ACTIONS, normalizeAction } = require('../config/actionConstants');
+
+const OWNER_ID_DB_TYPE = 'owner_id';
+const TRANSFER_ROLE_LABELS = {
+    [docTypes.TRANSFER_ROLES.DEED_OF_SALE]: 'Deed of Sale',
+    [docTypes.TRANSFER_ROLES.SELLER_ID]: 'Seller ID',
+    [docTypes.TRANSFER_ROLES.BUYER_ID]: 'Buyer ID',
+    [docTypes.TRANSFER_ROLES.BUYER_TIN]: 'Buyer TIN',
+    [docTypes.TRANSFER_ROLES.BUYER_CTPL]: 'Buyer CTPL',
+    [docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE]: 'Buyer HPG Clearance'
+};
 const { validateTransferStatusTransition, validateVehicleStatusTransition } = require('../middleware/statusValidation');
 
 const TRANSFER_DEADLINE_DAYS = 3;
@@ -2781,6 +2791,22 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
 
         request.documents = documents;
 
+        // Build categorized documents for admin details UI (vehicle/seller/buyer)
+        const vehicleDocs = await db.getDocumentsByVehicle(request.vehicle_id);
+        const normalizedDocs = documents.map(doc => {
+            const normalizedType = (doc.document_type || doc.type || doc.document_db_type || doc.documentType || '')
+                .toLowerCase();
+            return {
+                ...doc,
+                document_type: normalizedType
+            };
+        });
+        request.sellerDocuments = normalizedDocs.filter(doc => ['deed_of_sale', 'seller_id'].includes(doc.document_type));
+        request.buyerDocuments = normalizedDocs.filter(doc =>
+            ['buyer_id', 'buyer_tin', 'buyer_ctpl', 'buyer_hpg_clearance'].includes(doc.document_type)
+        );
+        request.vehicleDocuments = vehicleDocs || [];
+
         // Get verification history
         const verificationHistory = await db.getTransferVerificationHistory(id);
         request.verificationHistory = verificationHistory;
@@ -3145,7 +3171,12 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
 
         const presentRoles = new Set(
             (transferDocs || [])
-                .map(d => d.document_type)
+                .map(d => (d.document_type || '').toLowerCase())
+                .filter(Boolean)
+        );
+        const presentDocumentTypes = new Set(
+            (transferDocs || [])
+                .map(d => (d.document_db_type || d.document_type || '').toLowerCase())
                 .filter(Boolean)
         );
 
@@ -3162,16 +3193,39 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
         ];
 
         const missingSellerRoles = sellerRequiredRoles.filter(role => !presentRoles.has(role));
+        const sellerDocsFromVehicle = await db.getDocumentsByVehicle(request.vehicle_id);
+        const sellerDocsPresent = {
+            [docTypes.TRANSFER_ROLES.DEED_OF_SALE]: sellerDocsFromVehicle.some(doc => doc.document_type === 'deed_of_sale'),
+            [docTypes.TRANSFER_ROLES.SELLER_ID]: sellerDocsFromVehicle.some(doc => doc.document_type === 'seller_id')
+        };
+        const missingSellerRolesAdjusted = missingSellerRoles.filter(role => !sellerDocsPresent[role]);
         const missingBuyerRoles = buyerRequiredRoles.filter(role => !presentRoles.has(role));
+        const missingBuyerRolesAdjusted = missingBuyerRoles.filter(role => {
+            if (role === docTypes.TRANSFER_ROLES.BUYER_TIN) {
+                return !presentDocumentTypes.has('tin_id') && !presentDocumentTypes.has(OWNER_ID_DB_TYPE);
+            }
+            if (role === docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE) {
+                return !presentDocumentTypes.has('hpg_clearance') && !presentDocumentTypes.has(OWNER_ID_DB_TYPE);
+            }
+            if (role === docTypes.TRANSFER_ROLES.BUYER_CTPL) {
+                return !presentDocumentTypes.has('insurance_cert');
+            }
+            return true;
+        });
 
-        if (missingSellerRoles.length > 0 || missingBuyerRoles.length > 0) {
+        if (missingSellerRolesAdjusted.length > 0 || missingBuyerRolesAdjusted.length > 0) {
+            const missingLabels = {
+                seller: missingSellerRolesAdjusted.map(role => TRANSFER_ROLE_LABELS[role] || role),
+                buyer: missingBuyerRolesAdjusted.map(role => TRANSFER_ROLE_LABELS[role] || role)
+            };
             return res.status(400).json({
                 success: false,
                 error: 'Cannot approve transfer request. Required transfer documents are missing.',
                 missing: {
-                    seller: missingSellerRoles,
-                    buyer: missingBuyerRoles
-                }
+                    seller: missingSellerRolesAdjusted,
+                    buyer: missingBuyerRolesAdjusted
+                },
+                missingLabels
             });
         }
 
@@ -4317,4 +4371,3 @@ router.post('/requests/:id/link-document', authenticateToken, authorizeRole(['ve
 });
 
 module.exports = router;
-

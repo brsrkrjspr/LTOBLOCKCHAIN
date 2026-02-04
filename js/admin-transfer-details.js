@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 let currentTransferRequest = null;
 let currentRequestId = null;
+let isLoggingOut = false;
 
 function isFinalizedStatus(status) {
     return status === 'APPROVED' || status === 'REJECTED' || status === 'COMPLETED';
@@ -71,9 +72,21 @@ function initializeTransferDetails() {
     // Logout
     const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
     if (sidebarLogoutBtn) {
-        sidebarLogoutBtn.addEventListener('click', function (e) {
+        sidebarLogoutBtn.addEventListener('click', async function (e) {
             e.preventDefault();
             if (confirm('Are you sure you want to logout?')) {
+                isLoggingOut = true;
+                hideLoading();
+                stopAutoRefresh();
+                try {
+                    if (window.authManager && typeof window.authManager.logout === 'function') {
+                        await window.authManager.logout();
+                        return;
+                    }
+                } catch (error) {
+                    console.warn('Logout via authManager failed:', error);
+                }
+
                 if (typeof AuthUtils !== 'undefined') {
                     AuthUtils.logout();
                 } else {
@@ -117,7 +130,9 @@ async function loadTransferRequestDetails() {
 
     } catch (error) {
         console.error('Load transfer request details error:', error);
-        showError(error.message || 'Failed to load transfer request details');
+        if (!isLoggingOut) {
+            showError(error.message || 'Failed to load transfer request details');
+        }
         hideLoading();
     }
 }
@@ -162,7 +177,7 @@ function renderTransferRequestDetails(request) {
 
     if (requestIdEl) requestIdEl.textContent = request.id.substring(0, 8) + '...';
     if (requestStatusEl) {
-        requestStatusEl.textContent = request.status || 'PENDING';
+        requestStatusEl.textContent = getStatusLabel(request.status || 'PENDING');
         requestStatusEl.className = `status-badge ${getStatusClass(request.status)}`;
     }
 
@@ -170,7 +185,7 @@ function renderTransferRequestDetails(request) {
     const headerStatusEl = document.getElementById('pageStatusBadge');
     if (headerStatusEl) {
         const status = request.status || 'PENDING';
-        headerStatusEl.textContent = status;
+        headerStatusEl.textContent = getStatusLabel(status);
         headerStatusEl.className = `status-badge status-badge-large ${getStatusClass(status)}`;
     }
     if (requestDateEl) {
@@ -197,12 +212,19 @@ function renderTransferRequestDetails(request) {
         loadOwnershipHistory(request.vehicle_id || request.vehicle.id, false); // false = don't auto-expand
     }
 
-    // Update documents - use categorized documents from backend
-    renderDocuments({
-        vehicleDocuments: request.vehicleDocuments || [],
-        sellerDocuments: request.sellerDocuments || [],
-        buyerDocuments: request.buyerDocuments || []
-    });
+    // Update documents - use categorized documents from backend (fallback to legacy documents array)
+    const hasCategorizedDocuments = ['vehicleDocuments', 'sellerDocuments', 'buyerDocuments']
+        .every(key => Array.isArray(request[key])) &&
+        ['vehicleDocuments', 'sellerDocuments', 'buyerDocuments']
+            .some(key => (request[key] || []).length > 0);
+    const categorizedDocuments = hasCategorizedDocuments
+        ? {
+            vehicleDocuments: request.vehicleDocuments || [],
+            sellerDocuments: request.sellerDocuments || [],
+            buyerDocuments: request.buyerDocuments || []
+        }
+        : (request.documents || []);
+    renderDocuments(categorizedDocuments);
 
     // Update organization approval status display
     renderOrgApprovalStatus(request);
@@ -492,15 +514,17 @@ function renderSellerInfo(request) {
     if (sellerAddressEl) sellerAddressEl.textContent = sellerAddress;
 
     // Find seller ID document
-    const sellerIdDoc = (request.documents || []).find(doc =>
-        doc.document_type === 'SELLER_ID' || doc.type === 'seller_id'
-    );
+    const sellerIdDoc = (request.documents || []).find(doc => {
+        const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
+        return docType === 'seller_id';
+    });
     if (sellerIdEl && sellerIdDoc) {
+        const docId = sellerIdDoc.document_id || sellerIdDoc.id;
         sellerIdEl.innerHTML = `
-            <button class="btn-secondary btn-sm" onclick="viewDocument('${sellerIdDoc.id}')">
+            <button class="btn-secondary btn-sm" onclick="viewDocument('${docId}')">
                 <i class="fas fa-eye"></i> View
             </button>
-            <button class="btn-secondary btn-sm" onclick="downloadDocument('${sellerIdDoc.id}')">
+            <button class="btn-secondary btn-sm" onclick="downloadDocument('${docId}')">
                 <i class="fas fa-download"></i> Download
             </button>
         `;
@@ -631,15 +655,17 @@ function renderBuyerInfo(request) {
     if (buyerAddressEl) buyerAddressEl.textContent = buyerAddress;
 
     // Find buyer ID document
-    const buyerIdDoc = (request.documents || []).find(doc =>
-        doc.document_type === 'BUYER_ID' || doc.type === 'buyer_id'
-    );
+    const buyerIdDoc = (request.documents || []).find(doc => {
+        const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
+        return docType === 'buyer_id';
+    });
     if (buyerIdEl && buyerIdDoc) {
+        const docId = buyerIdDoc.document_id || buyerIdDoc.id;
         buyerIdEl.innerHTML = `
-            <button class="btn-secondary btn-sm" onclick="viewDocument('${buyerIdDoc.id}')">
+            <button class="btn-secondary btn-sm" onclick="viewDocument('${docId}')">
                 <i class="fas fa-eye"></i> View
             </button>
-            <button class="btn-secondary btn-sm" onclick="downloadDocument('${buyerIdDoc.id}')">
+            <button class="btn-secondary btn-sm" onclick="downloadDocument('${docId}')">
                 <i class="fas fa-download"></i> Download
             </button>
         `;
@@ -760,7 +786,7 @@ function renderDocuments(documentCategories) {
         const buyerDocuments = [];
 
         documentCategories.forEach(doc => {
-            const docType = (doc.document_type || doc.type || '').toLowerCase();
+            const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
             if (doc.is_vehicle_document || doc.source === 'vehicle' || doc.auto_included) {
                 vehicleDocuments.push(doc);
             } else if (docType === 'deed_of_sale' || docType === 'seller_id') {
@@ -778,13 +804,30 @@ function renderDocuments(documentCategories) {
 
     const { vehicleDocuments = [], sellerDocuments = [], buyerDocuments = [] } = documentCategories;
 
+    const additionalSellerDocuments = vehicleDocuments.filter(doc => {
+        const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
+        return ['deed_of_sale', 'seller_id'].includes(docType);
+    });
+    const mergedSellerDocuments = [...sellerDocuments];
+    additionalSellerDocuments.forEach(doc => {
+        const docId = doc.document_id || doc.id;
+        if (!mergedSellerDocuments.some(existing => (existing.document_id || existing.id) === docId)) {
+            mergedSellerDocuments.push(doc);
+        }
+    });
+
+    const normalizedVehicleDocuments = vehicleDocuments.filter(doc => {
+        const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
+        return !['deed_of_sale', 'seller_id', 'buyer_id', 'buyer_tin', 'buyer_ctpl', 'buyer_hpg_clearance'].includes(docType);
+    });
+
     console.log('[renderDocuments] Rendering categorized documents:', {
-        vehicle: vehicleDocuments.length,
-        seller: sellerDocuments.length,
+        vehicle: normalizedVehicleDocuments.length,
+        seller: mergedSellerDocuments.length,
         buyer: buyerDocuments.length
     });
 
-    const totalDocs = vehicleDocuments.length + sellerDocuments.length + buyerDocuments.length;
+    const totalDocs = normalizedVehicleDocuments.length + mergedSellerDocuments.length + buyerDocuments.length;
     if (totalDocs === 0) {
         documentsContainer.innerHTML = `
             <div class="empty-state" style="text-align: center; padding: 2rem; color: #7f8c8d;">
@@ -799,7 +842,7 @@ function renderDocuments(documentCategories) {
     let html = '';
 
     // Vehicle Original Documents Section (owned by seller while transfer is not approved)
-    if (vehicleDocuments.length > 0) {
+    if (normalizedVehicleDocuments.length > 0) {
         html += `
             <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
                 <h4 style="color: #7c3aed; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -810,14 +853,14 @@ function renderDocuments(documentCategories) {
                     </span>
                 </h4>
                 <div class="documents-grid" style="margin-top: 0;">
-                    ${vehicleDocuments.map(doc => renderDocumentCard(doc)).join('')}
+                    ${normalizedVehicleDocuments.map(doc => renderDocumentCard(doc)).join('')}
                 </div>
             </div>
         `;
     }
 
     // Seller Submitted Documents Section
-    if (sellerDocuments.length > 0) {
+    if (mergedSellerDocuments.length > 0) {
         html += `
             <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
                 <h4 style="color: #1e40af; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
@@ -825,7 +868,7 @@ function renderDocuments(documentCategories) {
                     Seller Submitted Documents
                 </h4>
                 <div class="documents-grid" style="margin-top: 0;">
-                    ${sellerDocuments.map(doc => renderDocumentCard(doc)).join('')}
+                    ${mergedSellerDocuments.map(doc => renderDocumentCard(doc)).join('')}
                 </div>
             </div>
         `;
@@ -1243,15 +1286,28 @@ async function rejectTransfer() {
 }
 
 function getStatusClass(status) {
-    const statusClasses = {
-        'PENDING': 'pending',
-        'REVIEWING': 'reviewing',
-        'APPROVED': 'approved',
-        'REJECTED': 'rejected',
-        'COMPLETED': 'completed',
-        'FORWARDED_TO_HPG': 'forwarded'
+    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getTransferStatusClass) {
+        return window.StatusUtils.getTransferStatusClass(status);
+    }
+    return 'pending';
+}
+
+function getStatusLabel(status) {
+    if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getTransferStatusLabel) {
+        return window.StatusUtils.getTransferStatusLabel(status);
+    }
+    const normalized = (status || '').toLowerCase();
+    const fallbackMap = {
+        'pending': 'Pending',
+        'awaiting_buyer_docs': 'Awaiting Buyer Documents',
+        'under_review': 'Under Review',
+        'approved': 'Approved',
+        'rejected': 'Rejected',
+        'completed': 'Completed',
+        'expired': 'Expired',
+        'forwarded_to_hpg': 'Forwarded to HPG'
     };
-    return statusClasses[status] || 'pending';
+    return fallbackMap[normalized] || status;
 }
 
 function showLoading() {
@@ -1340,6 +1396,9 @@ async function forwardToInsurance() {
         showError(error.message || 'Failed to forward to Insurance');
     }
 }
+
+window.forwardToHPG = forwardToHPG;
+window.forwardToInsurance = forwardToInsurance;
 
 // Ownership History Functions
 let ownershipHistoryExpanded = false;
@@ -1490,3 +1549,9 @@ function toggleOwnershipHistory() {
 window.toggleOwnershipHistory = toggleOwnershipHistory;
 window.loadOwnershipHistory = loadOwnershipHistory;
 
+function viewVerification() {
+    if (!currentRequestId) return;
+    window.location.href = `admin-transfer-verification.html?id=${encodeURIComponent(currentRequestId)}`;
+}
+
+window.viewVerification = viewVerification;

@@ -126,7 +126,6 @@ body::before {
     font-weight: 600;
     color: #2c3e50;
     font-size: 0.9rem;
-    text-transform: uppercase;
     letter-spacing: 0.5px;
     border-bottom: 2px solid #dee2e6;
 }
@@ -153,7 +152,6 @@ body::before {
     font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.3px;
-    text-transform: uppercase;
 }
 
 /* Smooth Animations */
@@ -789,7 +787,6 @@ body::before {
     border-radius: 20px;
     font-size: 0.8rem;
     font-weight: 600;
-    text-transform: uppercase;
 }
 
 .status-pending {
@@ -1993,7 +1990,6 @@ textarea.valid {
     font-weight: 600;
     color: #6c757d;
     font-size: 0.9rem;
-    text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
@@ -9102,6 +9098,16 @@ input.invalid {
     font-weight: 600;
 }
 
+.badge-transfer-origin {
+    margin-left: 0.5rem;
+    background: #475569;
+    color: #ffffff;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
 /* Timeline with blockchain indicators */
 .mini-timeline-item.blockchain-recorded {
     border-left: 3px solid #27ae60;
@@ -9270,4 +9276,3 @@ input.invalid {
     background: #f8fafc;
     border-radius: 0 0 16px 16px;
 }
-

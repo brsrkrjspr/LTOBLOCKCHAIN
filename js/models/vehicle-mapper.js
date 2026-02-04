@@ -81,7 +81,9 @@ function mapVehicleToApplication(vehicle) {
         plateNumber: vehicle.plateNumber || vehicle.plate_number || '',
         vin: vehicle.vin || '',
         color: vehicle.color || '',
-        orCrNumber: vehicle.orCrNumber || vehicle.or_cr_number || null
+        orCrNumber: vehicle.orCrNumber || vehicle.or_cr_number || null,
+        // originType indicates how the vehicle entered the owner's list (TRANSFER is currently used).
+        originType: vehicle.origin_type || vehicle.originType || ''
     };
     
     // Extract OR/CR number (snake_case fallback for backward compatibility)
@@ -140,4 +142,3 @@ if (typeof window !== 'undefined') {
         mapVehicleToApplication
     };
 }
-

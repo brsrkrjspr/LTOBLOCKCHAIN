@@ -49,6 +49,11 @@ let storedVehicleType = null;
 // Store OCR extracted data for later auto-fill (when Step 3 becomes visible)
 let storedOCRExtractedData = {};
 let ocrDataSource = {}; // Track which document type provided each field (for conflict messages)
+/**
+ * Cached pre-minted vehicle data from Fabric search (used to lock fields and enforce submission values).
+ */
+let premintedVehicleData = null;
+const PREMINTED_LOCK_FIELDS = ['make', 'model', 'year', 'color', 'engineNumber', 'chassisNumber', 'vin', 'plateNumber', 'vehicleType', 'fuelType'];
 
 /**
  * Store a non-empty OCR value and track its document source.
@@ -148,6 +153,7 @@ function initializeRegistrationWizard() {
 
     // Initialize Pre-minted Search
     initializePremintedSearch();
+    initializePremintedFieldLocking();
 }
 
 function initializeRegistrationTypeHandler() {
@@ -186,6 +192,7 @@ function handleRegistrationTypeChange(type) {
 
         // Clear vehicle info fields to avoid confusion
         // clearVehicleFields();
+        applyPremintedFieldLocking();
     } else {
         if (premintedSection) premintedSection.style.display = 'none';
         if (docUploadSection) docUploadSection.style.display = 'block';
@@ -193,6 +200,7 @@ function handleRegistrationTypeChange(type) {
         // Update button styles
         if (labelNew) labelNew.classList.add('active');
         if (labelPreminted) labelPreminted.classList.remove('active');
+        clearPremintedFieldLocking();
     }
 }
 
@@ -212,6 +220,51 @@ function initializePremintedSearch() {
             }
         });
     }
+}
+
+function initializePremintedFieldLocking() {
+    const regType = document.querySelector('input[name="registrationType"]:checked')?.value;
+    if (regType === 'PREMINTED') {
+        applyPremintedFieldLocking();
+    }
+}
+
+function applyPremintedFieldLocking() {
+    if (!premintedVehicleData) return;
+    PREMINTED_LOCK_FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.value.toString().trim() !== '') {
+            el.setAttribute('disabled', 'true');
+            el.style.backgroundColor = '#f0f9ff';
+            el.style.borderColor = '#bae6fd';
+        }
+    });
+}
+
+function clearPremintedFieldLocking() {
+    PREMINTED_LOCK_FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.removeAttribute('disabled');
+            el.style.backgroundColor = '';
+            el.style.borderColor = '';
+        }
+    });
+}
+
+function normalizePremintedVehicle(vehicle) {
+    if (!vehicle) return null;
+    const parsedYear = parseInt(vehicle.year || '', 10);
+    const normalizedYear = Number.isFinite(parsedYear) ? parsedYear : null;
+    return {
+        ...vehicle,
+        plateNumber: vehicle.plateNumber || vehicle.plate_number || '',
+        engineNumber: vehicle.engineNumber || vehicle.engine_number || '',
+        chassisNumber: vehicle.chassisNumber || vehicle.chassis_number || vehicle.vin || '',
+        vehicleType: vehicle.vehicleType || vehicle.vehicle_type || '',
+        fuelType: vehicle.fuelType || vehicle.fuel_type || '',
+        year: normalizedYear
+    };
 }
 
 async function searchPremintedVehicle() {
@@ -265,7 +318,8 @@ async function searchPremintedVehicle() {
             }
 
             // Auto-fill form
-            autoFillPremintedVehicle(vehicle);
+            premintedVehicleData = normalizePremintedVehicle(vehicle);
+            autoFillPremintedVehicle(premintedVehicleData);
 
             // Show success toast
             if (typeof ToastNotification !== 'undefined') {
@@ -289,24 +343,24 @@ function autoFillPremintedVehicle(vehicle) {
         'model': vehicle.model,
         'year': vehicle.year,
         'color': vehicle.color,
-        'engineNumber': vehicle.engineNumber || vehicle.engine_number,
+        'engineNumber': vehicle.engineNumber || '',
         'chassisNumber': vehicle.chassisNumber || vehicle.chassis_number || vehicle.vin,
         'vin': vehicle.vin,
-        'vehicleType': vehicle.vehicleType || vehicle.vehicle_type,
-        'fuelType': vehicle.fuelType || vehicle.fuel_type
+        'plateNumber': vehicle.plateNumber || '',
+        'vehicleType': vehicle.vehicleType || '',
+        'fuelType': vehicle.fuelType || ''
     };
 
     Object.keys(fields).forEach(id => {
-        const el = document.getElementById(id);
-        if (el && fields[id]) {
-            el.value = fields[id];
-            // Highlight as auto-filled
-            el.style.backgroundColor = '#f0f9ff';
-            el.style.borderColor = '#bae6fd';
-            // Make read-only?
-            // el.setAttribute('readonly', 'true');
-        }
-    });
+            const el = document.getElementById(id);
+            if (el && fields[id] !== undefined && fields[id] !== null && fields[id] !== '') {
+                el.value = fields[id];
+                // Highlight as auto-filled
+                el.style.backgroundColor = '#f0f9ff';
+                el.style.borderColor = '#bae6fd';
+                el.setAttribute('disabled', 'true');
+            }
+        });
 
     // Also set Car Type in Step 1 if possible
     const carTypeSelect = document.getElementById('carType');
@@ -314,6 +368,8 @@ function autoFillPremintedVehicle(vehicle) {
         // Try to match value
         // This is tricky as values might differ.
     }
+
+    applyPremintedFieldLocking();
 }
 
 /**
@@ -2496,6 +2552,24 @@ function updateReviewData() {
 
             // Get car type from Step 1
             const carType = document.getElementById('carType')?.value || '';
+            const regType = document.querySelector('input[name="registrationType"]:checked')?.value;
+            const resolvePremintedValue = (key, fallback) => {
+                if (regType !== 'PREMINTED' || !premintedVehicleData) return fallback;
+                const premintedYear = premintedVehicleData.year;
+                const lookup = {
+                    make: premintedVehicleData.make,
+                    model: premintedVehicleData.model,
+                    year: premintedYear,
+                    color: premintedVehicleData.color || '',
+                    engineNumber: premintedVehicleData.engineNumber || '',
+                    chassisNumber: premintedVehicleData.chassisNumber || premintedVehicleData.vin,
+                    vin: premintedVehicleData.vin,
+                    plateNumber: String(premintedVehicleData.plateNumber || '').toUpperCase(),
+                    vehicleType: premintedVehicleData.vehicleType || 'Car',
+                    fuelType: premintedVehicleData.fuelType || ''
+                };
+                return lookup[key] !== undefined && lookup[key] !== null && lookup[key] !== '' ? lookup[key] : fallback;
+            };
 
             // Collect vehicle information
             // Helper function to safely get and trim field values
@@ -2510,22 +2584,25 @@ function updateReviewData() {
             };
 
             const plateNumberValue = getFieldValue('plateNumber');
+
             const vehicleInfo = {
-                make: getFieldValue('make'),
-                model: getFieldValue('model'),
-                year: parseInt(getFieldValue('year') || new Date().getFullYear()),
-                color: getFieldValue('color'),
-                engineNumber: getFieldValue('engineNumber'),
-                chassisNumber: getFieldValue('chassisNumber'),
-                vin: getFieldValue('vin') || getFieldValue('chassisNumber'),
-                plateNumber: plateNumberValue ? plateNumberValue.toUpperCase() : '',
-                vehicleType: getFieldValue('vehicleType', 'Car'),
+                make: resolvePremintedValue('make', getFieldValue('make')),
+                model: resolvePremintedValue('model', getFieldValue('model')),
+                year: resolvePremintedValue('year', parseInt(getFieldValue('year') || new Date().getFullYear())),
+                color: resolvePremintedValue('color', getFieldValue('color')),
+                engineNumber: resolvePremintedValue('engineNumber', getFieldValue('engineNumber')),
+                chassisNumber: resolvePremintedValue('chassisNumber', getFieldValue('chassisNumber')),
+                vin: resolvePremintedValue('vin', getFieldValue('vin') || getFieldValue('chassisNumber')),
+                plateNumber: resolvePremintedValue('plateNumber', plateNumberValue ? plateNumberValue.toUpperCase() : ''),
+                vehicleType: resolvePremintedValue('vehicleType', getFieldValue('vehicleType', 'Car')),
+                fuelType: resolvePremintedValue('fuelType', getFieldValue('fuelType')),
                 carType: carType, // Add car type from Step 1
                 vehicleCategory: getFieldValue('vehicleCategory'),
                 passengerCapacity: parseInt(getFieldValue('passengerCapacity') || 0),
                 grossVehicleWeight: parseFloat(getFieldValue('grossVehicleWeight') || 0),
                 netWeight: parseFloat(getFieldValue('netWeight') || 0),
-                classification: getFieldValue('classification', 'Private')
+                classification: getFieldValue('classification', 'Private'),
+                registrationType: regType || 'NEW'
             };
 
             // Debug: Log collected vehicle data to help diagnose issues

@@ -2265,16 +2265,18 @@ function showApplicationDetailsModal(application) {
                 ` : ''}
                 
                 <!-- OR/CR Number Display -->
-                ${application.or_cr_number || application.vehicle?.or_cr_number ? `
+                ${application.or_number || application.cr_number || application.vehicle?.or_number || application.vehicle?.cr_number || application.or_cr_number || application.vehicle?.or_cr_number ? `
                 <div class="orcr-display" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center;">
-                    <small style="opacity: 0.8; display: block; margin-bottom: 0.5rem;">Official Registration Number</small>
-                    <div style="font-size: 1.5rem; font-weight: bold; letter-spacing: 2px;">
-                        ${application.or_cr_number || application.vehicle?.or_cr_number}
+                    <small style="opacity: 0.8; display: block; margin-bottom: 0.5rem;">Official Receipt (OR) / Certificate of Registration (CR)</small>
+                    <div style="display: flex; flex-direction: column; gap: 6px; align-items: center; font-size: 1.1rem; font-weight: bold; letter-spacing: 1px;">
+                        ${(application.or_number || application.vehicle?.or_number) ? `<span>OR: ${application.or_number || application.vehicle?.or_number}</span>` : ''}
+                        ${(application.cr_number || application.vehicle?.cr_number) ? `<span>CR: ${application.cr_number || application.vehicle?.cr_number}</span>` : ''}
+                        ${(!application.or_number && !application.cr_number && (application.or_cr_number || application.vehicle?.or_cr_number)) ? `<span>${application.or_cr_number || application.vehicle?.or_cr_number}</span>` : ''}
                     </div>
                 </div>
                 ` : (status === 'approved' || status === 'registered') ? `
                 <div style="background: #fff3cd; color: #856404; padding: 1rem; border-radius: 8px; margin: 1rem 0; text-align: center; font-size: 0.9rem;">
-                    <i class="fas fa-clock"></i> OR/CR Number: Pending Assignment
+                    <i class="fas fa-clock"></i> OR/CR Numbers: Pending Assignment
                 </div>
                 ` : ''}
                 

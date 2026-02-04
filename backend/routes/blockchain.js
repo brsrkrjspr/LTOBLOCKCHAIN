@@ -44,6 +44,12 @@ fabricService.initialize().then(result => {
 router.post('/vehicles/register', authenticateToken, async (req, res) => {
     try {
         const vehicleData = req.body;
+        if (vehicleData.grossVehicleWeight && !vehicleData.gross_vehicle_weight) {
+            vehicleData.gross_vehicle_weight = vehicleData.grossVehicleWeight;
+        }
+        if (vehicleData.netWeight && !vehicleData.net_weight) {
+            vehicleData.net_weight = vehicleData.netWeight;
+        }
 
         // Validate required fields
         if (!vehicleData.vin || !vehicleData.plateNumber || !vehicleData.ownerId) {
@@ -103,23 +109,25 @@ router.post('/vehicles/register', authenticateToken, async (req, res) => {
                         const dbServices = require('../database/services');
 
                         // Generate unique OR and CR numbers using database sequences
-                        const orNumber = await dbServices.generateOrNumber();
-                        const crNumber = await dbServices.generateCrNumber();
+                        const existingVehicle = await dbServices.getVehicleByVin(vehicleData.vin);
+                        const orNumber = existingVehicle?.or_number || await dbServices.generateOrNumber();
+                        const crNumber = existingVehicle?.cr_number || await dbServices.generateCrNumber();
                         const registrationTimestamp = new Date().toISOString();
 
-                        console.log(`[Registration] Generated OR: ${orNumber}, CR: ${crNumber} for VIN ${vehicleData.vin}`);
+                        console.log(`[Registration] Using OR: ${orNumber}, CR: ${crNumber} for VIN ${vehicleData.vin}`);
 
-                        // Update the vehicle record in PostgreSQL with the new OR/CR numbers
+                        // Update the vehicle record in PostgreSQL with the OR/CR numbers only if missing
                         // This ties the blockchain registration to the official LTO document numbers
                         const db = require('../database/db');
                         await db.query(`
                             UPDATE vehicles SET 
-                                or_number = $1,
-                                cr_number = $2,
-                                or_issued_at = $3,
-                                cr_issued_at = $3,
+                                or_number = COALESCE(or_number, $1),
+                                cr_number = COALESCE(cr_number, $2),
+                                or_issued_at = COALESCE(or_issued_at, $3),
+                                cr_issued_at = COALESCE(cr_issued_at, $3),
                                 status = 'REGISTERED',
-                                registration_date = $3,
+                                registration_date = COALESCE(registration_date, $3),
+                                date_of_registration = COALESCE(date_of_registration, $3),
                                 updated_at = NOW()
                             WHERE vin = $4
                         `, [orNumber, crNumber, registrationTimestamp, vehicleData.vin]);
@@ -391,21 +399,24 @@ router.post('/vehicles/mint', authenticateToken, async (req, res) => {
             const { certificatePdfGenerator, certificateEmailService, certificateNumberGenerator } = getCsrServices();
             const csrNumber = certificateNumberGenerator.generateCsrNumber();
             const issuanceDate = new Date().toISOString();
-            const { pdfBuffer, fileHash, certificateNumber } = await certificatePdfGenerator.generateCsrCertificate({
-                dealerName: 'LTO Pre-Minted (CSR Verified)',
-                dealerLtoNumber: `LTO-PM-${Math.floor(1000 + Math.random() * 9000)}`,
-                vehicleMake: vehicleData.make,
-                vehicleModel: vehicleData.model,
-                vehicleVariant: vehicleData.vehicleType || '',
-                vehicleYear: vehicleData.year,
-                bodyType: vehicleData.vehicleType || 'Car',
-                color: vehicleData.color || '',
-                fuelType: 'Gasoline',
-                engineNumber: vehicleData.engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
-                vehicleVIN: vehicleData.vin,
-                issuanceDate,
-                csrNumber
-            });
+                const { pdfBuffer, fileHash, certificateNumber } = await certificatePdfGenerator.generateCsrCertificate({
+                    dealerName: 'LTO Pre-Minted (CSR Verified)',
+                    dealerLtoNumber: `LTO-PM-${Math.floor(1000 + Math.random() * 9000)}`,
+                    vehicleMake: vehicleData.make,
+                    vehicleModel: vehicleData.model,
+                    vehicleVariant: vehicleData.vehicleType || '',
+                    vehicleYear: vehicleData.year,
+                    bodyType: vehicleData.vehicleType || 'Car',
+                    color: vehicleData.color || '',
+                    fuelType: vehicleData.fuelType || 'Gasoline',
+                    engineNumber: vehicleData.engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
+                    chassisNumber: vehicleData.chassisNumber || vehicleData.chassis_number || vehicleData.vin,
+                    vehicleVIN: vehicleData.vin,
+                    grossVehicleWeight: vehicleData.grossVehicleWeight || vehicleData.gross_vehicle_weight || vehicleData.grossWeight,
+                    netWeight: vehicleData.netWeight || vehicleData.net_weight || vehicleData.netCapacity,
+                    issuanceDate,
+                    csrNumber
+                });
             let csrIpfsCid = null;
             const ipfsService = require('../services/ipfsService');
             if (ipfsService.isAvailable()) {

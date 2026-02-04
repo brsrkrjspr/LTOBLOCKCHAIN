@@ -516,7 +516,7 @@ function renderSellerInfo(request) {
     // Find seller ID document
     const sellerIdDoc = (request.documents || []).find(doc => {
         const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
-        return docType === 'seller_id';
+        return docType === 'seller_id' || docType === 'owner_id';
     });
     if (sellerIdEl && sellerIdDoc) {
         const docId = sellerIdDoc.document_id || sellerIdDoc.id;
@@ -657,7 +657,7 @@ function renderBuyerInfo(request) {
     // Find buyer ID document
     const buyerIdDoc = (request.documents || []).find(doc => {
         const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
-        return docType === 'buyer_id';
+        return docType === 'buyer_id' || docType === 'owner_id';
     });
     if (buyerIdEl && buyerIdDoc) {
         const docId = buyerIdDoc.document_id || buyerIdDoc.id;

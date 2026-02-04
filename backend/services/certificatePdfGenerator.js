@@ -637,7 +637,10 @@ class CertificatePdfGenerator {
             color,
             fuelType,
             engineNumber,
+            chassisNumber,
             vehicleVIN,
+            grossVehicleWeight,
+            netWeight,
             issuanceDate,
             csrNumber  // Optional: if provided, use it; otherwise generate
         } = data;
@@ -742,11 +745,23 @@ class CertificatePdfGenerator {
         );
         
         // Chassis / VIN (use provided or generate random)
-        const finalVIN = vehicleVIN || this.generateRandomVIN();
+        const finalChassis = chassisNumber || vehicleVIN || this.generateRandomVIN();
         htmlTemplate = htmlTemplate.replace(
             /<tr><td>Chassis \/ VIN<\/td><td>.*?value="[^"]*"/,
-            `<tr><td>Chassis / VIN</td><td><input type="text" value="${finalVIN}"`
+            `<tr><td>Chassis / VIN</td><td><input type="text" value="${finalChassis}"`
         );
+
+        // Gross Vehicle Weight (optional but needed for OCR)
+        const weightRows = [];
+        if (grossVehicleWeight) {
+            weightRows.push(`<tr><td>Gross Vehicle Weight</td><td><input type="text" value="${grossVehicleWeight}"></td></tr>`);
+        }
+        if (netWeight) {
+            weightRows.push(`<tr><td>Net Weight</td><td><input type="text" value="${netWeight}"></td></tr>`);
+        }
+        if (weightRows.length > 0) {
+            htmlTemplate = htmlTemplate.replace(/<\/table>/, `${weightRows.join('')}</table>`);
+        }
 
         // Inline CSS for CSR certificate
         const cssPath = path.join(this.templatesPath, 'csr cert', 'csr-certificate.css');

@@ -3264,11 +3264,25 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 email: req.user.email
             });
 
+            let chainOwnerEmail = vehicle.owner_email;
+            try {
+                const chainVehicle = await fabricService.getVehicle(vehicle.vin);
+                if (chainVehicle?.success) {
+                    if (chainVehicle.vehicle?.owner?.email) {
+                        chainOwnerEmail = chainVehicle.vehicle.owner.email;
+                    } else {
+                        console.warn(`[Transfer Approval] Fabric vehicle (${vehicle.vin}) missing owner email; falling back to database owner email (may cause validation issues if data is out of sync).`);
+                    }
+                }
+            } catch (chainError) {
+                console.error(`[Transfer Approval] Failed to fetch Fabric vehicle (${vehicle.vin}) owner email; falling back to database owner email (investigate blockchain connectivity).`, chainError.message);
+            }
+
             const transferData = {
                 reason: 'Ownership transfer approved',
                 transferDate: new Date().toISOString(),
                 approvedBy: req.user.email,
-                currentOwnerEmail: vehicle.owner_email,  // Include current owner email for validation
+                currentOwnerEmail: chainOwnerEmail || vehicle.owner_email,  // Include current owner email for validation
                 // Include officer information for traceability (with employee_id)
                 officerInfo: {
                     userId: req.user.userId,
@@ -3888,7 +3902,30 @@ router.post('/requests/:id/verify-mvir', authenticateToken, authorizeRole(['admi
             });
         }
 
-
+        let transferDocs = [];
+        try {
+            transferDocs = await db.getTransferRequestDocuments(id);
+        } catch (docError) {
+            console.error('[Transfer MVIR] Failed to load transfer documents for MVIR verification:', docError.message);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to load transfer documents for MVIR verification'
+            });
+        }
+        const buyerMvirDoc = transferDocs.find(doc =>
+            (doc.document_type || doc.document_db_type || '').toLowerCase() === 'buyer_mvir'
+        );
+        const autoVerificationService = require('../services/autoVerificationService');
+        const result = buyerMvirDoc
+            ? await autoVerificationService.autoVerifyMVIR(request.vehicle_id, buyerMvirDoc, vehicle)
+            : {
+                status: vehicle.mvir_number ? 'APPROVED' : 'PENDING',
+                automated: false,
+                confidence: vehicle.mvir_number ? 0.5 : 0,
+                reason: vehicle.mvir_number
+                    ? 'Inspection record exists on vehicle.'
+                    : 'No MVIR document found for verification.'
+            };
 
         // Persist to transfer_requests.metadata for UI display
         const dbModule = require('../database/db');
@@ -3916,6 +3953,7 @@ router.post('/requests/:id/verify-mvir', authenticateToken, authorizeRole(['admi
             success: true,
             message: 'MVIR verification completed',
             result,
+            mvirNumber: vehicle.mvir_number || null,
             transferRequest: updatedRequest
         });
     } catch (error) {

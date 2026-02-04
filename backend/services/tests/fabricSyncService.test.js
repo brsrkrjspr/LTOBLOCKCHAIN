@@ -1,7 +1,6 @@
 const assert = require('assert');
 const sinon = require('sinon');
-const proxyquire = require('proxyquire');
-
+const path = require('path');
 describe('FabricSyncService', function () {
     let fabricSyncService;
     let dbMock;
@@ -9,6 +8,7 @@ describe('FabricSyncService', function () {
     let gmailApiServiceMock;
 
     beforeEach(function () {
+        jest.resetModules();
         // Mock dependencies
         dbMock = {
             query: sinon.stub()
@@ -22,16 +22,21 @@ describe('FabricSyncService', function () {
             sendMail: sinon.stub().resolves({ id: 'mock-email-id' })
         };
 
+        const dbPath = path.resolve(__dirname, '../../database/db.js');
+        const integrityPath = path.resolve(__dirname, '../integrityService.js');
+        const gmailPath = path.resolve(__dirname, '../gmailApiService.js');
+
+        jest.doMock(dbPath, () => dbMock);
+        jest.doMock(integrityPath, () => integrityServiceMock);
+        jest.doMock(gmailPath, () => gmailApiServiceMock);
+
         // Load service with mocks
-        fabricSyncService = proxyquire('../fabricSyncService', {
-            '../database/db.js': dbMock,
-            './integrityService': integrityServiceMock,
-            './gmailApiService': gmailApiServiceMock
-        });
+        fabricSyncService = require('../fabricSyncService');
     });
 
     afterEach(function () {
         sinon.restore();
+        jest.resetModules();
     });
 
     describe('runFullSync()', function () {

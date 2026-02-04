@@ -103,23 +103,25 @@ router.post('/vehicles/register', authenticateToken, async (req, res) => {
                         const dbServices = require('../database/services');
 
                         // Generate unique OR and CR numbers using database sequences
-                        const orNumber = await dbServices.generateOrNumber();
-                        const crNumber = await dbServices.generateCrNumber();
+                        const existingVehicle = await dbServices.getVehicleByVin(vehicleData.vin);
+                        const orNumber = existingVehicle?.or_number || await dbServices.generateOrNumber();
+                        const crNumber = existingVehicle?.cr_number || await dbServices.generateCrNumber();
                         const registrationTimestamp = new Date().toISOString();
 
-                        console.log(`[Registration] Generated OR: ${orNumber}, CR: ${crNumber} for VIN ${vehicleData.vin}`);
+                        console.log(`[Registration] Using OR: ${orNumber}, CR: ${crNumber} for VIN ${vehicleData.vin}`);
 
-                        // Update the vehicle record in PostgreSQL with the new OR/CR numbers
+                        // Update the vehicle record in PostgreSQL with the OR/CR numbers only if missing
                         // This ties the blockchain registration to the official LTO document numbers
                         const db = require('../database/db');
                         await db.query(`
                             UPDATE vehicles SET 
-                                or_number = $1,
-                                cr_number = $2,
-                                or_issued_at = $3,
-                                cr_issued_at = $3,
+                                or_number = COALESCE(or_number, $1),
+                                cr_number = COALESCE(cr_number, $2),
+                                or_issued_at = COALESCE(or_issued_at, $3),
+                                cr_issued_at = COALESCE(cr_issued_at, $3),
                                 status = 'REGISTERED',
-                                registration_date = $3,
+                                registration_date = COALESCE(registration_date, $3),
+                                date_of_registration = COALESCE(date_of_registration, registration_date, $3),
                                 updated_at = NOW()
                             WHERE vin = $4
                         `, [orNumber, crNumber, registrationTimestamp, vehicleData.vin]);

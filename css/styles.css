@@ -8918,6 +8918,11 @@ input.invalid {
     color: white;
 }
 
+.integrity-badge.pending {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    color: white;
+}
+
 .integrity-badge.not-registered {
     background: linear-gradient(135deg, #7f8c8d, #95a5a6);
     color: white;

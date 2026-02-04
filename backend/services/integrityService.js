@@ -114,9 +114,12 @@ class IntegrityService {
             let criticalMismatch = false;
 
             if (!blockchainVehicle) {
+                const hasOwner = !!dbVehicle.owner_id;
                 return {
-                    status: 'NOT_REGISTERED',
-                    message: 'Vehicle not registered on blockchain',
+                    status: hasOwner ? 'PENDING_BLOCKCHAIN' : 'NOT_REGISTERED',
+                    message: hasOwner
+                        ? 'Vehicle has an owner but is not yet registered on blockchain'
+                        : 'Vehicle not registered on blockchain',
                     vin: vin,
                     comparisons: [],
                     dbVehicle: {
@@ -126,7 +129,8 @@ class IntegrityService {
                         chassisNumber: dbVehicle.chassis_number,
                         make: dbVehicle.make,
                         model: dbVehicle.model,
-                        year: dbVehicle.year
+                        year: dbVehicle.year,
+                        ownerId: dbVehicle.owner_id || null
                     },
                     blockchainVehicle: null,
                     error: blockchainError
@@ -277,4 +281,3 @@ class IntegrityService {
 // Export singleton instance
 const integrityService = new IntegrityService();
 module.exports = integrityService;
-

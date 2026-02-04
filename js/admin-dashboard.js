@@ -1569,21 +1569,28 @@ function renderPreMintedVehiclesTable(vehicles) {
         return;
     }
 
-    tbody.innerHTML = vehicles.map(vehicle => `
+    tbody.innerHTML = vehicles.map(vehicle => {
+        const ownerPresent = !!(vehicle.ownerName || vehicle.ownerEmail || vehicle.owner_email || vehicle.owner_name);
+        const statusLabel = ownerPresent ? 'Registered' : 'Unregistered';
+        const statusStyle = ownerPresent
+            ? 'background-color: #dcfce7; color: #166534;'
+            : 'background-color: #e0f2fe; color: #0284c7;';
+        return `
         <tr>
             <td style="font-family: monospace; font-weight: 600;">${vehicle.vin}</td>
             <td>${vehicle.make} ${vehicle.model}</td>
             <td>${vehicle.year}</td>
             <td>${vehicle.dealer || 'N/A'}</td>
             <td>${vehicle.importDate ? new Date(vehicle.importDate).toLocaleDateString() : 'N/A'}</td>
-             <td><span class="status-badge status-pending" style="background-color: #e0f2fe; color: #0284c7;">Unregistered</span></td>
+             <td><span class="status-badge status-pending" style="${statusStyle}">${statusLabel}</span></td>
             <td>
                  <button class="btn-secondary btn-sm" onclick="showNotification('Details view coming soon', 'info')">
                     <i class="fas fa-eye"></i> Details
                 </button>
             </td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
 }
 
 function initializeSubmittedApplications() {
@@ -1948,6 +1955,10 @@ async function loadIntegrityStatus(vehicleId, vin, cellElement) {
                 badgeClass = 'mismatch';
                 badgeIcon = 'fa-exclamation-circle';
                 badgeText = 'MISMATCH';
+            } else if (status === 'PENDING_BLOCKCHAIN') {
+                badgeClass = 'pending';
+                badgeIcon = 'fa-clock';
+                badgeText = 'PENDING';
             } else if (status === 'NOT_REGISTERED') {
                 badgeClass = 'not-registered';
                 badgeIcon = 'fa-info-circle';
@@ -4147,6 +4158,7 @@ async function checkDataIntegrity(vehicleId, vin) {
             'VERIFIED': 'verified',
             'TAMPERED': 'tampered',
             'MISMATCH': 'mismatch',
+            'PENDING_BLOCKCHAIN': 'pending',
             'NOT_REGISTERED': 'not-registered'
         }[response.integrityStatus] || 'error';
 
@@ -4154,6 +4166,7 @@ async function checkDataIntegrity(vehicleId, vin) {
             'VERIFIED': 'check-circle',
             'TAMPERED': 'exclamation-triangle',
             'MISMATCH': 'exclamation-circle',
+            'PENDING_BLOCKCHAIN': 'clock',
             'NOT_REGISTERED': 'question-circle'
         }[response.integrityStatus] || 'times-circle';
 
@@ -4165,7 +4178,8 @@ async function checkDataIntegrity(vehicleId, vin) {
             <p class="integrity-message" style="margin-top: 10px; color: #666;">
                 ${response.integrityStatus === 'VERIFIED' ? 'All data matches between database and blockchain' :
                 response.integrityStatus === 'TAMPERED' ? 'Critical data mismatch detected - possible tampering' :
-                    response.integrityStatus === 'MISMATCH' ? 'Some fields do not match between database and blockchain' :
+                response.integrityStatus === 'MISMATCH' ? 'Some fields do not match between database and blockchain' :
+                    response.integrityStatus === 'PENDING_BLOCKCHAIN' ? 'Vehicle has an owner but is not yet on blockchain' :
                         response.integrityStatus === 'NOT_REGISTERED' ? 'Vehicle not found on blockchain' :
                             'Error checking integrity'}
             </p>

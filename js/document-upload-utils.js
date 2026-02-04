@@ -12,6 +12,9 @@ const DOCUMENT_TYPES = {
     DEED_OF_SALE: 'deedOfSale',
     SELLER_ID: 'sellerId',
     BUYER_ID: 'buyerId',
+    BUYER_TIN: 'buyerTin',
+    BUYER_CTPL: 'buyerCtpl',
+    BUYER_HPG_CLEARANCE: 'buyerHpgClearance',
     HPG_CLEARANCE: 'hpgClearance', // HPG Clearance certificate
     OTHER: 'other'
 };
@@ -23,6 +26,9 @@ const TRANSFER_ROLES = {
     DEED_OF_SALE: 'deedOfSale',
     SELLER_ID: 'sellerId',
     BUYER_ID: 'buyerId',
+    BUYER_TIN: 'buyerTin',
+    BUYER_CTPL: 'buyerCtpl',
+    BUYER_HPG_CLEARANCE: 'buyerHpgClearance',
     OR_CR: 'orCr'
 };
 

@@ -1177,11 +1177,6 @@ async function loadOwnerTransferRequests() {
         const currentUserEmail = currentUser.email;
         
         const userRequests = response.requests.filter(r => {
-            // Exclude finalized/completed requests
-            if (['APPROVED', 'REJECTED', 'COMPLETED'].includes(r.status)) {
-                return false;
-            }
-            
             // User is seller
             if (r.seller_id === currentUserId || r.seller_email === currentUserEmail) {
                 return true;
@@ -1545,6 +1540,106 @@ function renderTimelineItem(title, date, isCompleted, transactionId, action) {
     `;
 }
 
+function renderStatusHistorySection(historyEntries) {
+    if (!Array.isArray(historyEntries) || historyEntries.length === 0) {
+        return `
+            <div style="margin-top: 1rem; color: #6c757d; font-size: 0.85rem;">
+                No detailed status history available for this application yet.
+            </div>
+        `;
+    }
+
+    let currentUser = {};
+    try {
+        currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    } catch (error) {
+        console.warn('Failed to parse currentUser from localStorage:', error);
+        currentUser = {};
+    }
+    const currentUserId = currentUser.id || currentUser.userId || null;
+    const currentUserEmail = currentUser.email ? currentUser.email.toLowerCase() : null;
+    const filteredHistory = historyEntries.filter(entry => {
+        const action = (entry.action || '').toUpperCase();
+        if (action.includes('REGISTRATION') || action.startsWith('STATUS_')) {
+            return true;
+        }
+        if (action.includes('TRANSFER') || action.includes('OWNERSHIP_TRANSFERRED')) {
+            const metadata = entry.metadata || {};
+            const involvedIds = [metadata.previousOwnerId, metadata.newOwnerId].filter(Boolean);
+            const involvedEmails = [metadata.previousOwnerEmail, metadata.newOwnerEmail]
+                .filter(Boolean)
+                .map(email => String(email).toLowerCase());
+            if (involvedIds.length > 0 || involvedEmails.length > 0) {
+                return (currentUserId && involvedIds.includes(currentUserId)) ||
+                    (currentUserEmail && involvedEmails.includes(currentUserEmail));
+            }
+            return true;
+        }
+        if (action.includes('HPG') || action.includes('INSURANCE') || action.includes('EMISSION')) {
+            return true;
+        }
+        if (action.includes('REJECTED')) {
+            return true;
+        }
+        return false;
+    });
+
+    if (filteredHistory.length === 0) {
+        return `
+            <div style="margin-top: 1rem; color: #6c757d; font-size: 0.85rem;">
+                Status history is not yet recorded for this application.
+            </div>
+        `;
+    }
+
+    const historyWithTimes = filteredHistory.map(entry => {
+        const dateValue = entry.performed_at || entry.performedAt || entry.timestamp;
+        const parsedTime = dateValue ? new Date(dateValue).getTime() : NaN;
+        const safeParsedTime = Number.isFinite(parsedTime) ? parsedTime : NaN;
+        return {
+            entry,
+            timeValue: safeParsedTime
+        };
+    });
+
+    const sortedHistory = historyWithTimes.sort((a, b) => {
+        const timeA = a.timeValue;
+        const timeB = b.timeValue;
+        if (Number.isNaN(timeA) && Number.isNaN(timeB)) return 0;
+        if (Number.isNaN(timeA)) return 1;
+        if (Number.isNaN(timeB)) return -1;
+        return timeB - timeA;
+    }).map(item => item.entry);
+
+    const formattedHistory = sortedHistory.map(entry => {
+        if (!entry.action) {
+            console.warn('History entry missing action:', entry);
+        }
+        return {
+            ...entry,
+            performed_at: entry.performed_at || entry.performedAt || entry.timestamp,
+            action: (entry.action || 'ACTION_NOT_SPECIFIED').toUpperCase().trim(),
+            transaction_id: entry.transaction_id || entry.transactionId || null
+        };
+    });
+
+    const historyHtml = formattedHistory.map(entry => renderHistoryItem(entry)).join('');
+
+    return `
+        <div style="margin-top: 1rem;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; color: #1f2937; font-weight: 600; font-size: 0.9rem;">
+                <i class="fas fa-stream" style="color: #3498db;"></i>
+                <span>Status History</span>
+            </div>
+            <div class="history-list" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                ${historyHtml}
+            </div>
+        </div>
+    `;
+}
+
+// Status action labels are normalized via formatAction during history rendering in renderHistoryItem.
+
 // Render history item with blockchain icons (for use in history/audit sections)
 function renderHistoryItem(historyEntry) {
     const hasBlockchainTx = historyEntry.transaction_id && !historyEntry.transaction_id.includes('-');
@@ -1590,6 +1685,29 @@ function formatAction(action) {
         'REJECTED': 'Application Rejected',
         'OWNERSHIP_TRANSFERRED': 'Ownership Transferred',
         'VERIFICATION_APPROVED': 'Verification Approved',
+        'REGISTRATION_SUBMITTED': 'Registration Submitted',
+        'REGISTRATION_APPROVED': 'Registration Approved',
+        'REGISTRATION_REJECTED': 'Registration Rejected',
+        'REGISTRATION_PENDING_REVIEW': 'Registration Pending Review',
+        'TRANSFER_REQUESTED': 'Transfer Requested',
+        'TRANSFER_BUYER_ACCEPTED': 'Transfer Accepted by Buyer',
+        'TRANSFER_APPROVED': 'Transfer Approved',
+        'TRANSFER_REJECTED': 'Transfer Rejected',
+        'TRANSFER_REQUEST_REJECTED': 'Transfer Request Rejected',
+        'TRANSFER_COMPLETED': 'Transfer Completed',
+        'TRANSFER_EXPIRED': 'Transfer Expired',
+        'TRANSFER_HPG_REJECTED': 'Transfer HPG Rejected',
+        'TRANSFER_INSURANCE_REJECTED': 'Transfer Insurance Rejected',
+        'HPG_CLEARANCE_REJECTED': 'HPG Clearance Rejected',
+        'INSURANCE_VERIFICATION_REJECTED': 'Insurance Verification Rejected',
+        'INSURANCE_MANUAL_VERIFICATION': 'Insurance Manual Verification',
+        'LTO_INSPECTION_COMPLETED': 'LTO Inspection Completed',
+        'STATUS_APPROVED': 'Status Updated: Approved',
+        'STATUS_REJECTED': 'Status Updated: Rejected',
+        'STATUS_REGISTERED': 'Status Updated: Registered',
+        'STATUS_SUBMITTED': 'Status Updated: Submitted',
+        'STATUS_PENDING': 'Status Updated: Pending',
+        'STATUS_PROCESSING': 'Status Updated: Processing',
         'STATUS_UPDATED': 'Status Updated'
     };
     return actionMap[action] || action.replace(/_/g, ' ');
@@ -1641,6 +1759,7 @@ function createUserApplicationRow(application) {
             <div class="vehicle-info">
                 <strong>${escapeHtml(application.vehicle?.make || '')} ${escapeHtml(application.vehicle?.model || '')} ${escapeHtml(application.vehicle?.year || '')}</strong>
                 <br><small>${escapeHtml(application.vehicle?.plateNumber || '')}</small>
+                ${renderOriginBadge(application.vehicle?.originType)}
             </div>
         </td>
         <td><code style="font-size: 0.85rem;">${appId}</code></td>
@@ -1660,6 +1779,12 @@ function createUserApplicationRow(application) {
     return row;
 }
 
+function renderOriginBadge(originType) {
+    if (!originType) return '';
+    if (String(originType).toUpperCase() !== 'TRANSFER') return '';
+    return '<span class="badge badge-transfer-origin" aria-label="Vehicle originated from transfer transaction">Transfer</span>';
+}
+
 // Helper function for escaping HTML
 function escapeHtml(text) {
     if (!text) return '';
@@ -1673,16 +1798,17 @@ function getStatusText(status) {
     if (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.getStatusText) {
         return window.StatusUtils.getStatusText(status);
     }
-    // Fallback for backward compatibility
-    const statusMap = {
+    const fallbackMap = {
         'submitted': 'Pending Review',
-        'approved': 'Approved',
-        'rejected': 'Rejected',
+        'pending_blockchain': 'Pending Blockchain',
         'processing': 'Processing',
-        'completed': 'Completed'
+        'approved': 'Approved',
+        'registered': 'Registered',
+        'completed': 'Completed',
+        'rejected': 'Rejected'
     };
     const normalized = (status || '').toLowerCase();
-    return statusMap[normalized] || status;
+    return fallbackMap[normalized] || status;
 }
 
 function getVerificationStatusDisplay(verificationStatus, applicationStatus) {
@@ -1822,6 +1948,7 @@ async function viewUserApplication(applicationId) {
                 // Also update application-level blockchain fields
                 application.blockchain_tx_id = vehicleResponse.vehicle.blockchain_tx_id || vehicleResponse.vehicle.blockchainTxId;
                 application.blockchainTxId = vehicleResponse.vehicle.blockchainTxId || vehicleResponse.vehicle.blockchain_tx_id;
+                application.history = vehicleResponse.vehicle.history || application.history || [];
                 
                 // Update documents if available
                 if (vehicleResponse.vehicle.documents && vehicleResponse.vehicle.documents.length > 0) {
@@ -2198,10 +2325,27 @@ function showApplicationDetailsModal(application) {
                 <div class="detail-section">
                     <h4><i class="fas fa-history"></i> Application Timeline</h4>
                     <div class="mini-timeline">
-                        ${renderTimelineItem('Submitted', application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : 'N/A', status !== 'rejected', application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId, 'SUBMITTED')}
-                        ${renderTimelineItem('Under Review', null, status === 'processing' || status === 'approved' || status === 'completed', null, status === 'processing' ? 'PROCESSING' : 'PENDING')}
-                        ${renderTimelineItem(status === 'rejected' ? 'Rejected' : 'Approved', status === 'approved' || status === 'completed' || status === 'rejected' ? new Date().toLocaleDateString() : null, status === 'approved' || status === 'completed', (status === 'approved' || status === 'completed') ? (application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId) : null, status === 'rejected' ? 'REJECTED' : 'APPROVED')}
+                        ${(() => {
+                            const blockchainTx = application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId || null;
+                            const submittedLabel = 'Submitted';
+                            const submittedDate = application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : 'N/A';
+                            const submittedDone = status !== 'rejected';
+                            const reviewDone = ['processing', 'approved', 'completed'].includes(status);
+                            const reviewAction = status === 'processing' ? 'PROCESSING' : 'PENDING';
+                            const finalLabel = status === 'rejected' ? 'Rejected' : 'Approved';
+                            const finalDate = (status === 'approved' || status === 'completed' || status === 'rejected') ? new Date().toLocaleDateString() : null;
+                            const finalDone = status === 'approved' || status === 'completed';
+                            const finalTx = finalDone ? blockchainTx : null;
+                            const finalAction = status === 'rejected' ? 'REJECTED' : 'APPROVED';
+
+                            return [
+                                renderTimelineItem(submittedLabel, submittedDate, submittedDone, blockchainTx, 'SUBMITTED'),
+                                renderTimelineItem('Under Review', null, reviewDone, null, reviewAction),
+                                renderTimelineItem(finalLabel, finalDate, finalDone, finalTx, finalAction)
+                            ].join('');
+                        })()}
                     </div>
+                    ${renderStatusHistorySection(application.history || [])}
                 </div>
             </div>
             

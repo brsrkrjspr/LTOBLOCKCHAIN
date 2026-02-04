@@ -1943,6 +1943,16 @@ class OCRService {
                     fuelValue = fuelValue.replace(/^[:.\s\/]+|[:.\s\/]+$/g, '').trim();
                     extracted.fuelType = fuelValue;
                 }
+            // Gross Vehicle Weight (allow CSR if present)
+            const grossWeightPattern = /(?:Gross\s*(?:Vehicle\s*)?(?:Weight|Wt\.?))\s*[:.\s]*([0-9]{2,6})/i;
+            const grossWeightMatches = text.match(grossWeightPattern);
+            if (grossWeightMatches) extracted.grossWeight = grossWeightMatches[1].trim();
+
+            // Net Weight (allow CSR if present)
+            const netWeightPattern = /(?:Net\s*(?:Weight|Wt\.?|Capacity))\s*[:.\s]*([0-9]{2,6})/i;
+            const netWeightMatches = text.match(netWeightPattern);
+            if (netWeightMatches) extracted.netCapacity = netWeightMatches[1].trim();
+
             if (extracted.series) extracted.model = extracted.series;
             if (extracted.yearModel) extracted.year = extracted.yearModel;
 

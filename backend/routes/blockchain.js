@@ -44,6 +44,12 @@ fabricService.initialize().then(result => {
 router.post('/vehicles/register', authenticateToken, async (req, res) => {
     try {
         const vehicleData = req.body;
+        if (vehicleData.grossVehicleWeight && !vehicleData.gross_vehicle_weight) {
+            vehicleData.gross_vehicle_weight = vehicleData.grossVehicleWeight;
+        }
+        if (vehicleData.netWeight && !vehicleData.net_weight) {
+            vehicleData.net_weight = vehicleData.netWeight;
+        }
 
         // Validate required fields
         if (!vehicleData.vin || !vehicleData.plateNumber || !vehicleData.ownerId) {
@@ -393,21 +399,24 @@ router.post('/vehicles/mint', authenticateToken, async (req, res) => {
             const { certificatePdfGenerator, certificateEmailService, certificateNumberGenerator } = getCsrServices();
             const csrNumber = certificateNumberGenerator.generateCsrNumber();
             const issuanceDate = new Date().toISOString();
-            const { pdfBuffer, fileHash, certificateNumber } = await certificatePdfGenerator.generateCsrCertificate({
-                dealerName: 'LTO Pre-Minted (CSR Verified)',
-                dealerLtoNumber: `LTO-PM-${Math.floor(1000 + Math.random() * 9000)}`,
-                vehicleMake: vehicleData.make,
-                vehicleModel: vehicleData.model,
-                vehicleVariant: vehicleData.vehicleType || '',
-                vehicleYear: vehicleData.year,
-                bodyType: vehicleData.vehicleType || 'Car',
-                color: vehicleData.color || '',
-                fuelType: 'Gasoline',
-                engineNumber: vehicleData.engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
-                vehicleVIN: vehicleData.vin,
-                issuanceDate,
-                csrNumber
-            });
+                const { pdfBuffer, fileHash, certificateNumber } = await certificatePdfGenerator.generateCsrCertificate({
+                    dealerName: 'LTO Pre-Minted (CSR Verified)',
+                    dealerLtoNumber: `LTO-PM-${Math.floor(1000 + Math.random() * 9000)}`,
+                    vehicleMake: vehicleData.make,
+                    vehicleModel: vehicleData.model,
+                    vehicleVariant: vehicleData.vehicleType || '',
+                    vehicleYear: vehicleData.year,
+                    bodyType: vehicleData.vehicleType || 'Car',
+                    color: vehicleData.color || '',
+                    fuelType: vehicleData.fuelType || 'Gasoline',
+                    engineNumber: vehicleData.engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
+                    chassisNumber: vehicleData.chassisNumber || vehicleData.chassis_number || vehicleData.vin,
+                    vehicleVIN: vehicleData.vin,
+                    grossVehicleWeight: vehicleData.grossVehicleWeight || vehicleData.gross_vehicle_weight || vehicleData.grossWeight,
+                    netWeight: vehicleData.netWeight || vehicleData.net_weight || vehicleData.netCapacity,
+                    issuanceDate,
+                    csrNumber
+                });
             let csrIpfsCid = null;
             const ipfsService = require('../services/ipfsService');
             if (ipfsService.isAvailable()) {

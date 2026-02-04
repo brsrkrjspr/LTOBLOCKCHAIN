@@ -77,6 +77,22 @@ async function autoVerifyCsrSalesInvoiceForVehicle(vehicleId, verifiedByUserId =
     return { verified, alreadyVerified, unmatched };
 }
 
+async function getVehicleDocumentsExcludingTransfers(vehicleId) {
+    const allDocuments = await db.getDocumentsByVehicle(vehicleId);
+    const transferDocIds = new Set();
+    try {
+        const transferDocs = await db.getTransferDocumentsByVehicle(vehicleId);
+        transferDocs.forEach(doc => {
+            if (doc.document_id) {
+                transferDocIds.add(String(doc.document_id));
+            }
+        });
+    } catch (transferDocError) {
+        console.warn('⚠️ Failed to load transfer documents for filtering (returning all documents unfiltered):', transferDocError.message);
+    }
+    return allDocuments.filter(doc => !transferDocIds.has(String(doc.id)));
+}
+
 /**
  * Safely serialize blockchain metadata
  */
@@ -359,19 +375,7 @@ router.get('/my-vehicles', authenticateToken, async (req, res) => {
         // Get related data for each vehicle
         for (let vehicle of vehicles) {
             vehicle.verifications = await db.getVehicleVerifications(vehicle.id);
-            const allDocuments = await db.getDocumentsByVehicle(vehicle.id);
-            const transferDocIds = new Set();
-            try {
-                const transferDocs = await db.getTransferDocumentsByVehicle(vehicle.id);
-                transferDocs.forEach(doc => {
-                    if (doc.document_id) {
-                        transferDocIds.add(String(doc.document_id));
-                    }
-                });
-            } catch (transferDocError) {
-                console.warn('⚠️ Failed to load transfer documents for filtering:', transferDocError.message);
-            }
-            vehicle.documents = allDocuments.filter(doc => !transferDocIds.has(String(doc.id)));
+            vehicle.documents = await getVehicleDocumentsExcludingTransfers(vehicle.id);
 
             // Format verification status
             vehicle.verificationStatus = {};
@@ -443,19 +447,7 @@ router.get('/owner/:ownerId', authenticateToken, async (req, res) => {
         // Get related data for each vehicle
         for (let vehicle of vehicles) {
             vehicle.verifications = await db.getVehicleVerifications(vehicle.id);
-            const allDocuments = await db.getDocumentsByVehicle(vehicle.id);
-            const transferDocIds = new Set();
-            try {
-                const transferDocs = await db.getTransferDocumentsByVehicle(vehicle.id);
-                transferDocs.forEach(doc => {
-                    if (doc.document_id) {
-                        transferDocIds.add(String(doc.document_id));
-                    }
-                });
-            } catch (transferDocError) {
-                console.warn('⚠️ Failed to load transfer documents for filtering:', transferDocError.message);
-            }
-            vehicle.documents = allDocuments.filter(doc => !transferDocIds.has(String(doc.id)));
+            vehicle.documents = await getVehicleDocumentsExcludingTransfers(vehicle.id);
 
             // Format verification status
             vehicle.verificationStatus = {};
@@ -932,19 +924,7 @@ router.get('/id/:id', authenticateToken, async (req, res) => {
 
         // Get related data
         vehicle.verifications = await db.getVehicleVerifications(vehicle.id);
-        const allDocuments = await db.getDocumentsByVehicle(vehicle.id);
-        const transferDocIds = new Set();
-        try {
-            const transferDocs = await db.getTransferDocumentsByVehicle(vehicle.id);
-            transferDocs.forEach(doc => {
-                if (doc.document_id) {
-                    transferDocIds.add(String(doc.document_id));
-                }
-            });
-        } catch (transferDocError) {
-            console.warn('⚠️ Failed to load transfer documents for filtering:', transferDocError.message);
-        }
-        vehicle.documents = allDocuments.filter(doc => !transferDocIds.has(String(doc.id)));
+        vehicle.documents = await getVehicleDocumentsExcludingTransfers(vehicle.id);
         vehicle.history = await db.getVehicleHistory(vehicle.id);
 
         // Auto-verify CSR/Sales Invoice against mint so no "pending" for these types

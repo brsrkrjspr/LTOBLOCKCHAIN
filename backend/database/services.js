@@ -920,7 +920,7 @@ async function getTransferRequestById(id) {
 }
 
 async function getTransferRequests(filters = {}) {
-    const { status, sellerId, buyerId, vehicleId, dateFrom, dateTo, plateNumber, page = 1, limit = 50 } = filters;
+    const { status, sellerId, buyerId, buyerEmail, vehicleId, dateFrom, dateTo, plateNumber, page = 1, limit = 50 } = filters;
     const offset = (page - 1) * limit;
     
     let query = `
@@ -963,16 +963,23 @@ async function getTransferRequests(filters = {}) {
         }
     }
     
-    if (sellerId) {
+    if (sellerId && buyerId && sellerId === buyerId) {
         paramCount++;
-        query += ` AND tr.seller_id = $${paramCount}`;
-        params.push(sellerId);
-    }
-    
-    if (buyerId) {
+        query += ` AND (tr.seller_id = $${paramCount} OR tr.buyer_id = $${paramCount} OR (tr.buyer_id IS NULL AND (tr.buyer_info::jsonb)->>'email' = $${paramCount + 1}))`;
+        params.push(sellerId, buyerEmail || '');
         paramCount++;
-        query += ` AND tr.buyer_id = $${paramCount}`;
-        params.push(buyerId);
+    } else {
+        if (sellerId) {
+            paramCount++;
+            query += ` AND tr.seller_id = $${paramCount}`;
+            params.push(sellerId);
+        }
+        
+        if (buyerId) {
+            paramCount++;
+            query += ` AND tr.buyer_id = $${paramCount}`;
+            params.push(buyerId);
+        }
     }
     
     if (vehicleId) {
@@ -1153,6 +1160,18 @@ async function getTransferRequestDocuments(transferRequestId) {
          WHERE td.transfer_request_id = $1
          ORDER BY td.uploaded_at DESC`,
         [transferRequestId]
+    );
+    return result.rows;
+}
+
+async function getTransferDocumentsByVehicle(vehicleId) {
+    const result = await db.query(
+        `SELECT td.*
+         FROM transfer_documents td
+         JOIN transfer_requests tr ON td.transfer_request_id = tr.id
+         WHERE tr.vehicle_id = $1
+         ORDER BY td.uploaded_at DESC`,
+        [vehicleId]
     );
     return result.rows;
 }
@@ -1936,6 +1955,7 @@ module.exports = {
     getTransferRequests,
     updateTransferRequestStatus,
     getTransferRequestDocuments,
+    getTransferDocumentsByVehicle,
     createTransferVerification,
     getTransferVerificationHistory,
     getOwnershipHistory,
@@ -1960,4 +1980,3 @@ module.exports = {
     updateDocumentRequirement,
     deleteDocumentRequirement
 };
-

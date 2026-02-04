@@ -2587,6 +2587,8 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'lto_admin', 
         // If vehicle_owner, only show their requests
         if (req.user.role === 'vehicle_owner') {
             filters.sellerId = req.user.userId;
+            filters.buyerId = req.user.userId;
+            filters.buyerEmail = req.user.email;
         }
 
         // Only apply status filter if user explicitly provided one
@@ -2618,8 +2620,9 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'lto_admin', 
 
         if (req.user.role === 'vehicle_owner') {
             paramCount++;
-            countQuery += ` AND seller_id = $${paramCount}`;
-            countParams.push(req.user.userId);
+            countQuery += ` AND (seller_id = $${paramCount} OR buyer_id = $${paramCount} OR (buyer_id IS NULL AND (buyer_info::jsonb)->>'email' = $${paramCount + 1}))`;
+            countParams.push(req.user.userId, req.user.email);
+            paramCount++;
         }
 
         const countResult = await dbModule.query(countQuery, countParams);

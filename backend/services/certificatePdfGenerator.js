@@ -744,11 +744,24 @@ class CertificatePdfGenerator {
             `<tr><td>Engine Number</td><td><input type="text" value="${finalEngineNumber}"`
         );
         
-        // Chassis / VIN (use provided or generate random)
-        const finalChassis = chassisNumber || vehicleVIN || this.generateRandomVIN();
+        // Chassis / VIN
+        // Business rule: VIN and Chassis represent the same 17‑character identifier.
+        // Normalize to a single canonical value so the CSR always shows a consistent identifier.
+        let canonicalVin = null;
+        if (vehicleVIN && vehicleVIN.length === 17) {
+            canonicalVin = vehicleVIN;
+        } else if (chassisNumber && chassisNumber.length === 17) {
+            canonicalVin = chassisNumber;
+        } else if (vehicleVIN) {
+            canonicalVin = vehicleVIN;
+        } else if (chassisNumber) {
+            canonicalVin = chassisNumber;
+        } else {
+            canonicalVin = this.generateRandomVIN();
+        }
         htmlTemplate = htmlTemplate.replace(
             /<tr><td>Chassis \/ VIN<\/td><td>.*?value="[^"]*"/,
-            `<tr><td>Chassis / VIN</td><td><input type="text" value="${finalChassis}"`
+            `<tr><td>Chassis / VIN</td><td><input type="text" value="${canonicalVin}"`
         );
 
         // Gross Vehicle Weight (optional but needed for OCR)

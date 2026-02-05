@@ -2008,6 +2008,30 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 });
             }
 
+            // Enforce that the buyer is an existing, active user account.
+            // This prevents generating transfer certificates for a buyer that does not yet exist as an account.
+            try {
+                const buyerLookup = await lookupAndValidateOwner(
+                    request.buyer_user_id || null,
+                    buyer.email || null
+                );
+
+                // Normalize buyer object to the validated account details
+                buyer = {
+                    id: buyerLookup.id,
+                    first_name: buyerLookup.firstName,
+                    last_name: buyerLookup.lastName,
+                    email: buyerLookup.email,
+                    address: buyerLookup.address,
+                    phone: buyerLookup.phone
+                };
+            } catch (error) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Buyer lookup failed: ${error.message}`
+                });
+            }
+
             sellerName = `${seller.first_name || ''} ${seller.last_name || ''}`.trim() || seller.email;
             buyerName = buyer.first_name && buyer.last_name
                 ? `${buyer.first_name} ${buyer.last_name}`.trim()
@@ -2571,11 +2595,22 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
         }
 
         const hasErrors = results.errors.length > 0;
-        res.status(hasErrors ? 207 : 200).json({
-            success: !hasErrors,
-            message: hasErrors
-                ? 'Documents generated with some errors'
-                : 'All compliance documents generated successfully',
+        const hasDocuments =
+            (results.sellerDocuments && Object.keys(results.sellerDocuments).length > 0) ||
+            (results.buyerDocuments && Object.keys(results.buyerDocuments).length > 0);
+
+        // Treat generation as "successful" as long as at least one document was created,
+        // but surface partial issues via hasErrors / partialSuccess and message.
+        const partialSuccess = hasDocuments && hasErrors;
+
+        res.status(!hasDocuments && hasErrors ? 500 : hasErrors ? 207 : 200).json({
+            success: hasDocuments,
+            partialSuccess,
+            message: !hasDocuments
+                ? 'No compliance documents were generated'
+                : hasErrors
+                    ? 'Documents generated with some errors'
+                    : 'All compliance documents generated successfully',
             results,
             transferRequestId
         });

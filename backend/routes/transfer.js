@@ -3294,23 +3294,69 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 approvedByName: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email
             };
 
-            const result = await fabricService.transferOwnership(
-                vehicle.vin,
-                {
-                    email: buyer.email,
-                    firstName: buyer.first_name,
-                    lastName: buyer.last_name
-                },
-                transferData
-            );
+            // Retry logic for Fabric discovery errors (often transient network issues)
+            const MAX_RETRIES = 3;
+            const RETRY_DELAYS = [1000, 2000, 4000]; // Exponential backoff: 1s, 2s, 4s
+            let result = null;
+            let lastError = null;
 
-            blockchainTxId = result.transactionId;
+            for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                try {
+                    console.log(`[Transfer Approval] Attempting blockchain transfer (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+                    
+                    // Re-initialize Fabric connection before each retry to refresh discovery
+                    if (attempt > 0) {
+                        console.log(`[Transfer Approval] Re-initializing Fabric connection before retry...`);
+                        await fabricService.initialize({
+                            role: req.user.role,
+                            email: req.user.email
+                        });
+                        // Small delay before retry
+                        await new Promise(resolve => setTimeout(resolve, RETRY_DELAYS[attempt - 1]));
+                    }
 
-            if (!blockchainTxId) {
-                throw new Error('Blockchain transfer completed but no transaction ID returned');
+                    result = await fabricService.transferOwnership(
+                        vehicle.vin,
+                        {
+                            email: buyer.email,
+                            firstName: buyer.first_name,
+                            lastName: buyer.last_name
+                        },
+                        transferData
+                    );
+
+                    blockchainTxId = result.transactionId;
+
+                    if (!blockchainTxId) {
+                        throw new Error('Blockchain transfer completed but no transaction ID returned');
+                    }
+
+                    console.log(`✅ Blockchain transfer successful. TX ID: ${blockchainTxId}`);
+                    break; // Success - exit retry loop
+
+                } catch (error) {
+                    lastError = error;
+                    const isDiscoveryError = error.message && (
+                        error.message.includes('DiscoveryService') ||
+                        error.message.includes('failed constructing descriptor') ||
+                        error.message.includes('chaincode')
+                    );
+
+                    if (isDiscoveryError && attempt < MAX_RETRIES - 1) {
+                        console.warn(`⚠️ [Transfer Approval] Discovery error on attempt ${attempt + 1}/${MAX_RETRIES}: ${error.message}`);
+                        console.warn(`⚠️ [Transfer Approval] Retrying in ${RETRY_DELAYS[attempt]}ms...`);
+                        continue; // Retry
+                    } else {
+                        // Non-discovery error or final attempt - throw immediately
+                        throw error;
+                    }
+                }
             }
 
-            console.log(`✅ Blockchain transfer successful. TX ID: ${blockchainTxId}`);
+            // If we exit the loop without result, throw the last error
+            if (!result || !blockchainTxId) {
+                throw lastError || new Error('Blockchain transfer failed after all retries');
+            }
 
             // PHASE 3: Add BLOCKCHAIN_TRANSFERRED history entry immediately after successful blockchain transfer
             // This mirrors the BLOCKCHAIN_REGISTERED pattern from registration workflow
@@ -3338,10 +3384,37 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             console.log(`✅ [Phase 3] Created BLOCKCHAIN_TRANSFERRED history entry with txId: ${blockchainTxId}`);
         } catch (blockchainError) {
             console.error('❌ CRITICAL: Blockchain transfer failed:', blockchainError.message);
+            console.error('❌ Blockchain error stack:', blockchainError.stack);
+            
+            // Provide more helpful error messages based on error type
+            let userMessage = `Cannot complete transfer: ${blockchainError.message}`;
+            let diagnostics = [];
+
+            if (blockchainError.message && blockchainError.message.includes('DiscoveryService')) {
+                userMessage = 'Blockchain network discovery failed. This usually indicates a temporary network issue or chaincode configuration problem.';
+                diagnostics.push('The Hyperledger Fabric discovery service cannot locate the chaincode.');
+                diagnostics.push('This may be due to:');
+                diagnostics.push('  - Chaincode not properly installed/instantiated on all peers');
+                diagnostics.push('  - Network connectivity issues between peers');
+                diagnostics.push('  - Temporary Fabric network instability');
+                diagnostics.push('');
+                diagnostics.push('Troubleshooting steps:');
+                diagnostics.push('  1. Verify Fabric network is running: docker ps | grep peer');
+                diagnostics.push('  2. Check chaincode is instantiated: docker logs chaincode-vehicle-reg');
+                diagnostics.push('  3. Try again in a few moments (network may be recovering)');
+                diagnostics.push('  4. Contact system administrator if issue persists');
+            } else if (blockchainError.message && blockchainError.message.includes('Not connected')) {
+                userMessage = 'Not connected to blockchain network. Please ensure the Fabric network is running.';
+                diagnostics.push('The application cannot establish a connection to Hyperledger Fabric.');
+            }
+
             return res.status(500).json({
                 success: false,
                 error: 'Blockchain transfer failed',
-                message: `Cannot complete transfer: ${blockchainError.message}. The ownership transfer must be recorded on the blockchain. Please try again or contact support if the issue persists.`
+                message: userMessage,
+                diagnostics: diagnostics.length > 0 ? diagnostics : undefined,
+                errorDetails: process.env.NODE_ENV === 'development' ? blockchainError.message : undefined,
+                retryable: blockchainError.message && blockchainError.message.includes('DiscoveryService')
             });
         }
 

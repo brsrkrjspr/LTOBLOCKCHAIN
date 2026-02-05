@@ -3235,6 +3235,20 @@
                 day: 'numeric'
             });
             
+            // Verify current user is the buyer (not the seller)
+            // This prevents sellers from seeing Accept/Reject buttons for their own initiated requests
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+            const currentUserId = currentUser.id || currentUser.userId;
+            const currentUserEmail = currentUser.email;
+            const isBuyer = (request.buyer_id && String(request.buyer_id) === String(currentUserId)) ||
+                           (request.buyer_email && request.buyer_email === currentUserEmail) ||
+                           (request.buyer_info && request.buyer_info.email && request.buyer_info.email === currentUserEmail);
+            const isSeller = (request.seller_id && String(request.seller_id) === String(currentUserId)) ||
+                            (request.seller_email && request.seller_email === currentUserEmail);
+            
+            // Only show Accept/Reject buttons if user is the buyer (not the seller)
+            const canAcceptReject = isBuyer && !isSeller;
+            
             const statusBadgeClass = status === 'PENDING' ? 'pending' : status === 'REVIEWING' ? 'reviewing' : '';
             const statusText = status === 'PENDING' ? 'Pending Your Response' : 
                               status === 'REVIEWING' ? 'Awaiting LTO Review' : status;
@@ -3260,16 +3274,16 @@
                 <div class="vehicle-status">
                     <span class="status-badge ${statusBadgeClass}">${statusText}</span>
                     <div class="vehicle-actions">
-                        ${status === 'PENDING' ? `
+                        ${canAcceptReject && status === 'PENDING' ? `
                         <button type="button" class="btn-view-history" onclick="window.acceptTransferRequest && window.acceptTransferRequest('${String(request.id || '').replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #27ae60 0%, #229954 100%); margin-right: 0.5rem;">
                             <i class="fas fa-check"></i> Accept
                         </button>
-                        ` : status === 'AWAITING_BUYER_DOCS' ? `
+                        ` : canAcceptReject && status === 'AWAITING_BUYER_DOCS' ? `
                         <button type="button" class="btn-view-history btn-continue-upload" data-request-id="${String(request.id || '').replace(/"/g, '&quot;')}" style="background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); margin-right: 0.5rem;">
                             <i class="fas fa-upload"></i> Continue Upload
                         </button>
                         ` : ''}
-                        ${status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' ? `
+                        ${canAcceptReject && (status === 'PENDING' || status === 'AWAITING_BUYER_DOCS') ? `
                         <button type="button" class="btn-view-history" onclick="window.rejectTransferRequest && window.rejectTransferRequest('${String(request.id || '').replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);">
                             <i class="fas fa-times"></i> Reject
                         </button>

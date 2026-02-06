@@ -3255,6 +3255,72 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
         // Blockchain is ALWAYS required - proceed with transfer
         try {
             const buyer = await db.getUserById(buyerId);
+
+            // Resolve buyer details for chaincode (never send null/invalid newOwner)
+            let buyerForChaincode = null;
+            if (buyer) {
+                buyerForChaincode = {
+                    email: buyer.email,
+                    firstName: buyer.first_name,
+                    lastName: buyer.last_name
+                };
+
+                if (!buyerForChaincode.email) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Buyer email missing',
+                        message: 'Buyer user exists but email is missing. Cannot proceed with transfer.',
+                        buyerId
+                    });
+                }
+            } else {
+                // Fallback: use buyer_info from transfer request if present
+                console.warn(`[Transfer Approval] Buyer user (ID: ${buyerId}) not found; attempting fallback from request.buyer_info.`);
+
+                if (!request.buyer_info) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Buyer information missing',
+                        message: `Buyer user (ID: ${buyerId}) does not exist in users table and no buyer_info is available in transfer request. Cannot proceed with transfer.`,
+                        buyerId,
+                        transferRequestId: id
+                    });
+                }
+
+                let buyerInfo;
+                try {
+                    buyerInfo = typeof request.buyer_info === 'string'
+                        ? JSON.parse(request.buyer_info)
+                        : request.buyer_info;
+                } catch (parseError) {
+                    console.warn('[Transfer Approval] Failed to parse request.buyer_info JSON during buyer fallback:', parseError.message);
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Buyer information invalid',
+                        message: 'Buyer user is missing and buyer_info could not be parsed. Cannot proceed with transfer.',
+                        buyerId,
+                        transferRequestId: id
+                    });
+                }
+
+                buyerForChaincode = {
+                    email: buyerInfo.email || buyerInfo.Email || null,
+                    firstName: buyerInfo.firstName || buyerInfo.first_name || buyerInfo.FirstName || null,
+                    lastName: buyerInfo.lastName || buyerInfo.last_name || buyerInfo.LastName || null
+                };
+
+                if (!buyerForChaincode.email) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Buyer information incomplete',
+                        message: 'Buyer user not found and buyer_info does not contain a valid email. Cannot proceed with transfer.',
+                        buyerId,
+                        transferRequestId: id,
+                        hasBuyerInfo: !!request.buyer_info
+                    });
+                }
+            }
+
             // Fetch current user to get employee_id
             const currentUser = await db.getUserById(req.user.userId);
 
@@ -3317,11 +3383,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
 
                     result = await fabricService.transferOwnership(
                         vehicle.vin,
-                        {
-                            email: buyer.email,
-                            firstName: buyer.first_name,
-                            lastName: buyer.last_name
-                        },
+                        buyerForChaincode,
                         transferData
                     );
 

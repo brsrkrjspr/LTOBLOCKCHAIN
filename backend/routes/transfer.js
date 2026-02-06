@@ -3351,7 +3351,29 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                     }
                 }
             } catch (chainError) {
-                console.error(`[Transfer Approval] Failed to fetch Fabric vehicle (${vehicle.vin}) owner email; falling back to database owner email (investigate blockchain connectivity).`, chainError.message);
+                const errorMessage = chainError?.message || String(chainError || '');
+                const isNotFound =
+                    errorMessage.includes('Vehicle with VIN') ||
+                    errorMessage.toLowerCase().includes('not found') ||
+                    errorMessage.includes('does not exist');
+
+                if (isNotFound) {
+                    console.error(
+                        `[Transfer Approval] Fabric vehicle (${vehicle.vin}) not found on blockchain. Blocking transfer approval until registration is fixed.`,
+                        errorMessage
+                    );
+                    return res.status(409).json({
+                        success: false,
+                        error: 'Fabric vehicle not found',
+                        message: `Cannot approve transfer: vehicle with VIN ${vehicle.vin} is not registered on Hyperledger Fabric. Ensure the registration has been recorded on blockchain (RegisterVehicle) before transferring ownership.`,
+                        vin: vehicle.vin
+                    });
+                }
+
+                console.error(
+                    `[Transfer Approval] Failed to fetch Fabric vehicle (${vehicle.vin}) owner email; falling back to database owner email (investigate blockchain connectivity).`,
+                    errorMessage
+                );
             }
 
             const transferData = {

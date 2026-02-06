@@ -8,8 +8,8 @@ When admin clicks **Approve** on a transfer request, the API returns **500 Inter
 
 The 500 occurs in **POST `/api/vehicles/transfer/requests/:id/approve`** when the mandatory Hyperledger Fabric `transferOwnership` call fails. Common causes:
 
-1. **Fabric discovery/chaincode errors** – Discovery cannot locate chaincode or build endorsement plan
-2. **Endorsement policy requires multiple orgs** – Current policy `AND('LTOMSP.peer', OR('HPGMSP.peer', 'InsuranceMSP.peer'))` requires LTO + (HPG or Insurance). If HPG/Insurance peers have connectivity issues, endorsement fails
+1. **Chaincode not installed on HPG/Insurance peers** – The endorsement policy `AND('LTOMSP.peer', OR('HPGMSP.peer', 'InsuranceMSP.peer'))` requires LTO + (HPG or Insurance) to endorse. If the chaincode is only installed on LTO, discovery cannot satisfy the policy.
+2. **Fabric discovery/chaincode errors** – Discovery cannot build endorsement plan because required peers lack the chaincode.
 3. **Fabric not connected** – `fabricService.isConnected` is false (would return 503, not 500)
 4. **No transaction ID returned** – Chaincode executes but SDK doesn't return a transaction ID
 
@@ -25,123 +25,75 @@ On your server:
 docker logs lto-app --tail 100 2>&1 | grep -A 5 "Blockchain transfer failed\|CRITICAL\|transferOwnership\|DiscoveryService"
 ```
 
-Note the exact error message. If it mentions **DiscoveryService** or **failed constructing descriptor**, proceed to Step 2.
+If you see **"no peer combination can satisfy the endorsement policy"** or **"failed constructing descriptor"**, the chaincode is likely missing on HPG and/or Insurance peers.
 
 ---
 
-### Step 2: Verify Fabric connectivity from the app
+### Step 2: Install chaincode on ALL peers (recommended fix)
 
-```bash
-# Run the built-in diagnostic
-bash scripts/diagnose-approval-failure.sh
-```
-
-Or manually test Fabric connection:
-
-```bash
-docker exec lto-app node -e "
-const fabricService = require('./services/optimizedFabricService');
-fabricService.initialize()
-  .then(() => {
-    console.log('SUCCESS: Fabric connected');
-    console.log('isConnected:', fabricService.isConnected);
-    process.exit(0);
-  })
-  .catch(err => {
-    console.log('ERROR:', err.message);
-    process.exit(1);
-  });
-"
-```
-
-If this fails, check:
-- `BLOCKCHAIN_MODE=fabric` in lto-app environment
-- `network-config.json` exists and is mounted
-- `wallet` directory exists with admin identity
-- All Fabric containers are on the same Docker network (`trustchain`)
-
----
-
-### Step 3: Simplify endorsement policy (most common fix)
-
-The current policy **requires LTO + (HPG or Insurance)**. If HPG/Insurance peers have gossip/connectivity issues, discovery or endorsement can fail.
-
-**Fix: Use OR policy** so LTO alone can endorse:
+The endorsement policy requires HPG and Insurance to participate. Install the chaincode on their peers:
 
 ```bash
 cd ~/LTOBLOCKCHAIN   # or your project root
+bash scripts/install-chaincode-on-all-peers.sh
+```
+
+This installs the chaincode on HPG and Insurance peers. If you need a full reinstall (including LTO), run:
+
+```bash
+bash scripts/install-chaincode-ccaas.sh
+```
+
+The updated `install-chaincode-ccaas.sh` now installs on **all three** peers (LTO, HPG, Insurance) by default.
+
+---
+
+### Step 3: Restart Fabric components (refresh discovery)
+
+```bash
+docker restart peer0.lto.gov.ph peer0.hpg.gov.ph peer0.insurance.gov.ph
+sleep 5
+docker restart chaincode-vehicle-reg
+sleep 5
+docker compose -f docker-compose.unified.yml restart lto-app
+```
+
+---
+
+### Step 4: Verify chaincode on all peers
+
+```bash
+# Check LTO
+docker exec cli bash -c "export CORE_PEER_LOCALMSPID=LTOMSP CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051 CORE_PEER_TLS_ENABLED=true CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp; peer lifecycle chaincode queryinstalled"
+
+# Check HPG (switch CORE_PEER_* to hpg)
+docker exec cli bash -c "export CORE_PEER_LOCALMSPID=HPGMSP CORE_PEER_ADDRESS=peer0.hpg.gov.ph:8051 CORE_PEER_TLS_ENABLED=true CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/hpg.gov.ph/peers/peer0.hpg.gov.ph/tls/ca.crt CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/hpg.gov.ph/users/Admin@hpg.gov.ph/msp; peer lifecycle chaincode queryinstalled"
+
+# Check Insurance (switch to insurance)
+docker exec cli bash -c "export CORE_PEER_LOCALMSPID=InsuranceMSP CORE_PEER_ADDRESS=peer0.insurance.gov.ph:9051 CORE_PEER_TLS_ENABLED=true CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/insurance.gov.ph/peers/peer0.insurance.gov.ph/tls/ca.crt CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/insurance.gov.ph/users/Admin@insurance.gov.ph/msp; peer lifecycle chaincode queryinstalled"
+```
+
+Each should list `vehicle-registration_1.0`.
+
+---
+
+### Step 5: Alternative – OR policy (fallback only)
+
+If you cannot get HPG/Insurance peers to work (e.g. crypto/config issues), you can temporarily use an OR policy so LTO alone can endorse:
+
+```bash
 bash scripts/fix-endorsement-policy.sh
 ```
 
-This re-commits the chaincode with `OR('LTOMSP.peer', 'HPGMSP.peer', 'InsuranceMSP.peer')` – any single org can endorse.
-
-Then restart the app:
-
-```bash
-docker compose -f docker-compose.unified.yml restart lto-app
-```
-
----
-
-### Step 4: Restart Fabric components (refresh discovery)
-
-If the endorsement policy fix doesn't resolve it:
-
-```bash
-# Restart peer to refresh discovery cache
-docker restart peer0.lto.gov.ph
-sleep 5
-
-# Restart HPG and Insurance peers (if they had connectivity warnings)
-docker restart peer0.hpg.gov.ph peer0.insurance.gov.ph
-sleep 5
-
-# Restart chaincode container
-docker restart chaincode-vehicle-reg
-sleep 5
-
-# Restart app to re-establish Fabric connection
-docker compose -f docker-compose.unified.yml restart lto-app
-```
-
----
-
-### Step 5: Verify chaincode is invokable
-
-From the CLI container:
-
-```bash
-docker exec cli bash -c "
-export CORE_PEER_LOCALMSPID=LTOMSP
-export CORE_PEER_TLS_ENABLED=true
-export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/peers/peer0.lto.gov.ph/tls/ca.crt
-export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/lto.gov.ph/users/Admin@lto.gov.ph/msp
-export CORE_PEER_ADDRESS=peer0.lto.gov.ph:7051
-peer chaincode query -C ltochannel -n vehicle-registration -c '{\"function\":\"GetAllVehicles\",\"Args\":[]}'
-"
-```
-
-If this fails, the chaincode is not properly installed/committed on the peer.
-
----
-
-### Step 6: Quick checklist
-
-| Check | Command |
-|-------|---------|
-| BLOCKCHAIN_MODE | `docker exec lto-app printenv BLOCKCHAIN_MODE` |
-| Fabric containers | `docker ps \| grep -E "peer\|chaincode\|orderer"` |
-| Chaincode committed | `docker exec cli peer lifecycle chaincode querycommitted -C ltochannel -n vehicle-registration` |
-| App health | `curl -s https://ltoblockchain.duckdns.org/api/health \| jq` |
+**Note:** This bypasses HPG and Insurance participation. Use only as a fallback; the proper fix is installing chaincode on all peers.
 
 ---
 
 ## Summary
 
-1. **Get exact error** from `docker logs lto-app`
-2. **Run** `scripts/diagnose-approval-failure.sh`
-3. **Apply** `scripts/fix-endorsement-policy.sh` (OR policy)
-4. **Restart** all Fabric components and lto-app
-5. **Retry** transfer approval
+1. **Install chaincode on HPG and Insurance peers** – `scripts/install-chaincode-on-all-peers.sh`
+2. **Restart** peers, chaincode container, and lto-app
+3. **Verify** chaincode is installed on all three peers
+4. **Retry** transfer approval
 
-The OR endorsement policy is the most likely fix when discovery or multi-org endorsement fails.
+The endorsement policy `AND(LTOMSP, OR(HPGMSP, InsuranceMSP))` is intentional so HPG and Insurance participate. Ensure the chaincode is installed on all peers.

@@ -192,6 +192,7 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin', 'lto_admin', 
                             console.log(`[LTO Inspection] ✅ Issued MVIR certificate ${inspectionResult_data.mvirNumber} for VIN ${vehicle.vin}`);
                         } else {
                             console.log(`[LTO Inspection] ℹ️ MVIR certificate ${inspectionResult_data.mvirNumber} already exists in issued_certificates (hash: ${fileHash.substring(0, 16)}...)`);
+                        }
                     } else {
                         console.warn('[LTO Inspection] ⚠️ No active issuer found for MVIR (issuer_type=hpg); skipping issued_certificates write');
                     }

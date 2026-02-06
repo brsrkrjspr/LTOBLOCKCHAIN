@@ -1493,10 +1493,11 @@ router.post('/batch/generate-hpg-ctpl', authenticateToken, authorizeRole(['admin
                 const issuerQuery = await dbRaw.query(
                     `SELECT id FROM external_issuers WHERE issuer_type = 'insurance' AND is_active = true LIMIT 1`
                 );
+
                 if (issuerQuery.rows.length > 0) {
                     await dbRaw.query(
-                        `INSERT INTO issued_certificates 
-                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                        `INSERT INTO issued_certificates
+                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name,
                          file_hash, composite_hash, issued_at, expires_at, metadata)
                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                         [
@@ -1512,9 +1513,14 @@ router.post('/batch/generate-hpg-ctpl', authenticateToken, authorizeRole(['admin
                             JSON.stringify({ coverageType: 'CTPL', coverageAmount: ctplData.coverageAmount })
                         ]
                     );
+                    console.log(`[HPG+CTPL Batch] ✅ CTPL stored in issued_certificates: ${certificateNumbers.ctpl} (hash: ${ctplResult.fileHash.substring(0, 16)}...)`);
+                } else {
+                    console.error(`[HPG+CTPL Batch] ❌ CRITICAL: No active insurance issuer found in external_issuers table!`);
+                    console.error(`[HPG+CTPL Batch] ❌ Certificate ${certificateNumbers.ctpl} NOT STORED - verification will FAIL!`);
                 }
             } catch (dbError) {
-                console.error(`[HPG+CTPL Batch] CTPL database error:`, dbError);
+                console.error(`[HPG+CTPL Batch] ❌ CTPL database INSERT failed:`, dbError);
+                console.error(`[HPG+CTPL Batch] ❌ Certificate ${certificateNumbers.ctpl} NOT STORED!`);
             }
 
             // Send email
@@ -1573,10 +1579,11 @@ router.post('/batch/generate-hpg-ctpl', authenticateToken, authorizeRole(['admin
                 const issuerQuery = await dbRaw.query(
                     `SELECT id FROM external_issuers WHERE issuer_type = 'hpg' AND is_active = true LIMIT 1`
                 );
+
                 if (issuerQuery.rows.length > 0) {
                     await dbRaw.query(
-                        `INSERT INTO issued_certificates 
-                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                        `INSERT INTO issued_certificates
+                        (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name,
                          file_hash, composite_hash, issued_at, expires_at, metadata)
                         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
                         [
@@ -1592,9 +1599,14 @@ router.post('/batch/generate-hpg-ctpl', authenticateToken, authorizeRole(['admin
                             JSON.stringify({ verificationDetails: hpgData.verificationDetails, vehiclePlate: sharedVehicleData.plate })
                         ]
                     );
+                    console.log(`[HPG+CTPL Batch] ✅ HPG stored in issued_certificates: ${certificateNumbers.hpg} (hash: ${hpgResult.fileHash.substring(0, 16)}...)`);
+                } else {
+                    console.error(`[HPG+CTPL Batch] ❌ CRITICAL: No active HPG issuer found in external_issuers table!`);
+                    console.error(`[HPG+CTPL Batch] ❌ Certificate ${certificateNumbers.hpg} NOT STORED - verification will FAIL!`);
                 }
             } catch (dbError) {
-                console.error(`[HPG+CTPL Batch] HPG database error:`, dbError);
+                console.error(`[HPG+CTPL Batch] ❌ HPG database INSERT failed:`, dbError);
+                console.error(`[HPG+CTPL Batch] ❌ Certificate ${certificateNumbers.hpg} NOT STORED!`);
             }
 
             // Send email

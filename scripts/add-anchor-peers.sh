@@ -19,7 +19,9 @@ echo "-----------------------------------------------------"
 
 for ORG in LTOMSP HPGMSP InsuranceMSP; do
     echo "Generating anchor peer update for ${ORG}..."
-    docker exec cli configtxgen \
+    docker exec \
+        -e FABRIC_CFG_PATH=/etc/hyperledger/fabric \
+        cli configtxgen \
         -profile Channel \
         -outputAnchorPeersUpdate /opt/gopath/src/github.com/hyperledger/fabric/peer/${ORG}anchors.tx \
         -channelID ${CHANNEL_NAME} \

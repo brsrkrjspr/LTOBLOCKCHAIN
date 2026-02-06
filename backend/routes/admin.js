@@ -8,6 +8,7 @@ const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
 const dbModule = require('../database/db');
 const { normalizeStatusLower } = require('../config/statusConstants');
+const fabricService = require('../services/optimizedFabricService');
 
 // Get enhanced admin statistics
 // STRICT: Allow admin and lto_admin only (system stats are admin-level)
@@ -621,7 +622,16 @@ router.post('/verifications/manual-verify', authenticateToken, authorizeRole(['a
                 autoFlagReasons: existingMetadata.flagReasons || []
             }
         };
-        
+
+        // Get vehicle for VIN (needed for blockchain update)
+        const vehicle = await db.getVehicleById(vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found'
+            });
+        }
+
         // Update vehicle verification status
         await db.updateVerificationStatus(
             vehicleId,
@@ -635,7 +645,20 @@ router.post('/verifications/manual-verify', authenticateToken, authorizeRole(['a
                 verificationMetadata: updatedMetadata
             }
         );
-        
+
+        // Update blockchain with audit trail
+        try {
+            await fabricService.updateVerificationStatus(
+                vehicle.vin,
+                'admin',  // Admin verification
+                decision,
+                notes || `Manually ${decision.toLowerCase()} after auto-verification review`
+            );
+            console.log(`[Admin Manual Verify] ✅ Blockchain audit trail updated for admin ${decision}: ${vehicle.vin}`);
+        } catch (blockchainError) {
+            console.error(`[Admin Manual Verify] ⚠️ Blockchain audit trail update failed (continuing):`, blockchainError.message);
+        }
+
         // Update clearance request status
         const clearanceRequest = await db.getClearanceRequestById(requestId);
         if (clearanceRequest) {
@@ -647,9 +670,8 @@ router.post('/verifications/manual-verify', authenticateToken, authorizeRole(['a
                 autoVerificationMetadata: existingMetadata
             });
         }
-        
-        // Add to vehicle history
-        const vehicle = await db.getVehicleById(vehicleId);
+
+        // Add to vehicle history (vehicle already fetched above)
         await db.addVehicleHistory({
             vehicleId: vehicleId,
             action: `${verificationType.toUpperCase()}_MANUAL_VERIFICATION`,

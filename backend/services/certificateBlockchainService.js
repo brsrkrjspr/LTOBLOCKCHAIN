@@ -513,6 +513,7 @@ class CertificateBlockchainService {
 
     /**
      * Parse expiry string (e.g. DD-MMM-YYYY like 01-Feb-2027, or ISO) to Date for comparison.
+     * Uses UTC construction to avoid timezone-induced date shifts when comparing YYYY-MM-DD strings.
      */
     _parseExpiryToDate(expiryDate) {
         if (!expiryDate) return null;
@@ -522,10 +523,15 @@ class CertificateBlockchainService {
             const months = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
             const month = months[ddmmyyyy[2].toLowerCase().slice(0, 3)];
             if (month === undefined) return new Date(s);
-            const date = new Date(parseInt(ddmmyyyy[3], 10), month, parseInt(ddmmyyyy[1], 10));
+            // Use Date.UTC to create date at midnight UTC, preventing timezone shifts
+            // e.g. Date.UTC(2027, 1, 1) = Feb 1, 2027 00:00 UTC (not local time)
+            const date = new Date(Date.UTC(parseInt(ddmmyyyy[3], 10), month, parseInt(ddmmyyyy[1], 10)));
             return isNaN(date.getTime()) ? new Date(s) : date;
         }
-        const d = new Date(s);
+        // For other formats, try to parse as ISO date in UTC
+        // If string is YYYY-MM-DD, append 'T00:00:00Z' to force UTC interpretation
+        const isoDate = s.match(/^\d{4}-\d{2}-\d{2}$/);
+        const d = isoDate ? new Date(s + 'T00:00:00Z') : new Date(s);
         return isNaN(d.getTime()) ? null : d;
     }
 

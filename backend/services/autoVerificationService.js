@@ -283,10 +283,12 @@ class AutoVerificationService {
 
             // Data-based fallback: if hash does not match (e.g. re-saved/renamed file) but extracted data
             // matches issued_certificates, still allow auto-approval with reason (Insurance org requirement).
+            // Note: We intentionally do NOT require expiryCheck.isValid here, because if VIN+policy match
+            // an issued certificate, the certificate IS genuine even if OCR couldn't extract the expiry.
             let dataValidatedMatch = false;
             let dataValidatedCertificate = null;
             const ocrExpiry = ocrData.insuranceExpiry || ocrData.expiryDate;
-            if (!authenticityCheck.authentic && patternCheck.valid && !hashCheck.exists && expiryCheck.isValid) {
+            if (!authenticityCheck.authentic && patternCheck.valid && !hashCheck.exists) {
                 console.log('[Auto-Verify] Data-based lookup attempt:', {
                     vehicleVin: vehicle.vin,
                     policyNumber,
@@ -313,11 +315,13 @@ class AutoVerificationService {
                 authenticityCheck.authentic &&
                 !hashCheck.exists &&
                 expiryCheck.isValid;
+            // Data-validated path: if VIN+policy match issued_certificates, certificate is genuine
+            // regardless of whether OCR could extract the expiry. This handles Puppeteer-generated PDFs
+            // where OCR may fail to cleanly associate labels with input field values.
             const shouldApproveByData = dataValidatedMatch &&
                 verificationScore.percentage >= 80 &&
                 patternCheck.valid &&
-                !hashCheck.exists &&
-                expiryCheck.isValid;
+                !hashCheck.exists;
             const shouldApprove = shouldApproveByHash || shouldApproveByData;
 
             if (shouldApprove) {

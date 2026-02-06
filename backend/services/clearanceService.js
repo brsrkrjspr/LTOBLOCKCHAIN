@@ -139,11 +139,17 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy, opti
             }
             
             // Fallback: check mapped logical type
-            const logicalType = docTypes.mapToLogicalType(dbType) || docTypes.mapLegacyType(dbType);
-            if (isNewRegistration) {
-                return logicalType === 'ownerId' || logicalType === 'hpgClearance';
-            } else {
-                return logicalType === 'ownerId' || logicalType === 'registrationCert';
+            // Wrap in try-catch to prevent crashes from unrecognized document types
+            try {
+                const logicalType = docTypes.mapToLogicalType(dbType) || docTypes.mapLegacyType(dbType);
+                if (isNewRegistration) {
+                    return logicalType === 'ownerId' || logicalType === 'hpgClearance';
+                } else {
+                    return logicalType === 'ownerId' || logicalType === 'registrationCert';
+                }
+            } catch (error) {
+                console.warn(`[Auto-Send→HPG] Could not map document type '${dbType}':`, error.message);
+                return false;
             }
         });
 
@@ -185,8 +191,14 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy, opti
             }
             
             // Fallback: check mapped logical type
-            const logicalType = docTypes.mapToLogicalType(dbType) || docTypes.mapLegacyType(dbType);
-            return logicalType === 'insuranceCert';
+            // Wrap in try-catch to prevent crashes from unrecognized document types
+            try {
+                const logicalType = docTypes.mapToLogicalType(dbType) || docTypes.mapLegacyType(dbType);
+                return logicalType === 'insuranceCert';
+            } catch (error) {
+                console.warn(`[Auto-Send→Insurance] Could not map document type '${dbType}':`, error.message);
+                return false;
+            }
         });
 
         if (hasInsuranceDoc) {

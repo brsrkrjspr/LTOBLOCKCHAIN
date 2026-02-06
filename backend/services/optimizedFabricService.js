@@ -380,6 +380,25 @@ class OptimizedFabricService {
 
             // Use createTransaction() to get access to transaction ID
             const transaction = this.contract.createTransaction('TransferOwnership');
+
+            // Set explicit endorsing peers to bypass Discovery Service issues
+            // Policy AND(LTOMSP, OR(HPGMSP, InsuranceMSP)) requires LTO + one of HPG/Insurance
+            const channel = this.channel;
+            const endorsers = [];
+            const peerNames = ['peer0.lto.gov.ph', 'peer0.hpg.gov.ph'];
+            for (const peerName of peerNames) {
+                try {
+                    const endorser = channel.getEndorser(peerName);
+                    if (endorser) endorsers.push(endorser);
+                } catch (e) {
+                    console.warn(`[TransferOwnership] Could not get endorser ${peerName}: ${e.message}`);
+                }
+            }
+            if (endorsers.length > 0) {
+                transaction.setEndorsingPeers(endorsers);
+                console.log(`[TransferOwnership] Using explicit endorsers: ${endorsers.map(e => e.name).join(', ')}`);
+            }
+
             const fabricResult = await transaction.submit(vin, newOwnerJson, transferJson);
             const transactionId = transaction.getTransactionId();
 

@@ -167,11 +167,13 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin', 'lto_admin', 
                             inspectionNotes: inspectionNotes || null
                         };
 
-                        await dbModule.query(
-                            `INSERT INTO issued_certificates 
-                             (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
+                        const insertResult = await dbModule.query(
+                            `INSERT INTO issued_certificates
+                             (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name,
                               file_hash, composite_hash, issued_at, expires_at, metadata)
-                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                             ON CONFLICT (file_hash) DO NOTHING
+                             RETURNING id`,
                             [
                                 issuerId,
                                 'hpg_clearance', // DB-allowed type for MVIR certificates
@@ -185,7 +187,11 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin', 'lto_admin', 
                                 JSON.stringify(metadata)
                             ]
                         );
-                        console.log(`[LTO Inspection] ✅ Issued MVIR certificate ${inspectionResult_data.mvirNumber} for VIN ${vehicle.vin}`);
+
+                        if (insertResult.rows.length > 0) {
+                            console.log(`[LTO Inspection] ✅ Issued MVIR certificate ${inspectionResult_data.mvirNumber} for VIN ${vehicle.vin}`);
+                        } else {
+                            console.log(`[LTO Inspection] ℹ️ MVIR certificate ${inspectionResult_data.mvirNumber} already exists in issued_certificates (hash: ${fileHash.substring(0, 16)}...)`);
                     } else {
                         console.warn('[LTO Inspection] ⚠️ No active issuer found for MVIR (issuer_type=hpg); skipping issued_certificates write');
                     }

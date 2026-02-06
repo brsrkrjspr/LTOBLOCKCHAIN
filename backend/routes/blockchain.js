@@ -103,6 +103,24 @@ router.post('/vehicles/register', authenticateToken, async (req, res) => {
                     registrationDetails
                 );
 
+                // Validate owner was actually attached on Fabric
+                try {
+                    const verifyVehicle = await fabricService.getVehicle(vehicleData.vin);
+                    if (!verifyVehicle?.vehicle?.owner?.email) {
+                        console.error(`[Registration] ❌ CRITICAL: Owner attachment succeeded but owner email missing on Fabric!`, {
+                            vin: vehicleData.vin,
+                            transactionId: result.transactionId,
+                            expectedOwner: ownerData.email,
+                            actualOwner: verifyVehicle?.vehicle?.owner
+                        });
+                        throw new Error('Owner attachment validation failed - owner email not found on blockchain');
+                    }
+                    console.log(`[Registration] ✅ Verified owner attached on Fabric: ${verifyVehicle.vehicle.owner.email}`);
+                } catch (verifyError) {
+                    console.error(`[Registration] ❌ Owner verification failed:`, verifyError.message);
+                    throw verifyError;
+                }
+
                 // CR/OR number generation: Generate official CR and OR numbers after successful owner attachment
                 // These are the final registration documents that prove vehicle ownership
                 if (result.success) {
@@ -121,7 +139,7 @@ router.post('/vehicles/register', authenticateToken, async (req, res) => {
                         // This ties the blockchain registration to the official LTO document numbers
                         const db = require('../database/db');
                         await db.query(`
-                            UPDATE vehicles SET 
+                            UPDATE vehicles SET
                                 or_number = COALESCE(or_number, $1),
                                 cr_number = COALESCE(cr_number, $2),
                                 or_issued_at = COALESCE(or_issued_at, $3),
@@ -129,11 +147,16 @@ router.post('/vehicles/register', authenticateToken, async (req, res) => {
                                 status = 'REGISTERED',
                                 registration_date = COALESCE(registration_date, $3),
                                 date_of_registration = COALESCE(date_of_registration, $3),
+                                blockchain_tx_id = $5,
                                 updated_at = NOW()
-                            WHERE vin = $4
-                        `, [orNumber, crNumber, registrationTimestamp, vehicleData.vin]);
+                            WHERE vin = $6
+                        `, [orNumber, crNumber, registrationTimestamp, result.transactionId, vehicleData.vin, vehicleData.vin]);
 
-                        console.log(`[Registration] Updated PostgreSQL with OR/CR for VIN ${vehicleData.vin}`);
+                        console.log(`[Registration] ✅ Updated PostgreSQL with OR/CR and blockchain_tx_id for VIN ${vehicleData.vin}`, {
+                            orNumber,
+                            crNumber,
+                            blockchainTxId: result.transactionId
+                        });
 
                         // Include OR/CR numbers in the response for the frontend
                         result.orNumber = orNumber;

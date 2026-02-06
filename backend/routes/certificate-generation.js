@@ -1136,7 +1136,12 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
                             hpgCompositeHash,
                             hpgIssueDate.split('T')[0],
                             null,
-                            JSON.stringify({ verificationDetails: hpgData.verificationDetails, vehiclePlate: sharedVehicleData.plate })
+                            JSON.stringify({
+                                verificationDetails: hpgData.verificationDetails,
+                                vehiclePlate: sharedVehicleData.plate,
+                                engineNumber: sharedVehicleData.engineNumber,
+                                chassisNumber: sharedVehicleData.chassisNumber
+                            })
                         ]
                     );
                 }
@@ -1596,7 +1601,12 @@ router.post('/batch/generate-hpg-ctpl', authenticateToken, authorizeRole(['admin
                             hpgCompositeHash,
                             issuanceDate.split('T')[0],
                             null,
-                            JSON.stringify({ verificationDetails: hpgData.verificationDetails, vehiclePlate: sharedVehicleData.plate })
+                            JSON.stringify({
+                                verificationDetails: hpgData.verificationDetails,
+                                vehiclePlate: sharedVehicleData.plate,
+                                engineNumber: sharedVehicleData.engineNumber,
+                                chassisNumber: sharedVehicleData.chassisNumber
+                            })
                         ]
                     );
                     console.log(`[HPG+CTPL Batch] ✅ HPG stored in issued_certificates: ${certificateNumbers.hpg} (hash: ${hpgResult.fileHash.substring(0, 16)}...)`);

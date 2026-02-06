@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const fabricService = require('../services/optimizedFabricService');
 const { optionalAuth } = require('../middleware/auth');
+const dbServices = require('../database/services');
 
 // CSR certificate generation and email for pre-minted vehicles (lazy load to avoid circular deps)
 const getCsrServices = () => {
@@ -210,6 +211,110 @@ router.get('/vehicles/:vin', authenticateToken, async (req, res) => {
         res.status(500).json({
             success: false,
             error: 'Internal server error'
+        });
+    }
+});
+
+// Admin repair: Attach DB owner to a MINTED (ownerless) Fabric vehicle
+// This fixes cases where the on-chain vehicle is still MINTED/owner:null while the DB vehicle has an owner.
+router.post('/vehicles/:vin/attach-owner-from-db', authenticateToken, async (req, res) => {
+    try {
+        // Only LTO admin can run repair operations
+        if (!['admin', 'lto_admin'].includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Unauthorized: Only LTO admin can attach owners from DB'
+            });
+        }
+
+        const { vin } = req.params;
+
+        // Initialize Fabric service with user context
+        await fabricService.initialize({ role: req.user.role, email: req.user.email });
+
+        // Load vehicle + owner info from Postgres (schema.sql alignment)
+        const dbVehicle = await dbServices.getVehicleByVin(vin);
+        if (!dbVehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found in database',
+                vin
+            });
+        }
+
+        if (!dbVehicle.owner_email) {
+            return res.status(400).json({
+                success: false,
+                error: 'Vehicle owner missing in database',
+                message: 'Cannot attach owner on-chain because DB vehicle has no owner_email (owner_id may be null or user missing).',
+                vin,
+                vehicleId: dbVehicle.id,
+                ownerId: dbVehicle.owner_id || null
+            });
+        }
+
+        // Fetch current Fabric vehicle state
+        const fabricResult = await fabricService.getVehicle(vin);
+        const fabricVehicle = fabricResult?.vehicle || null;
+
+        if (!fabricVehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found on blockchain',
+                vin
+            });
+        }
+
+        // Only repair ownerless minted vehicles
+        const hasOwnerEmail = !!(fabricVehicle.owner && fabricVehicle.owner.email);
+        if (hasOwnerEmail) {
+            return res.status(409).json({
+                success: false,
+                error: 'Vehicle already has an on-chain owner',
+                vin,
+                status: fabricVehicle.status || null,
+                ownerEmail: fabricVehicle.owner.email
+            });
+        }
+
+        if (fabricVehicle.status !== 'MINTED') {
+            return res.status(409).json({
+                success: false,
+                error: 'Vehicle is not in MINTED state',
+                message: 'Owner attachment is only valid for pre-minted (MINTED) ownerless vehicles.',
+                vin,
+                status: fabricVehicle.status || null
+            });
+        }
+
+        const ownerData = {
+            email: dbVehicle.owner_email,
+            firstName: dbVehicle.owner_first_name || null,
+            lastName: dbVehicle.owner_last_name || null,
+            name: dbVehicle.owner_name || `${dbVehicle.owner_first_name || ''} ${dbVehicle.owner_last_name || ''}`.trim() || dbVehicle.owner_email,
+            id: dbVehicle.owner_id || null
+        };
+
+        const registrationData = {
+            dateOfRegistration: dbVehicle.date_of_registration || dbVehicle.registration_date || new Date().toISOString(),
+            orNumber: dbVehicle.or_number || ''
+        };
+
+        const attachResult = await fabricService.attachOwnerToMintedVehicle(vin, ownerData, registrationData);
+
+        return res.json({
+            success: true,
+            message: 'Owner attached from database to minted Fabric vehicle',
+            vin,
+            transactionId: attachResult.transactionId,
+            ownerEmail: ownerData.email
+        });
+    } catch (error) {
+        console.error('[Repair] attach-owner-from-db error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            message: error.message
         });
     }
 });

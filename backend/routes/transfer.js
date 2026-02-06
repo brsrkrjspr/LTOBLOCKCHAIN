@@ -3337,7 +3337,17 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                     if (chainVehicle.vehicle?.owner?.email) {
                         chainOwnerEmail = chainVehicle.vehicle.owner.email;
                     } else {
-                        console.warn(`[Transfer Approval] Fabric vehicle (${vehicle.vin}) missing owner email; falling back to database owner email (may cause validation issues if data is out of sync).`);
+                        // Do not proceed: TransferOwnership requires a valid on-chain current owner email.
+                        // If the vehicle is MINTED/ownerless on-chain, it must be repaired by attaching an owner first.
+                        const chainStatus = chainVehicle.vehicle?.status || 'UNKNOWN';
+                        console.warn(`[Transfer Approval] Fabric vehicle (${vehicle.vin}) missing owner email (status: ${chainStatus}). Blocking transfer approval until owner is attached on-chain.`);
+                        return res.status(409).json({
+                            success: false,
+                            error: 'Fabric vehicle missing owner',
+                            message: `Cannot approve transfer: Fabric vehicle has no owner email (status: ${chainStatus}). Attach owner to minted vehicle first, then retry approval.`,
+                            vin: vehicle.vin,
+                            fabricStatus: chainStatus
+                        });
                     }
                 }
             } catch (chainError) {

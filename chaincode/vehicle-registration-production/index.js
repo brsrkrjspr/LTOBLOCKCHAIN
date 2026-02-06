@@ -460,6 +460,16 @@ class VehicleRegistrationContract extends Contract {
             const txId = ctx.stub.getTxID();
             const timestamp = this._getTxTimestamp(ctx);
 
+            // Validate required state and inputs BEFORE dereferencing fields
+            // This prevents non-deterministic JS TypeErrors like "Cannot read properties of null (reading 'email')"
+            if (!vehicle.owner || !vehicle.owner.email) {
+                const status = vehicle.status || 'UNKNOWN';
+                throw new Error(`Vehicle has no registered owner on-chain; cannot transfer ownership. Status: ${status}. Attach owner first.`);
+            }
+            if (!newOwner || !newOwner.email) {
+                throw new Error('New owner email is required');
+            }
+
             // Organization-based authorization (Permissioned Network)
             // Only LTO organization can transfer ownership
             const clientMSPID = ctx.clientIdentity.getMSPID();

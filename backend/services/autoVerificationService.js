@@ -7,6 +7,7 @@ const fraudDetectionService = require('./fraudDetectionService');
 const certificateBlockchain = require('./certificateBlockchainService');
 const storageService = require('./storageService');
 const db = require('../database/services');
+const fabricService = require('./optimizedFabricService');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const path = require('path');
@@ -138,6 +139,19 @@ class AutoVerificationService {
                     }
                 );
 
+                // Update blockchain with audit trail
+                try {
+                    await fabricService.updateVerificationStatus(
+                        vehicle.vin,
+                        'insurance',
+                        'PENDING',
+                        `Auto-verification completed with issues: ${reason}`
+                    );
+                    console.log(`[Auto-Verify] ✅ Blockchain audit trail updated for insurance PENDING: ${vehicle.vin}`);
+                } catch (blockchainError) {
+                    console.error(`[Auto-Verify] ⚠️ Blockchain audit trail update failed (continuing):`, blockchainError.message);
+                }
+
                 return {
                     status: 'PENDING',
                     automated: true,
@@ -182,6 +196,19 @@ class AutoVerificationService {
                         }
                     }
                 );
+
+                // Update blockchain with audit trail
+                try {
+                    await fabricService.updateVerificationStatus(
+                        vehicle.vin,
+                        'insurance',
+                        'PENDING',
+                        `Auto-verification completed with issues: ${reason}`
+                    );
+                    console.log(`[Auto-Verify] ✅ Blockchain audit trail updated for insurance PENDING: ${vehicle.vin}`);
+                } catch (blockchainError) {
+                    console.error(`[Auto-Verify] ⚠️ Blockchain audit trail update failed (continuing):`, blockchainError.message);
+                }
 
                 return {
                     status: 'PENDING',
@@ -260,7 +287,20 @@ class AutoVerificationService {
                         }
                     }
                 );
-                
+
+                // Update blockchain with audit trail
+                try {
+                    await fabricService.updateVerificationStatus(
+                        vehicle.vin,
+                        'insurance',
+                        'PENDING',
+                        `Auto-verification completed with critical issue: ${reason}`
+                    );
+                    console.log(`[Auto-Verify] ✅ Blockchain audit trail updated for insurance PENDING: ${vehicle.vin}`);
+                } catch (blockchainError) {
+                    console.error(`[Auto-Verify] ⚠️ Blockchain audit trail update failed (continuing):`, blockchainError.message);
+                }
+
                 return {
                     status: 'PENDING',
                     automated: true,
@@ -383,6 +423,20 @@ class AutoVerificationService {
                     }
                 );
 
+                // Update blockchain with audit trail
+                try {
+                    await fabricService.updateVerificationStatus(
+                        vehicle.vin,
+                        'insurance',
+                        'APPROVED',
+                        approvalNote
+                    );
+                    console.log(`[Auto-Verify] ✅ Blockchain audit trail updated for insurance APPROVED: ${vehicle.vin}`);
+                } catch (blockchainError) {
+                    console.error(`[Auto-Verify] ⚠️ Blockchain audit trail update failed (continuing):`, blockchainError.message);
+                    // Continue even if blockchain update fails - database is source of truth
+                }
+
                 return {
                     status: 'APPROVED',
                     automated: true,
@@ -436,6 +490,19 @@ class AutoVerificationService {
                         }
                     }
                 );
+
+                // Update blockchain with audit trail
+                try {
+                    await fabricService.updateVerificationStatus(
+                        vehicle.vin,
+                        'insurance',
+                        'PENDING',
+                        `Auto-verification completed with issues: ${reason}`
+                    );
+                    console.log(`[Auto-Verify] ✅ Blockchain audit trail updated for insurance PENDING: ${vehicle.vin}`);
+                } catch (blockchainError) {
+                    console.error(`[Auto-Verify] ⚠️ Blockchain audit trail update failed (continuing):`, blockchainError.message);
+                }
 
                 return {
                     status: 'PENDING',
@@ -861,6 +928,19 @@ class AutoVerificationService {
                 }
             );
 
+            // Update blockchain with audit trail
+            try {
+                await fabricService.updateVerificationStatus(
+                    vehicle.vin,
+                    'hpg',
+                    'PENDING',
+                    `HPG auto-verified. Confidence: ${confidenceScore}%. ${recommendationReason}`
+                );
+                console.log(`[Auto-Verify] ✅ Blockchain audit trail updated for HPG PENDING: ${vehicle.vin}`);
+            } catch (blockchainError) {
+                console.error(`[Auto-Verify] ⚠️ Blockchain audit trail update failed (continuing):`, blockchainError.message);
+            }
+
             const result = {
                 status: 'PENDING', // Always PENDING - HPG requires manual approval
                 automated: true,
@@ -1007,6 +1087,19 @@ class AutoVerificationService {
                     }
                 }
             );
+
+            // Update blockchain with audit trail
+            try {
+                await fabricService.updateVerificationStatus(
+                    vehicle.vin,
+                    'hpg',
+                    'PENDING',
+                    'HPG pre-verified: Data extracted, manual physical inspection required'
+                );
+                console.log(`[Auto-Verify] ✅ Blockchain audit trail updated for HPG pre-verification PENDING: ${vehicle.vin}`);
+            } catch (blockchainError) {
+                console.error(`[Auto-Verify] ⚠️ Blockchain audit trail update failed (continuing):`, blockchainError.message);
+            }
 
             return {
                 status: 'PENDING',

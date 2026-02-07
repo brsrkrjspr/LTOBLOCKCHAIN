@@ -1296,6 +1296,119 @@
                 justify-content: space-between;
             }
         }
+
+        /* ============================================
+           TRANSFER NOTIFICATION OVERLAY
+           Fixed above modal - does not affect layout
+           ============================================ */
+        .transfer-notification-overlay {
+            position: fixed;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(90vw, 420px);
+            max-width: 420px;
+            z-index: 10001;
+            padding: 1rem 1.25rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1);
+            animation: transferOverlaySlideIn 0.3s ease-out;
+            font-size: 1rem;
+            font-weight: 600;
+            line-height: 1.5;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .transfer-notification-overlay.transfer-notification-fade-out {
+            animation: transferOverlayFadeOut 0.3s ease-in forwards;
+        }
+
+        @keyframes transferOverlaySlideIn {
+            from { opacity: 0; transform: translate(-50%, -20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+
+        @keyframes transferOverlayFadeOut {
+            from { opacity: 1; transform: translate(-50%, 0); }
+            to { opacity: 0; transform: translate(-50%, -10px); }
+        }
+
+        .transfer-notification-overlay .notif-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .transfer-notification-overlay .notif-message {
+            flex: 1;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+
+        .transfer-notification-overlay .notif-close {
+            background: transparent;
+            border: none;
+            font-size: 1.25rem;
+            color: inherit;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            min-width: 32px;
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            opacity: 0.8;
+            transition: opacity 0.2s ease;
+        }
+
+        .transfer-notification-overlay .notif-close:hover {
+            opacity: 1;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .transfer-notification-overlay.success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #fff;
+            border: 2px solid #059669;
+        }
+
+        .transfer-notification-overlay.error {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: #fff;
+            border: 2px solid #dc2626;
+        }
+
+        .transfer-notification-overlay.info {
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+            color: #fff;
+            border: 2px solid #1e40af;
+        }
+
+        .transfer-notification-overlay.warning {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #fff;
+            border: 2px solid #d97706;
+        }
+
+        @media (max-width: 768px) {
+            .transfer-notification-overlay {
+                top: 0.75rem;
+                width: min(92vw, 360px);
+                padding: 0.875rem 1rem;
+                font-size: 0.9375rem;
+            }
+
+            .transfer-notification-overlay .notif-close {
+                width: 28px;
+                height: 28px;
+                min-width: 28px;
+                min-height: 28px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1973,9 +2086,7 @@
                         selectVehicle(selectedVehicleId);
                         
                         // Show notification
-                        if (typeof ToastNotification !== 'undefined') {
-                            ToastNotification.show(`Vehicle ${vehicle.plate_number || vehicle.plateNumber || ''} pre-selected`, 'info');
-                        }
+                        showNotification(`Vehicle ${vehicle.plate_number || vehicle.plateNumber || ''} pre-selected`, 'info');
                     }
                 }
                 // Clear sessionStorage
@@ -2504,11 +2615,39 @@
         }
 
         function showNotification(message, type = 'info') {
-            if (typeof ToastNotification !== 'undefined') {
-                ToastNotification.show(message, type);
-            } else {
-                alert(message);
-            }
+            const existing = document.querySelector('.transfer-notification-overlay');
+            if (existing) existing.remove();
+
+            const iconMap = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+            const displayType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
+
+            const el = document.createElement('div');
+            el.className = `transfer-notification-overlay ${displayType}`;
+            el.setAttribute('role', 'alert');
+            const msgEl = document.createElement('span');
+            msgEl.className = 'notif-message';
+            msgEl.textContent = message;
+            el.innerHTML = `<span class="notif-icon">${iconMap[displayType] || iconMap.info}</span>`;
+            el.appendChild(msgEl);
+            const closeBtn = document.createElement('button');
+            closeBtn.className = 'notif-close';
+            closeBtn.type = 'button';
+            closeBtn.setAttribute('aria-label', 'Dismiss');
+            closeBtn.textContent = '×';
+            closeBtn.onclick = () => {
+                el.classList.add('transfer-notification-fade-out');
+                setTimeout(() => el.remove(), 300);
+            };
+            el.appendChild(closeBtn);
+
+            document.body.appendChild(el);
+
+            setTimeout(() => {
+                if (el.parentElement && !el.classList.contains('transfer-notification-fade-out')) {
+                    el.classList.add('transfer-notification-fade-out');
+                    setTimeout(() => el.remove(), 300);
+                }
+            }, 5000);
         }
 
         // DEBUG: Test function for file input

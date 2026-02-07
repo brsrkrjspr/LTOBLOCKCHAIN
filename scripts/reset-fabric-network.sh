@@ -211,13 +211,52 @@ join_channel "insurance" "InsuranceMSP" "9051"
 
 log_success "All peers joined channel"
 
-# NOTE: Anchor peers are already defined in configtx.yaml (with correct ports)
-# and are embedded in the channel.tx during creation. No separate update needed.
+# ==========================================================
+# PHASE 8: ADD ANCHOR PEERS
+# ==========================================================
+# Anchor peers defined in configtx.yaml are NOT automatically included in the
+# channel creation transaction. They must be added via separate channel updates.
+# Without anchor peers, gossip cross-org discovery fails and the Discovery Service
+# cannot construct endorsement descriptors for multi-org policies.
+log_info "Phase 8: Adding anchor peers for cross-org discovery..."
+
+add_anchor_peer() {
+    local ORG=$1        # e.g., lto
+    local MSP=$2        # e.g., LTOMSP (must match configtx.yaml Name field)
+    local PORT=$3       # e.g., 7051
+
+    log_info "Adding anchor peer for ${MSP}..."
+
+    # Generate anchor peer update tx
+    # -asOrg must match the Organization Name in configtx.yaml (which equals the MSP ID)
+    docker run --rm \
+        -v "${PROJECT_ROOT}/config:/config" \
+        -v "${PROJECT_ROOT}/fabric-network:/fabric-network" \
+        -v "${PROJECT_ROOT}/fabric-network/crypto-config:/config/crypto-config" \
+        -u $(id -u):$(id -g) \
+        -e FABRIC_CFG_PATH=/config \
+        hyperledger/fabric-tools:2.5 \
+        configtxgen -profile Channel -outputAnchorPeersUpdate /fabric-network/channel-artifacts/${MSP}anchors.tx -channelID ltochannel -asOrg ${MSP}
+
+    # Apply anchor peer update via channel update
+    docker exec cli bash -c "export CORE_PEER_LOCALMSPID=${MSP} && \
+    export CORE_PEER_TLS_ENABLED=true && \
+    export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/${ORG}.gov.ph/peers/peer0.${ORG}.gov.ph/tls/ca.crt && \
+    export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/${ORG}.gov.ph/users/Admin@${ORG}.gov.ph/msp && \
+    export CORE_PEER_ADDRESS=peer0.${ORG}.gov.ph:${PORT} && \
+    peer channel update -o orderer.lto.gov.ph:7050 -c ltochannel -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/${MSP}anchors.tx --tls --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem"
+}
+
+add_anchor_peer "lto" "LTOMSP" "7051"
+add_anchor_peer "hpg" "HPGMSP" "8051"
+add_anchor_peer "insurance" "InsuranceMSP" "9051"
+
+log_success "Anchor peers added for all organizations"
 
 # ==========================================================
-# PHASE 8: INSTALL CHAINCODE (v1.3, CCAAS)
+# PHASE 9: INSTALL CHAINCODE (v1.3, CCAAS)
 # ==========================================================
-log_info "Phase 8: Installing Chaincode v1.3 (CCAAS)..."
+log_info "Phase 9: Installing Chaincode v1.3 (CCAAS)..."
 
 # Build CCAAS package
 CCAAS_DIR="${PROJECT_ROOT}/scripts/ccaas-package"
@@ -275,9 +314,9 @@ CHAINCODE_PACKAGE_ID="$PACKAGE_ID" docker compose -f docker-compose.unified.yml 
 sleep 5
 
 # ==========================================================
-# PHASE 9: APPROVE & COMMIT CHAINCODE
+# PHASE 10: APPROVE & COMMIT CHAINCODE
 # ==========================================================
-log_info "Phase 9: Approving and committing chaincode..."
+log_info "Phase 10: Approving and committing chaincode..."
 
 ENDORSEMENT_POLICY="AND('LTOMSP.peer', OR('HPGMSP.peer', 'InsuranceMSP.peer'))"
 
@@ -309,9 +348,9 @@ peer lifecycle chaincode commit -o orderer.lto.gov.ph:7050 --ordererTLSHostnameO
 log_success "Chaincode v1.3 committed"
 
 # ==========================================================
-# PHASE 10: SETUP WALLET & RESTART BACKEND
+# PHASE 11: SETUP WALLET & RESTART BACKEND
 # ==========================================================
-log_info "Phase 10: Setting up wallet and restarting backend..."
+log_info "Phase 11: Setting up wallet and restarting backend..."
 
 cp config/network-config.json network-config.json 2>/dev/null || true
 node scripts/setup-fabric-wallet.js

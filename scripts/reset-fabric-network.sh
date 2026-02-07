@@ -211,48 +211,13 @@ join_channel "insurance" "InsuranceMSP" "9051"
 
 log_success "All peers joined channel"
 
-# ==========================================================
-# PHASE 8: ADD ANCHOR PEERS
-# ==========================================================
-log_info "Phase 8: Adding anchor peers..."
-
-add_anchor_peer() {
-    local ORG=$1
-    local MSP=$2
-    local PORT=$3
-    local PEER_HOST="peer0.${ORG}.gov.ph"
-
-    log_info "Generating anchor peer update for ${MSP}..."
-
-    # Generate anchor peer update tx
-    docker run --rm \
-        -v "${PROJECT_ROOT}/config:/config" \
-        -v "${PROJECT_ROOT}/fabric-network:/fabric-network" \
-        -v "${PROJECT_ROOT}/fabric-network/crypto-config:/config/crypto-config" \
-        -u $(id -u):$(id -g) \
-        -e FABRIC_CFG_PATH=/config \
-        hyperledger/fabric-tools:2.5 \
-        configtxgen -profile Channel -outputAnchorPeersUpdate /fabric-network/channel-artifacts/${MSP}anchors.tx -channelID ltochannel -asOrg ${MSP%MSP}
-
-    # Apply anchor peer update
-    docker exec cli bash -c "export CORE_PEER_LOCALMSPID=${MSP} && \
-    export CORE_PEER_TLS_ENABLED=true && \
-    export CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/${ORG}.gov.ph/peers/${PEER_HOST}/tls/ca.crt && \
-    export CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/${ORG}.gov.ph/users/Admin@${ORG}.gov.ph/msp && \
-    export CORE_PEER_ADDRESS=${PEER_HOST}:${PORT} && \
-    peer channel update -o orderer.lto.gov.ph:7050 -c ltochannel -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/${MSP}anchors.tx --tls --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/lto.gov.ph/orderers/orderer.lto.gov.ph/msp/tlscacerts/tlsca.lto.gov.ph-cert.pem"
-}
-
-add_anchor_peer "lto" "LTOMSP" "7051"
-add_anchor_peer "hpg" "HPGMSP" "8051"
-add_anchor_peer "insurance" "InsuranceMSP" "9051"
-
-log_success "Anchor peers added for all organizations"
+# NOTE: Anchor peers are already defined in configtx.yaml (with correct ports)
+# and are embedded in the channel.tx during creation. No separate update needed.
 
 # ==========================================================
-# PHASE 9: INSTALL CHAINCODE (v1.3, CCAAS)
+# PHASE 8: INSTALL CHAINCODE (v1.3, CCAAS)
 # ==========================================================
-log_info "Phase 9: Installing Chaincode v1.3 (CCAAS)..."
+log_info "Phase 8: Installing Chaincode v1.3 (CCAAS)..."
 
 # Build CCAAS package
 CCAAS_DIR="${PROJECT_ROOT}/scripts/ccaas-package"
@@ -310,9 +275,9 @@ CHAINCODE_PACKAGE_ID="$PACKAGE_ID" docker compose -f docker-compose.unified.yml 
 sleep 5
 
 # ==========================================================
-# PHASE 10: APPROVE & COMMIT CHAINCODE
+# PHASE 9: APPROVE & COMMIT CHAINCODE
 # ==========================================================
-log_info "Phase 10: Approving and committing chaincode..."
+log_info "Phase 9: Approving and committing chaincode..."
 
 ENDORSEMENT_POLICY="AND('LTOMSP.peer', OR('HPGMSP.peer', 'InsuranceMSP.peer'))"
 
@@ -344,9 +309,9 @@ peer lifecycle chaincode commit -o orderer.lto.gov.ph:7050 --ordererTLSHostnameO
 log_success "Chaincode v1.3 committed"
 
 # ==========================================================
-# PHASE 11: SETUP WALLET & RESTART BACKEND
+# PHASE 10: SETUP WALLET & RESTART BACKEND
 # ==========================================================
-log_info "Phase 11: Setting up wallet and restarting backend..."
+log_info "Phase 10: Setting up wallet and restarting backend..."
 
 cp config/network-config.json network-config.json 2>/dev/null || true
 node scripts/setup-fabric-wallet.js
@@ -380,7 +345,7 @@ echo ""
 echo "  Channel:     ltochannel"
 echo "  Chaincode:   vehicle-registration v1.3 (sequence 1)"
 echo "  Policy:      AND(LTOMSP.peer, OR(HPGMSP.peer, InsuranceMSP.peer))"
-echo "  Anchor Peers: All 3 organizations"
+echo "  Anchor Peers: Embedded in channel config (LTO:7051, HPG:8051, Insurance:9051)"
 echo ""
 echo "  NOTE: Blockchain ledger has been reset (fresh channel)."
 echo "  PostgreSQL data is preserved."

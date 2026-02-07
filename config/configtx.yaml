@@ -62,7 +62,7 @@ Organizations:
         Rule: "OR('HPGMSP.peer')"
     AnchorPeers:
       - Host: peer0.hpg.gov.ph
-        Port: 7051
+        Port: 8051
 
   - &Insurance
     Name: InsuranceMSP
@@ -83,7 +83,7 @@ Organizations:
         Rule: "OR('InsuranceMSP.peer')"
     AnchorPeers:
       - Host: peer0.insurance.gov.ph
-        Port: 7051
+        Port: 9051
 
 Capabilities:
   Channel: &ChannelCapabilities

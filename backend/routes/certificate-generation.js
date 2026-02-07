@@ -966,7 +966,7 @@ router.post('/batch/generate-all', authenticateToken, authorizeRole(['admin']), 
             model: vehicleModel || randomVehicleProfile.model,
             year: vehicleYear || new Date().getFullYear(),
             engineNumber: engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
-            chassisNumber: chassisNumber || certificatePdfGenerator.generateRandomChassisNumber(),
+            chassisNumber: chassisNumber || finalVIN,
             bodyType: bodyType || vehicleType || randomVehicleProfile.bodyType,
             vehicleType: vehicleType || randomVehicleProfile.vehicleType,
             color: color || 'White',
@@ -1440,7 +1440,7 @@ router.post('/batch/generate-hpg-ctpl', authenticateToken, authorizeRole(['admin
             model: vehicleModel || 'Vios',
             year: vehicleYear || new Date().getFullYear(),
             engineNumber: engineNumber || certificatePdfGenerator.generateRandomEngineNumber(),
-            chassisNumber: chassisNumber || certificatePdfGenerator.generateRandomChassisNumber(),
+            chassisNumber: chassisNumber || vehicleVin,
             bodyType: bodyType || vehicleType || 'Sedan',
             color: color || 'White'
         };

@@ -333,19 +333,26 @@ class VehicleRegistrationContract extends Contract {
             }
 
             // Organization-based authorization (Permissioned Network)
-            // CRITICAL FIX: Each MSP can ONLY set its own verification type to prevent LTO from forging external approvals
+            // UPDATED: LTOMSP (registration authority) can verify ALL document types
+            // External MSPs can also update their own verification types (for future self-attestation)
             const clientMSPID = ctx.clientIdentity.getMSPID();
 
-            // Enforce strict MSP-to-verifier mapping: each MSP can only set its corresponding verification
-            if (verifierType === 'insurance' && clientMSPID !== 'InsuranceMSP') {
-                throw new Error(`Unauthorized: Only InsuranceMSP can set insurance verification. Current MSP: ${clientMSPID}`);
+            // Authorization logic:
+            // - LTOMSP can update ANY verification type (they are the registration authority)
+            // - Each external MSP can only update their own verification type
+            if (clientMSPID !== 'LTOMSP') {
+                // Not LTOMSP, enforce strict MSP-to-verifier mapping
+                if (verifierType === 'insurance' && clientMSPID !== 'InsuranceMSP') {
+                    throw new Error(`Unauthorized: Only LTOMSP or InsuranceMSP can set insurance verification. Current MSP: ${clientMSPID}`);
+                }
+                if (verifierType === 'hpg' && clientMSPID !== 'HPGMSP') {
+                    throw new Error(`Unauthorized: Only LTOMSP or HPGMSP can set hpg verification. Current MSP: ${clientMSPID}`);
+                }
+                if (verifierType === 'admin' && clientMSPID !== 'LTOMSP') {
+                    throw new Error(`Unauthorized: Only LTOMSP can set admin verification. Current MSP: ${clientMSPID}`);
+                }
             }
-            if (verifierType === 'hpg' && clientMSPID !== 'HPGMSP') {
-                throw new Error(`Unauthorized: Only HPGMSP can set hpg verification. Current MSP: ${clientMSPID}`);
-            }
-            if (verifierType === 'admin' && clientMSPID !== 'LTOMSP') {
-                throw new Error(`Unauthorized: Only LTOMSP can set admin verification. Current MSP: ${clientMSPID}`);
-            }
+            // If clientMSPID === 'LTOMSP', all verification types are allowed
 
             // Update verification status
             vehicle.verificationStatus[verifierType] = status;

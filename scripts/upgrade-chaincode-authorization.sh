@@ -208,8 +208,7 @@ log_success "Chaincode upgrade committed"
 # ============================================
 log_info "Phase 9: Rebuilding and restarting backend (lto-app)..."
 
-docker compose -f docker-compose.unified.yml build lto-app
-docker compose -f docker-compose.unified.yml up -d lto-app
+docker compose -f docker-compose.unified.yml up -d --build lto-app
 
 log_info "Waiting for backend to initialize (15s)..."
 sleep 15

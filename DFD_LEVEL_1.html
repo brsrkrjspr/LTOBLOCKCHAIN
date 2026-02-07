@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFD Level 1 – TrustChain Vehicle Registration & Transfer</title>
+<style>
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+}
+
+.dfd-container {
+  position: relative;
+  width: 1600px;
+  height: 900px;
+  margin: auto;
+  background: #ffffff;
+  border: 2px solid #333;
+}
+
+/* COMMON BOX STYLES */
+.box {
+  position: absolute;
+  width: 160px;
+  padding: 8px;
+  background: #fff;
+  border: 2px solid #000;
+  text-align: center;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+/* ENTITIES */
+.entity {
+  background: #eef2f5;
+  font-weight: bold;
+}
+
+/* DATA STORES */
+.store {
+  border-left: 6px solid #000;
+  border-right: 2px solid #000;
+  font-weight: bold;
+}
+
+/* GANE & SARSON PROCESS */
+.process::before,
+.process::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #000;
+}
+.process::before { top: -6px; }
+.process::after  { bottom: -6px; }
+
+/* CENTRAL PROCESS */
+.process.big {
+  width: 200px;
+  font-weight: bold;
+}
+
+/* SVG OVERLAY */
+svg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+text {
+  font-size: 12px;
+  fill: #000;
+}
+</style>
+</head>
+<body>
+
+<div class="dfd-container">
+
+  <!-- LEFT ENTITIES -->
+  <div class="box entity" style="left:40px; top:80px;">Vehicle Owner</div>
+  <div class="box entity" style="left:40px; top:340px;">HPG Officer</div>
+
+  <!-- PROCESSES 1–3 -->
+  <div class="box process" style="left:380px; top:110px;">1.0<br>Accept Registration / Transfer</div>
+  <div class="box process" style="left:380px; top:260px;">2.0<br>Manage Documents</div>
+  <div class="box process" style="left:380px; top:410px;">3.0<br>Process Transfer</div>
+
+  <!-- DATA STORES -->
+  <div class="box store" style="left:660px; top:140px;">D2<br>Application DB</div>
+  <div class="box store" style="left:660px; top:260px;">D3<br>Document Storage (IPFS)</div>
+
+  <!-- CENTRAL PROCESS -->
+  <div class="box process big" style="left:920px; top:250px;">
+    4.0<br>Request & Collect Verifications
+  </div>
+
+  <!-- PROCESSES 5–6 -->
+  <div class="box process" style="left:1140px; top:520px;">5.0<br>Approve & Record</div>
+  <div class="box process" style="left:1140px; top:660px;">6.0<br>Update Records & Notify</div>
+
+  <!-- RIGHT SIDE -->
+  <div class="box store" style="left:1340px; top:560px;">D1<br>Blockchain Ledger</div>
+  <div class="box entity" style="left:1340px; top:180px;">LTO Admin</div>
+  <div class="box entity" style="left:1340px; top:480px;">LTO Officer</div>
+  <div class="box entity" style="left:1340px; top:340px;">Insurance Verifier</div>
+
+  <!-- SVG DATA FLOWS – paths connect exactly to box edges -->
+  <svg viewBox="0 0 1600 900">
+
+    <defs>
+      <marker id="arrow" markerWidth="10" markerHeight="10"
+              refX="10" refY="5" orient="auto">
+        <path d="M0,0 L10,5 L0,10 Z" fill="#000"/>
+      </marker>
+    </defs>
+
+    <!-- Vehicle Owner (right 200) → 1.0 (left 380), Y center ~104 -->
+    <path d="M200 104 H380" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="250" y="90">Registration, Documents</text>
+
+    <!-- 1.0 (bottom 160, center X 460) → 2.0 (top 260) -->
+    <path d="M460 160 V260" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="470" y="215">Application Data</text>
+
+    <!-- 2.0 (bottom 310) → 3.0 (top 410) -->
+    <path d="M460 310 V410" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="470" y="365">Document Refs</text>
+
+    <!-- 1.0 (right 540, Y ~135) → D2 (left 660) -->
+    <path d="M540 135 H660" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="565" y="120">Vehicle/Application Record</text>
+
+    <!-- 2.0 (right 540, Y ~285) → D3 (left 660) -->
+    <path d="M540 285 H660" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="565" y="272">Document CIDs</text>
+
+    <!-- D2 (right 820, Y ~162) → 4.0 (left 920) – L-shaped to enter 4.0 at left -->
+    <path d="M820 162 V252 H920" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="845" y="200">Applications, Records</text>
+
+    <!-- D3 (right 820, Y ~282) → 4.0 (left 920) -->
+    <path d="M820 282 H920" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="845" y="268">Records, CIDs</text>
+
+    <!-- 3.0 (right 540, Y ~435) → 4.0 (bottom 310) – L-shaped -->
+    <path d="M540 435 V310 H920" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="700" y="365">Transfer Status</text>
+
+    <!-- 4.0 (right 1120) → LTO Admin (left 1340), Y ~204 -->
+    <path d="M1120 204 H1340" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="1180" y="190">Pending List, Details</text>
+
+    <!-- LTO Admin (left 1340) → 4.0 (top 250) -->
+    <path d="M1340 250 H1120" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="1180" y="265">Approval, OR/CR</text>
+
+    <!-- 4.0 (right 1120) → Insurance Verifier (left 1340), Y ~364 -->
+    <path d="M1120 364 H1340" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="1180" y="350">Verification Request</text>
+
+    <!-- Insurance Verifier (left 1340) → 4.0 (right 1120, bottom 310) – L-shaped -->
+    <path d="M1340 364 H1120 V310" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="1180" y="340">Verification Result</text>
+
+    <!-- 4.0 (bottom 310, center X 1020) → 5.0 (left 1140, top 520) -->
+    <path d="M1020 310 V520 H1140" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="1040" y="415">Approved Data</text>
+
+    <!-- LTO Officer (left 1340, Y ~504) → 5.0 (left 1140, top 520) – L-shaped -->
+    <path d="M1340 504 H1140 V520" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="1200" y="505">Inspection, Approval</text>
+
+    <!-- 5.0 (right 1300, Y ~582) → D1 (left 1340) -->
+    <path d="M1300 582 H1340" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="1305" y="568">Tx Hash</text>
+
+    <!-- 5.0 (bottom 570, center X 1220) → 6.0 (top 660) -->
+    <path d="M1220 570 V660" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="1235" y="618">OR/CR, Tx ID</text>
+
+    <!-- D1 (left 1340, Y ~582) → 6.0 (left 1140, top 660) – L-shaped -->
+    <path d="M1340 582 H1240 V660 H1140" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="1220" y="618">Tx ID</text>
+
+    <!-- 6.0 (left 1140, Y ~685) → D2 (right 820, top 142) – L-shaped -->
+    <path d="M1140 685 H820 V142" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="950" y="415">Updated Records</text>
+
+    <!-- 6.0 (left 1140) → Vehicle Owner (right 200, Y ~104) – L-shaped -->
+    <path d="M1140 685 H200 V104" stroke="#000" fill="none" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="600" y="390">Status, Certificates</text>
+
+  </svg>
+
+</div>
+
+</body>
+</html>

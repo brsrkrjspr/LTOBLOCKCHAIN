@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrustChain Flowcharts - New Registration & Transfer of Ownership</title>
+    <style>
+        /* ===== RESET & BASE ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #000000;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        header {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        header h1 { font-size: 2.2em; margin-bottom: 10px; font-weight: 600; }
+        header p { font-size: 1.1em; opacity: 0.9; }
+
+        /* ===== TABS ===== */
+        .tabs {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 20px 30px 0;
+            background: #edf2f7;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .tabs a {
+            padding: 12px 20px;
+            background: #e2e8f0;
+            color: #2d3748;
+            text-decoration: none;
+            border-radius: 8px 8px 0 0;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+        .tabs a:hover { background: #cbd5e0; }
+        .tabs a.active { background: white; color: #2d3748; border-bottom: 2px solid white; margin-bottom: -2px; }
+
+        .content { padding: 50px 40px; }
+        .flowchart-section { display: none; }
+        .flowchart-section.active { display: block; }
+        .flowchart-title {
+            text-align: center;
+            font-size: 1.8em;
+            color: #000000;
+            margin-bottom: 50px;
+            font-weight: 600;
+            border-bottom: 3px solid #4a5568;
+            padding-bottom: 15px;
+        }
+
+        /* ===== FLOWCHART SYMBOLS ===== */
+        .flowchart {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            position: relative;
+            padding: 20px 0;
+        }
+        .oval {
+            width: 200px;
+            height: 80px;
+            background: #e2e8f0;
+            border: 3px solid #4a5568;
+            border-radius: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.1em;
+            color: #000000;
+            position: relative;
+            z-index: 2;
+        }
+        .rectangle {
+            width: 300px;
+            min-height: 70px;
+            background: #edf2f7;
+            border: 3px solid #4a5568;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 500;
+            font-size: 1em;
+            color: #000000;
+            text-align: center;
+            padding: 15px 20px;
+            position: relative;
+            z-index: 2;
+        }
+        .rectangle.narrow { width: 260px; }
+        .diamond {
+            width: 220px;
+            height: 220px;
+            background: #fef5e7;
+            border: 3px solid #4a5568;
+            transform: rotate(45deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+            margin: 20px 0;
+        }
+        .diamond-content {
+            transform: rotate(-45deg);
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.95em;
+            color: #000000;
+            padding: 20px;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .parallelogram {
+            width: 280px;
+            min-height: 70px;
+            background: #e6fffa;
+            border: 3px solid #4a5568;
+            transform: skew(-15deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            z-index: 2;
+        }
+        .parallelogram-content {
+            transform: skew(15deg);
+            text-align: center;
+            font-weight: 500;
+            font-size: 1em;
+            color: #000000;
+            padding: 15px 20px;
+        }
+        .arrow {
+            width: 4px;
+            height: 40px;
+            background: #4a5568;
+            position: relative;
+            margin: 0;
+            z-index: 1;
+        }
+        .arrow::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 12px solid #4a5568;
+        }
+        .branch-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 100px;
+            margin: 20px 0;
+            position: relative;
+            width: 100%;
+        }
+        .branch {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0;
+            position: relative;
+        }
+        .branch-label {
+            font-weight: 600;
+            color: #000000;
+            margin-bottom: 15px;
+            font-size: 0.95em;
+            padding: 5px 15px;
+            background: #f7fafc;
+            border: 2px solid #cbd5e0;
+            border-radius: 4px;
+        }
+        .merge-connector {
+            width: 100%;
+            height: 40px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .merge-line {
+            position: absolute;
+            width: 2px;
+            height: 100%;
+            background: #4a5568;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        .merge-line::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 12px solid #4a5568;
+        }
+        .legend {
+            margin-top: 60px;
+            padding: 30px;
+            background: #f7fafc;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+        }
+        .legend-title { font-size: 1.5em; font-weight: 600; color: #000000; margin-bottom: 25px; text-align: center; }
+        .legend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .legend-item { display: flex; align-items: center; gap: 15px; padding: 15px; background: white; border-radius: 6px; border: 1px solid #e2e8f0; }
+        .legend-symbol { flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .legend-oval { width: 60px; height: 30px; background: #e2e8f0; border: 2px solid #4a5568; border-radius: 30px; }
+        .legend-rectangle { width: 70px; height: 40px; background: #edf2f7; border: 2px solid #4a5568; border-radius: 4px; }
+        .legend-diamond { width: 40px; height: 40px; background: #fef5e7; border: 2px solid #4a5568; transform: rotate(45deg); }
+        .legend-parallelogram { width: 70px; height: 40px; background: #e6fffa; border: 2px solid #4a5568; transform: skew(-15deg); }
+        .legend-description h4 { color: #000000; font-size: 1em; margin-bottom: 5px; font-weight: 600; }
+        .legend-description p { color: #000000; font-size: 0.9em; }
+        @media (max-width: 768px) {
+            .content { padding: 30px 20px; }
+            .rectangle, .parallelogram { width: 100%; max-width: 280px; }
+            .diamond { width: 180px; height: 180px; }
+            .branch-container { flex-direction: column; gap: 40px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>TrustChain System Flowcharts</h1>
+            <p>Vehicle Registration & Transfer of Ownership — Blockchain-Based Registry</p>
+        </header>
+
+        <nav class="tabs">
+            <a href="#fig42" class="active" data-tab="fig42">Figure 4.2 New Reg. &amp; Transfer</a>
+            <a href="#fig43" data-tab="fig43">Figure 4.3 Admin New Reg. Approval</a>
+            <a href="#fig44" data-tab="fig44">Figure 4.4 Admin Transfer Approval</a>
+            <a href="#fig45" data-tab="fig45">Figure 4.5 HPG New Reg. Approval</a>
+            <a href="#fig46" data-tab="fig46">Figure 4.6 HPG Transfer Approval</a>
+            <a href="#fig47" data-tab="fig47">Figure 4.7 HPG Issue MV Clearance</a>
+        </nav>
+
+        <section class="content">
+            <!-- ========== FIGURE 4.2: New Registration and Transfer of Ownership ========== -->
+            <div id="fig42" class="flowchart-section active">
+                <h2 class="flowchart-title">Figure 4.2 TrustChain New Registration and Transfer of Ownership</h2>
+                <div class="flowchart">
+                    <div class="oval">START</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">User Logs In / Registers<br>(vehicle_owner)</div>
+                    <div class="arrow"></div>
+                    <div class="diamond">
+                        <div class="diamond-content">User Action?<br><br>New Registration / Transfer</div>
+                    </div>
+                    <div class="branch-container">
+                        <div class="branch">
+                            <div class="branch-label">New Registration</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Open Registration Wizard</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Get CTPL (One-Stop Shop): Upload CSR →<br>Select insurance → Generate CTPL → Attach</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Step 1: Select Vehicle Type &amp;<br>Upload Documents (CSR, Insurance/CTPL, ID, HPG Clearance)</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Step 2: Enter Vehicle Information<br>(VIN, Plate, Make, Model — may auto-fill from docs)</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Step 3: Enter Owner Details<br>(auto-filled from account where possible)</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Step 4: Review &amp; Submit Application</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Output: Status SUBMITTED<br>(vehicle in DB, not yet on blockchain)</div></div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">LTO Reviews; May Request HPG / Insurance Clearances</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">LTO Admin Approves (OR/CR, Register on Blockchain)</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Vehicle REGISTERED<br>Blockchain Tx ID</div></div>
+                        </div>
+                        <div class="branch">
+                            <div class="branch-label">Transfer of Ownership</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Seller: Open Transfer Wizard</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Step 1: Seller Info → Step 2: Buyer Email<br>→ Step 3: Select Vehicle</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Step 4: Upload Deed of Sale &amp; Seller ID</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Step 5: Review &amp; Submit</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Output: Transfer Request created<br>Status PENDING, Buyer notified by email</div></div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Buyer: Accept invite → My Transfer Requests<br>(vehicle pre-filled)</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Buyer: Get CTPL (One-Stop) — Select this transfer,<br>generate CTPL, attach as buyer_ctpl</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Buyer: Get HPG Clearance — Receive by email<br>(HPG UI: CSR/OR/CR + hotlist + stencil → recipient email)</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Buyer: Upload buyer_id, buyer_tin, buyer_ctpl,<br>buyer_hpg_clearance → Accept &amp; Submit</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Output: Transfer docs submitted;<br>auto-forward to Insurance &amp; HPG</div></div>
+                        </div>
+                    </div>
+                    <div class="merge-connector"><div class="merge-line"></div></div>
+                    <div class="arrow"></div>
+                    <div class="oval">END</div>
+                </div>
+            </div>
+
+            <!-- ========== FIGURE 4.3: Admin New Registration Approval ========== -->
+            <div id="fig43" class="flowchart-section">
+                <h2 class="flowchart-title">Figure 4.3 TrustChain Admin New Registration Approval</h2>
+                <div class="flowchart">
+                    <div class="oval">START</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Admin Logs into System<br>(Authenticate Credentials)</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Access "New Registration" / Pending Applications</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">View Pending Registration Applications<br>(vehicles with status SUBMITTED)</div>
+                    <div class="arrow"></div>
+                    <div class="parallelogram"><div class="parallelogram-content">Select Application<br>(vehicleId) to Review</div></div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Verify Vehicle Information<br>(VIN, Plate, Make, Model)</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Verify Uploaded Documents<br>(OR/CR, Insurance, ID)</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Check HPG Clearance &amp; Insurance Verification<br>(both must be APPROVED — system check)</div>
+                    <div class="arrow"></div>
+                    <div class="diamond">
+                        <div class="diamond-content">HPG &amp; Insurance<br>Both Approved?<br><br>No / Yes</div>
+                    </div>
+                    <div class="branch-container">
+                        <div class="branch">
+                            <div class="branch-label">No</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Cannot Approve (Pending or Rejected)<br>Block approval</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Reject or Return for Correction</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Notify Applicant<br>(Email)</div></div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Update Status to REJECTED / RETURNED</div>
+                        </div>
+                        <div class="branch">
+                            <div class="branch-label">Yes</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Assign OR / CR Numbers<br>(mandatory)</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Status: SUBMITTED → PENDING_BLOCKCHAIN</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Register Vehicle<br>on Blockchain (Fabric)</div></div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Update Vehicle Status to REGISTERED<br>Save blockchain_tx_id</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Notify Owner (Email: OR/CR, Tx ID)</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Output: Blockchain Tx ID,<br>OR/CR Issued</div></div>
+                        </div>
+                    </div>
+                    <div class="merge-connector"><div class="merge-line"></div></div>
+                    <div class="arrow"></div>
+                    <div class="oval">END</div>
+                </div>
+            </div>
+
+            <!-- ========== FIGURE 4.4: Admin Transfer of Ownership Approval ========== -->
+            <div id="fig44" class="flowchart-section">
+                <h2 class="flowchart-title">Figure 4.4 TrustChain Admin Transfer of Ownership Approval</h2>
+                <div class="flowchart">
+                    <div class="oval">START</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Admin Logs into System<br>(Authenticate Credentials)</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Access "Transfer of Ownership" Module</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">View Pending Transfer Applications</div>
+                    <div class="arrow"></div>
+                    <div class="parallelogram"><div class="parallelogram-content">Select Transfer Request<br>to Review</div></div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Review Seller &amp; Buyer Details</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Verify Vehicle (VIN, Plate, Status)</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Verify Documents<br>(Deed of Sale, IDs, TIN, CTPL, HPG Clearance)</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Check MVIR / Inspection Record</div>
+                    <div class="arrow"></div>
+                    <div class="diamond">
+                        <div class="diamond-content">MVIR/Inspection<br>Record Exists?<br><br>No / Yes</div>
+                    </div>
+                    <div class="branch-container">
+                        <div class="branch">
+                            <div class="branch-label">No</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Conduct / Auto-Generate Inspection</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Input: Inspection Results<br>Generate MVIR</div></div>
+                        </div>
+                        <div class="branch">
+                            <div class="branch-label">Yes</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Verify MVIR Validity</div>
+                        </div>
+                    </div>
+                    <div class="merge-connector"><div class="merge-line"></div></div>
+                    <div class="arrow"></div>
+                    <div class="diamond">
+                        <div class="diamond-content">HPG / Insurance<br>Approved?<br><br>No / Yes</div>
+                    </div>
+                    <div class="branch-container">
+                        <div class="branch">
+                            <div class="branch-label">No</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Return / Reject (Pending Verifications)</div>
+                        </div>
+                        <div class="branch">
+                            <div class="branch-label">Yes</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Approve Transfer Request</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Record Transfer on Blockchain</div></div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Update Vehicle Ownership (New Owner)</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Update Transfer Status to COMPLETED</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Notify Seller &amp; Buyer</div></div>
+                        </div>
+                    </div>
+                    <div class="merge-connector"><div class="merge-line"></div></div>
+                    <div class="arrow"></div>
+                    <div class="oval">END</div>
+                </div>
+            </div>
+
+            <!-- ========== FIGURE 4.5: HPG New Registration Approval ========== -->
+            <div id="fig45" class="flowchart-section">
+                <h2 class="flowchart-title">Figure 4.5 TrustChain HPG New Registration Approval</h2>
+                <div class="flowchart">
+                    <div class="oval">START</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">HPG User Logs into System<br>(hpg_admin)</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Access Clearance / Verification Module</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Receive Clearance Request<br>(from LTO for New Registration)</div>
+                    <div class="arrow"></div>
+                    <div class="parallelogram"><div class="parallelogram-content">View Vehicle &amp; Documents</div></div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Check Hotlist (on-chain + off-chain)</div>
+                    <div class="arrow"></div>
+                    <div class="diamond">
+                        <div class="diamond-content">Hotlist FLAGGED?<br><br>Yes / No</div>
+                    </div>
+                    <div class="branch-container">
+                        <div class="branch">
+                            <div class="branch-label">Yes</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Block approval — Reject Clearance Request</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Update Status REJECTED<br>Notify LTO</div></div>
+                        </div>
+                        <div class="branch">
+                            <div class="branch-label">No</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Verify Engine / Chassis / Macro-etching</div>
+                            <div class="arrow"></div>
+                            <div class="diamond">
+                                <div class="diamond-content">Vehicle Clear?<br><br>No / Yes</div>
+                            </div>
+                            <div class="branch-container">
+                                <div class="branch">
+                                    <div class="branch-label">No</div>
+                                    <div class="arrow"></div>
+                                    <div class="rectangle">Reject Clearance Request</div>
+                                    <div class="arrow"></div>
+                                    <div class="parallelogram"><div class="parallelogram-content">Update Status REJECTED<br>Notify LTO</div></div>
+                                </div>
+                                <div class="branch">
+                                    <div class="branch-label">Yes</div>
+                                    <div class="arrow"></div>
+                                    <div class="rectangle">Approve Clearance</div>
+                                    <div class="arrow"></div>
+                                    <div class="parallelogram"><div class="parallelogram-content">Update Clearance Status<br>APPROVED / COMPLETED</div></div>
+                                    <div class="arrow"></div>
+                                    <div class="rectangle">(Optional) Update Verification on Blockchain</div>
+                                    <div class="arrow"></div>
+                                    <div class="parallelogram"><div class="parallelogram-content">Notify LTO<br>LTO May Proceed with Approval</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="merge-connector"><div class="merge-line"></div></div>
+                    <div class="arrow"></div>
+                    <div class="oval">END</div>
+                </div>
+            </div>
+
+            <!-- ========== FIGURE 4.6: HPG Transfer of Ownership Approval ========== -->
+            <div id="fig46" class="flowchart-section">
+                <h2 class="flowchart-title">Figure 4.6 TrustChain HPG Transfer of Ownership Approval</h2>
+                <div class="flowchart">
+                    <div class="oval">START</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">HPG User Logs into System<br>(hpg_admin)</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Access Transfer Clearance Module</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Receive Transfer Request<br>(Forwarded from LTO)</div>
+                    <div class="arrow"></div>
+                    <div class="parallelogram"><div class="parallelogram-content">View Vehicle &amp; Buyer Documents</div></div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Check Hotlist (on-chain + off-chain)</div>
+                    <div class="arrow"></div>
+                    <div class="diamond">
+                        <div class="diamond-content">Hotlist FLAGGED?<br><br>Yes / No</div>
+                    </div>
+                    <div class="branch-container">
+                        <div class="branch">
+                            <div class="branch-label">Yes</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Block approval — Reject HPG Clearance</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Update transfer_requests<br>hpg_approval_status = REJECTED</div></div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Notify LTO / Applicant</div>
+                        </div>
+                        <div class="branch">
+                            <div class="branch-label">No</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Verify Engine / Chassis / Macro-etching / Stencil</div>
+                            <div class="arrow"></div>
+                            <div class="diamond">
+                                <div class="diamond-content">Vehicle Clear for Transfer?<br><br>No / Yes</div>
+                            </div>
+                            <div class="branch-container">
+                                <div class="branch">
+                                    <div class="branch-label">No</div>
+                                    <div class="arrow"></div>
+                                    <div class="rectangle">Reject HPG Clearance</div>
+                                    <div class="arrow"></div>
+                                    <div class="parallelogram"><div class="parallelogram-content">Update transfer_requests<br>hpg_approval_status = REJECTED</div></div>
+                                    <div class="arrow"></div>
+                                    <div class="rectangle">Notify LTO / Applicant</div>
+                                </div>
+                                <div class="branch">
+                                    <div class="branch-label">Yes</div>
+                                    <div class="arrow"></div>
+                                    <div class="rectangle">Approve HPG Clearance</div>
+                                    <div class="arrow"></div>
+                                    <div class="parallelogram"><div class="parallelogram-content">Update transfer_requests<br>hpg_approval_status = APPROVED</div></div>
+                                    <div class="arrow"></div>
+                                    <div class="rectangle">Transition Transfer Status to UNDER_REVIEW<br>(Return to LTO)</div>
+                                    <div class="arrow"></div>
+                                    <div class="parallelogram"><div class="parallelogram-content">Notify LTO<br>LTO May Finalize Transfer</div></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="merge-connector"><div class="merge-line"></div></div>
+                    <div class="arrow"></div>
+                    <div class="oval">END</div>
+                </div>
+            </div>
+
+            <!-- ========== FIGURE 4.7: HPG Issue MV Clearance (HPG-Originated) ========== -->
+            <div id="fig47" class="flowchart-section">
+                <h2 class="flowchart-title">Figure 4.7 TrustChain HPG Issue MV Clearance (HPG-Originated)</h2>
+                <div class="flowchart">
+                    <div class="oval">START</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">HPG User Logs into System<br>(hpg_admin)</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Access "Issue MV Clearance"<br>(HPG Dashboard)</div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Upload CSR or OR/CR<br>(CSR = initial reg; OR/CR = transfer)</div>
+                    <div class="arrow"></div>
+                    <div class="parallelogram"><div class="parallelogram-content">Extract VIN, engine, chassis,<br>plate (OCR)</div></div>
+                    <div class="arrow"></div>
+                    <div class="rectangle">Check Hotlist (on-chain + off-chain)</div>
+                    <div class="arrow"></div>
+                    <div class="diamond">
+                        <div class="diamond-content">Hotlist CLEAN?<br><br>No / Yes</div>
+                    </div>
+                    <div class="branch-container">
+                        <div class="branch">
+                            <div class="branch-label">No</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Cannot issue clearance<br>(Vehicle flagged / stolen)</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Notify applicant;<br>do not generate clearance</div></div>
+                        </div>
+                        <div class="branch">
+                            <div class="branch-label">Yes</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Stencil confirmed?<br>(Engine/chassis verified — checkbox)</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Enter recipient email<br>(e.g. buyer for transfer)</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Generate clearance PDF &amp; email to recipient</div>
+                            <div class="arrow"></div>
+                            <div class="rectangle">Store in issued_certificates<br>(for auto-verification)</div>
+                            <div class="arrow"></div>
+                            <div class="parallelogram"><div class="parallelogram-content">Output: Recipient receives email;<br>uploads clearance in registration / transfer</div></div>
+                        </div>
+                    </div>
+                    <div class="merge-connector"><div class="merge-line"></div></div>
+                    <div class="arrow"></div>
+                    <div class="oval">END</div>
+                </div>
+            </div>
+
+            <!-- Legend (shared) -->
+            <div class="legend">
+                <h3 class="legend-title">Flowchart Symbols Legend</h3>
+                <div class="legend-grid">
+                    <div class="legend-item">
+                        <div class="legend-symbol"><div class="legend-oval"></div></div>
+                        <div class="legend-description">
+                            <h4>Oval (Start/End)</h4>
+                            <p>Terminator: beginning or end of the process</p>
+                        </div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-symbol"><div class="legend-rectangle"></div></div>
+                        <div class="legend-description">
+                            <h4>Rectangle (Process)</h4>
+                            <p>Action, operation, or process step</p>
+                        </div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-symbol"><div class="legend-diamond"></div></div>
+                        <div class="legend-description">
+                            <h4>Diamond (Decision)</h4>
+                            <p>Decision point: yes/no or branch</p>
+                        </div>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-symbol"><div class="legend-parallelogram"></div></div>
+                        <div class="legend-description">
+                            <h4>Parallelogram (Input/Output)</h4>
+                            <p>Data input or output</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    <script>
+        (function() {
+            var hash = location.hash.slice(1) || 'fig42';
+            var tabs = document.querySelectorAll('.tabs a');
+            var sections = document.querySelectorAll('.flowchart-section');
+            function show(id) {
+                sections.forEach(function(s) { s.classList.remove('active'); });
+                tabs.forEach(function(t) { t.classList.remove('active'); });
+                var s = document.getElementById(id);
+                var t = document.querySelector('.tabs a[data-tab="' + id + '"]');
+                if (s) s.classList.add('active');
+                if (t) t.classList.add('active');
+            }
+            tabs.forEach(function(a) {
+                a.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    var id = a.getAttribute('data-tab');
+                    if (id) { show(id); history.replaceState(null, null, '#' + id); }
+                });
+            });
+            window.addEventListener('hashchange', function() { show(location.hash.slice(1) || 'fig42'); });
+            show(hash);
+        })();
+    </script>
+</body>
+</html>

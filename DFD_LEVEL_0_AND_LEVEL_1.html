@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DFD Level 0 & Level 1 – TrustChain Vehicle Registration & Transfer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a1a;
+            padding: 24px;
+            line-height: 1.5;
+        }
+        .page {
+            max-width: 100%;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            overflow-x: auto;
+        }
+        header {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            color: #fff;
+            padding: 28px 32px;
+            text-align: center;
+        }
+        header h1 { font-size: 1.6rem; font-weight: 600; margin-bottom: 6px; }
+        header p { font-size: 0.95rem; opacity: 0.9; }
+        .content { padding: 32px; }
+        .section-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: #1a202c;
+            margin: 40px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #2d3748;
+            text-align: center;
+        }
+        .section-title:first-of-type { margin-top: 0; }
+
+        /* ========== DFD CONTAINER (shared) ========== */
+        .dfd-wrap {
+            position: relative;
+            margin: 0 auto 24px;
+            background: #fafbfc;
+            border: 2px solid #cbd5e0;
+            border-radius: 10px;
+        }
+        .dfd-wrap svg {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .dfd-wrap .nodes { position: relative; z-index: 2; }
+        .dfd-wrap .nodes > * { pointer-events: auto; }
+
+        /* ========== LEVEL 0 ========== */
+        .dfd-wrap.level0 {
+            width: 1200px;
+            height: 780px;
+        }
+        .dfd-wrap.level0 .box {
+            position: absolute;
+            padding: 10px 14px;
+            border: 2px solid #1a1a1a;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 600;
+            background: #fff;
+            box-sizing: border-box;
+        }
+        .dfd-wrap.level0 .entity {
+            width: 140px;
+            background: #eef2f7;
+            border-radius: 4px;
+        }
+        .dfd-wrap.level0 .process {
+            width: 320px;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            background: #edf2f7;
+        }
+        .dfd-wrap.level0 .process::before,
+        .dfd-wrap.level0 .process::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #1a1a1a;
+        }
+        .dfd-wrap.level0 .process::before { top: -4px; border-radius: 8px 8px 0 0; }
+        .dfd-wrap.level0 .process::after { bottom: -4px; border-radius: 0 0 8px 8px; }
+        .dfd-wrap.level0 .store {
+            width: 180px;
+            height: 48px;
+            border-left: 6px solid #1a1a1a;
+            border-right: 2px solid #1a1a1a;
+            line-height: 1.3;
+        }
+
+        /* ========== LEVEL 1 ========== Gane & Sarson shapes, fixed sizes for arrow alignment */
+        .dfd-wrap.level1 {
+            width: 1400px;
+            height: 800px;
+        }
+        .dfd-wrap.level1 .box {
+            position: absolute;
+            padding: 8px;
+            border: 2px solid #1a1a1a;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 600;
+            background: #fff;
+            box-sizing: border-box;
+        }
+        /* Entity: rectangle, fixed 160×56 so arrows align to center/edges */
+        .dfd-wrap.level1 .entity {
+            width: 160px;
+            height: 56px;
+            line-height: 1.2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #eef2f7;
+        }
+        /* Process: Gane & Sarson – double horizontal lines top & bottom, fixed height */
+        .dfd-wrap.level1 .process {
+            width: 160px;
+            height: 56px;
+            line-height: 1.2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .dfd-wrap.level1 .process::before,
+        .dfd-wrap.level1 .process::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: #1a1a1a;
+        }
+        .dfd-wrap.level1 .process::before { top: -4px; }
+        .dfd-wrap.level1 .process::after { bottom: -4px; }
+        .dfd-wrap.level1 .process.big {
+            width: 220px;
+            height: 120px;
+        }
+        /* Data store: Gane & Sarson – thick left bar, fixed 160×48 */
+        .dfd-wrap.level1 .store {
+            width: 160px;
+            height: 48px;
+            line-height: 1.2;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-left: 8px solid #1a1a1a;
+            border-right: 2px solid #1a1a1a;
+        }
+
+        /* Flow labels in SVG – beside path, not on it */
+        .flow-label {
+            font-size: 11px;
+            fill: #1a1a1a;
+            font-weight: 600;
+            text-anchor: middle;
+        }
+        .flow-label-side { font-size: 10px; fill: #333; font-weight: 600; }
+        /* Level 1: labels above their arrow lines (y is path-near; dy pulls text up) */
+        .dfd-wrap.level1 .flow-label { dominant-baseline: auto; }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <header>
+            <h1>Data Flow Diagrams – Level 0 & Level 1</h1>
+            <p>TrustChain Vehicle Registration & Transfer System (Gane & Sarson)</p>
+        </header>
+        <section class="content">
+
+            <!-- ==================== LEVEL 0 DFD ==================== -->
+            <h2 class="section-title">Level 0 – Context Diagram</h2>
+            <div class="dfd-wrap level0">
+                <svg viewBox="0 0 1200 780" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                        <marker id="arr0" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto"
+                                markerUnits="userSpaceOnUse" overflow="visible">
+                            <path d="M0,2 L13,7 L0,12 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="1"/>
+                        </marker>
+                    </defs>
+                    <!-- Vehicle Owner (right 190) → Process (left 400), Y 350 -->
+                    <path d="M190 350 H400" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="260" y="338">Registration, Documents, CTPL Request</text>
+                    <!-- Process → Vehicle Owner -->
+                    <path d="M400 360 H190" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="260" y="372">Status, Certificates, CTPL, HPG Clearance</text>
+
+                    <!-- HPG (right 190) → Process, Y 560; L-shaped to process bottom 430 -->
+                    <path d="M190 560 H340 V430 H400" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="220" y="500">CSR/OR/CR, Recipient Email, Hotlist Report</text>
+                    <!-- Process → HPG -->
+                    <path d="M400 432 V560 H190" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="260" y="505">Verification Request, Hotlist Result</text>
+
+                    <!-- LTO Admin (left 1060) → Process (right 700), Y 110; process top 250 -->
+                    <path d="M1060 110 H700 V250" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="830" y="95">Applications, Records</text>
+                    <!-- Process → LTO Admin (process top 250) -->
+                    <path d="M700 248 V110 H1060" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="830" y="185">Approval, OR/CR</text>
+
+                    <!-- LTO Officer (left 1060) → Process, Y 350 -->
+                    <path d="M1060 350 H700" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="830" y="338">Inspection, Approval</text>
+                    <!-- Process → LTO Officer -->
+                    <path d="M700 340 H1060" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="830" y="372">Inspection Requests</text>
+
+                    <!-- Insurance (left 1060) → Process, Y 560 -->
+                    <path d="M1060 560 H700 V430" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="830" y="515">Verification Request</text>
+                    <!-- Process → Insurance -->
+                    <path d="M700 432 V560 H1060" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="830" y="505">Verification Result</text>
+
+                    <!-- Process (bottom 430) → D1 (top 520), lane 550 -->
+                    <path d="M550 430 V520" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="558" y="472">Tx Hash, Vehicle Record</text>
+                    <path d="M550 520 V430" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="558" y="478" dy="12">Vehicle History</text>
+
+                    <!-- Process → D2, lane 558 -->
+                    <path d="M558 430 V575" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="568" y="500">Application Data</text>
+                    <path d="M558 575 V430" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="568" y="508" dy="12">User Data, Status</text>
+
+                    <!-- Process → D3, lane 566 -->
+                    <path d="M566 430 V630" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="576" y="528">Document CIDs</text>
+                    <path d="M566 630 V430" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr0)"/>
+                    <text class="flow-label" x="576" y="535" dy="12">Document Metadata</text>
+                </svg>
+                <div class="nodes">
+                    <div class="box entity" style="left: 50px; top: 320px;">Vehicle Owner</div>
+                    <div class="box entity" style="left: 50px; top: 530px;">HPG Officer</div>
+                    <div class="box process" style="left: 400px; top: 250px;">
+                        0<br>Vehicle Registration<br>&amp; Transfer System
+                    </div>
+                    <div class="box entity" style="left: 1060px; top: 80px;">LTO Admin</div>
+                    <div class="box entity" style="left: 1060px; top: 320px;">LTO Officer</div>
+                    <div class="box entity" style="left: 1060px; top: 530px;">Insurance Verifier</div>
+                    <div class="box store" style="left: 510px; top: 520px;">D1 Blockchain Ledger</div>
+                    <div class="box store" style="left: 510px; top: 575px;">D2 Application Database</div>
+                    <div class="box store" style="left: 510px; top: 630px;">D3 Document Storage (IPFS)</div>
+                </div>
+            </div>
+
+            <!-- ==================== LEVEL 1 DFD ==================== -->
+            <!-- Structure from image: 1.0 top-center, 2.0 below 1.0 center, 3.0 left / 4.0 right below 2.0, 5.0 below 3.0, 6.0 center below 4.0, D1 bottom-left, D2 bottom-center below 6.0, D3 bottom-right. No node positions changed. -->
+            <h2 class="section-title">Level 1 – System Decomposition</h2>
+            <div class="dfd-wrap level1">
+                <svg viewBox="0 0 1400 800" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                        <marker id="arr1" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto"
+                                markerUnits="userSpaceOnUse" overflow="visible">
+                            <path d="M0,2 L13,7 L0,12 Z" fill="#1a1a1a" stroke="#1a1a1a" stroke-width="1"/>
+                        </marker>
+                    </defs>
+                    <!-- Vehicle Owner → 1.0 -->
+                    <path d="M210 78 H620" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="415" y="62">Registration, Documents</text>
+                    <!-- 1.0 → 2.0 (top → bottom) -->
+                    <path d="M700 106 V160" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="718" y="128">Application Data</text>
+                    <!-- 1.0 → 3.0 (offset left so not on 1.0→D2/2.0→D3 column) -->
+                    <path d="M620 92 L360 210 V328" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="478" y="182">Transfer Request</text>
+                    <!-- 1.0 → D2 (lane right of center) -->
+                    <path d="M780 88 H795 V420 L700 640" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="768" y="338">Vehicle/Application Record</text>
+                    <!-- 2.0 → D3 (lane left of 1.0→D2) -->
+                    <path d="M780 188 H765 V520 L1000 664" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="858" y="408">Document CIDs</text>
+                    <!-- CTPL (dashed): Vehicle Owner → 2.0 (waypoint offset from return path) -->
+                    <path d="M210 78 L460 118 L620 160" stroke="#1a1a1a" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="398" y="108">CTPL Request (CSR/Transfer)</text>
+                    <!-- CTPL (dashed): 2.0 → Vehicle Owner (waypoint offset) -->
+                    <path d="M620 188 L540 158 L210 78" stroke="#1a1a1a" stroke-width="1.5" fill="none" stroke-dasharray="6 4" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="398" y="128">CTPL Certificate</text>
+                    <!-- 3.0 → 4.0 -->
+                    <path d="M540 328 H590" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="562" y="318">Transfer Status</text>
+                    <!-- D2 → 4.0 (lane right of 6.0→D2 so no overlap) -->
+                    <path d="M715 640 V420 L590 420" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="728" y="528">Applications, Records</text>
+                    <!-- D3 → 4.0 (offset so not on D2→4.0) -->
+                    <path d="M1000 640 V460 L820 420" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="898" y="518">Records, CIDs</text>
+                    <!-- 4.0 → LTO Admin (upper lane) -->
+                    <path d="M590 332 L280 258 H210" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="368" y="272">Pending List, Details</text>
+                    <!-- LTO Admin → 4.0 (lower lane) -->
+                    <path d="M210 278 H280 L590 308" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="368" y="262">Approval, OR/CR</text>
+                    <!-- 4.0 → Insurance Verifier (upper lane) -->
+                    <path d="M810 352 L1080 258 H1190" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="998" y="282">Verification Request</text>
+                    <!-- Insurance Verifier → 4.0 (lower lane) -->
+                    <path d="M1190 278 H1080 L810 420" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="998" y="332">Verification Result</text>
+                    <!-- 4.0 → HPG Officer (upper diagonal) -->
+                    <path d="M590 308 L880 154 L1190 78" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="868" y="172">Hotlist Check, Pending List</text>
+                    <!-- HPG Officer → 4.0 (lower diagonal, different waypoint X) -->
+                    <path d="M1190 88 L920 272 L810 420" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="968" y="248">Hotlist Result, CSR/OR/CR (Issue)</text>
+                    <!-- 4.0 → 5.0 -->
+                    <path d="M700 420 V440 H460" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="578" y="418">Approved Data</text>
+                    <!-- LTO Officer → 5.0 -->
+                    <path d="M1190 508 L540 468" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="848" y="462">Inspection, Approval</text>
+                    <!-- 5.0 → D1 -->
+                    <path d="M380 468 H340" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="358" y="452">Tx Hash</text>
+                    <!-- 5.0 → 6.0 -->
+                    <path d="M460 496 V520 H620" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="538" y="498">OR/CR, Tx ID</text>
+                    <!-- D1 → 6.0 (offset so not on 5.0→6.0) -->
+                    <path d="M340 584 V552 L620 568" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="468" y="548">Tx ID</text>
+                    <!-- 6.0 → D2 (center lane) -->
+                    <path d="M700 616 V640" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="718" y="624">Updated Records</text>
+                    <!-- 6.0 → Vehicle Owner (waypoint offset to avoid 1.0→3.0 vertical) -->
+                    <path d="M620 568 L420 380 L210 78" stroke="#1a1a1a" stroke-width="2" fill="none" marker-end="url(#arr1)"/>
+                    <text class="flow-label" x="398" y="438">Status, Certificates, HPG Clearance</text>
+                </svg>
+                <div class="nodes">
+                    <div class="box entity" style="left: 50px; top: 50px;">Vehicle Owner</div>
+                    <div class="box entity" style="left: 50px; top: 240px;">LTO Admin</div>
+                    <div class="box entity" style="left: 1190px; top: 50px;">HPG Officer</div>
+                    <div class="box entity" style="left: 1190px; top: 240px;">Insurance Verifier</div>
+                    <div class="box entity" style="left: 1190px; top: 480px;">LTO Officer</div>
+                    <div class="box process" style="left: 620px; top: 50px;">1.0<br>Accept Registration / Transfer</div>
+                    <div class="box process" style="left: 620px; top: 160px;">2.0<br>Manage Documents</div>
+                    <div class="box process" style="left: 380px; top: 300px;">3.0<br>Process Transfer</div>
+                    <div class="box process big" style="left: 590px; top: 300px;">4.0<br>Request &amp; Collect Verifications</div>
+                    <div class="box process" style="left: 380px; top: 440px;">5.0<br>Approve &amp; Record</div>
+                    <div class="box process" style="left: 620px; top: 520px;">6.0<br>Update Records &amp; Notify</div>
+                    <div class="box store" style="left: 180px; top: 560px;">D1<br>Blockchain Ledger</div>
+                    <div class="box store" style="left: 620px; top: 640px;">D2<br>Application Database</div>
+                    <div class="box store" style="left: 1000px; top: 640px;">D3<br>Document Storage</div>
+                </div>
+            </div>
+
+            <p style="text-align: center; color: #4a5568; font-size: 0.9rem; margin-top: 16px;">
+                Gane &amp; Sarson notation. Level 1 includes CTPL one-stop (dashed: Owner ↔ 2.0), HPG clearance issuance &amp; hotlist (4.0 ↔ HPG).
+            </p>
+        </section>
+    </div>
+</body>
+</html>

@@ -249,19 +249,14 @@
     </div>
 
     <!-- Forgot Password Modal -->
-    <div id="forgotPasswordModal" class="modal-overlay"
-        style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center;">
-        <div class="modal-content"
-            style="background: white; padding: 2rem; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
-            <div class="modal-header"
-                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <h2 style="margin: 0; font-size: 1.5rem; color: #111827;">Reset Password</h2>
-                <button class="modal-close" onclick="closeForgotPasswordModal()"
-                    style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #6b7280;">&times;</button>
+    <div id="forgotPasswordModal" class="modal-overlay auth-forgot-modal">
+        <div class="modal-content auth-forgot-modal-content">
+            <div class="modal-header">
+                <h2>Reset Password</h2>
+                <button class="modal-close" type="button" onclick="closeForgotPasswordModal()" aria-label="Close">&times;</button>
             </div>
             <div class="modal-body">
-                <p style="margin: 0 0 1.5rem 0; color: #6b7280; line-height: 1.6;">Enter your email address and we'll
-                    send you a password reset link.</p>
+                <p>Enter your email address and we'll send you a password reset link.</p>
                 <form onsubmit="handleForgotPassword(event); return false;">
                     <div class="form-group">
                         <label for="resetEmail">Email Address</label>

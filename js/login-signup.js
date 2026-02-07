@@ -90,40 +90,42 @@
     function showNotification(message, type = 'info') {
         try {
             // Remove existing notifications
-            const existingNotification = document.querySelector('.auth-notification');
+            const existingNotification = document.querySelector('.auth-notification-overlay');
             if (existingNotification) {
                 existingNotification.remove();
             }
 
-            // Create notification element
+            // Map 'warning' to visual style (use info icon for simplicity)
+            const iconMap = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+            const displayType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
+
+            // Create overlay notification element (fixed position - does NOT affect modal layout)
             const notification = document.createElement('div');
-            notification.className = `auth-notification auth-notification-${type}`;
+            notification.className = `auth-notification-overlay auth-notification auth-notification-${displayType}`;
+            notification.setAttribute('role', 'alert');
             notification.innerHTML = `
                 <div class="notification-content">
-                    <span class="notification-icon">${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span>
+                    <span class="notification-icon">${iconMap[displayType] || iconMap.info}</span>
                     <span class="notification-message">${message}</span>
-                    <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+                    <button class="notification-close" type="button" aria-label="Dismiss" onclick="this.closest('.auth-notification-overlay').remove()">×</button>
                 </div>
             `;
 
-            // Insert notification at the top of the auth card
-            const authCard = document.querySelector('.auth-card');
-            if (authCard) {
-                authCard.insertBefore(notification, authCard.firstChild);
-            } else {
-                // Fallback: append to body
-                document.body.insertBefore(notification, document.body.firstChild);
-            }
+            // Always append to body - fixed overlay above modal, never inside auth-card
+            document.body.appendChild(notification);
+
+            // Trigger reflow for animation
+            notification.offsetHeight;
 
             // Auto-remove notification after 5 seconds
             setTimeout(() => {
                 if (notification.parentElement) {
-                    notification.remove();
+                    notification.classList.add('auth-notification-fade-out');
+                    setTimeout(() => notification.remove(), 300);
                 }
             }, 5000);
         } catch (error) {
             console.error('Error in showNotification:', error);
-            // Fallback to alert
             alert(message);
         }
     }

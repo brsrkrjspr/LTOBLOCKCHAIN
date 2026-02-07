@@ -19,6 +19,8 @@
             justify-content: center;
             align-items: center;
             padding: 20px;
+            overflow-x: hidden;
+            -webkit-text-size-adjust: 100%;
         }
 
         .verification-container {
@@ -297,16 +299,45 @@
         }
 
         @media (max-width: 480px) {
+            body {
+                padding: 12px;
+            }
+
             .verification-container {
-                padding: 30px 20px;
+                padding: 24px 16px;
+                max-width: 100%;
             }
 
             h1 {
-                font-size: 24px;
+                font-size: 22px;
             }
 
             .step-text {
                 font-size: 13px;
+            }
+
+            button {
+                min-height: 48px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            body {
+                padding: 8px;
+            }
+
+            .verification-container {
+                padding: 20px 12px;
+            }
+
+            h1 {
+                font-size: 1.25rem;
+            }
+
+            .logo {
+                width: 48px;
+                height: 48px;
+                font-size: 22px;
             }
         }
     </style>

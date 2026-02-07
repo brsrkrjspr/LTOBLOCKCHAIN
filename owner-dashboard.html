@@ -507,15 +507,15 @@
             }
         }
         
-        /* My Applications - Button Size Consistency */
+        /* My Applications - Responsive Button Sizing */
         #my-registrations-tbody .btn-sm,
         #my-registrations-tbody .btn-secondary.btn-sm,
         #my-registrations-tbody .btn-primary.btn-sm {
-            padding: 0.5rem 1rem !important;
-            font-size: 0.875rem !important;
+            padding: 0.5rem 0.875rem !important;
+            font-size: 0.8125rem !important;
             min-height: 36px !important;
-            height: 36px !important;
-            max-height: 36px !important;
+            height: auto !important;
+            max-height: none !important;
             line-height: 1.4 !important;
             white-space: nowrap !important;
             display: inline-flex !important;
@@ -523,25 +523,18 @@
             justify-content: center !important;
             gap: 0.375rem !important;
             box-sizing: border-box !important;
-            width: 180px !important;
-            min-width: 180px !important;
-            max-width: 180px !important;
+            width: auto !important;
+            min-width: auto !important;
+            max-width: none !important;
         }
         
-        /* Ensure View Details button has border and same size as Download Certificate */
+        /* View Details - secondary action styling */
         #my-registrations-tbody .btn-secondary.btn-sm {
             border: 2px solid var(--navy-primary) !important;
             background-color: #ffffff !important;
             color: var(--navy-primary) !important;
-            padding: 0.5rem 1rem !important;
+            padding: 0.5rem 0.875rem !important;
             margin: 0 auto !important;
-            height: 36px !important;
-            min-height: 36px !important;
-            max-height: 36px !important;
-            width: 180px !important;
-            min-width: 180px !important;
-            max-width: 180px !important;
-            box-sizing: border-box !important;
             font-family: "Inter", sans-serif !important;
         }
 
@@ -562,17 +555,19 @@
         }
 
         #my-registrations-tbody .app-actions-wrap {
-            gap: 8px;
+            gap: 0.5rem;
         }
         
+        /* Responsive button sizing - proportional to screen, not overly large */
         #my-registrations-tbody td:last-child .btn-sm,
         #my-registrations-tbody .app-actions-cell .btn-sm {
-            width: 180px !important;
-            min-width: 180px !important;
-            max-width: 180px !important;
-            height: 36px !important;
+            width: auto !important;
+            min-width: auto !important;
+            max-width: none !important;
+            height: auto !important;
             min-height: 36px !important;
-            padding: 0.5rem 1rem !important;
+            padding: 0.5rem 0.875rem !important;
+            font-size: 0.8125rem !important;
             box-sizing: border-box !important;
         }
         
@@ -1878,13 +1873,22 @@
             justify-content: center;
         }
 
+        /* My Applications - Transfers table button consistency */
+        #my-transfers-tbody td:last-child .btn-sm {
+            padding: 0.5rem 0.875rem !important;
+            font-size: 0.8125rem !important;
+            min-height: 36px !important;
+            width: auto !important;
+        }
+
         @media (max-width: 768px) {
             .app-actions-wrap {
                 flex-direction: column;
-                gap: 12px;
+                gap: 0.5rem;
                 width: 100%;
             }
 
+            /* Mobile: compact, thumb-friendly buttons */
             .app-actions-wrap .btn-sm,
             .app-actions-wrap .btn-primary,
             .app-actions-wrap .btn-secondary {
@@ -1892,6 +1896,22 @@
                 max-width: 100% !important;
                 min-width: unset !important;
                 min-height: 44px !important;
+                padding: 0.625rem 1rem !important;
+                font-size: 0.875rem !important;
+            }
+
+            #my-registrations-tbody .app-actions-cell .btn-sm,
+            #my-transfers-tbody td:last-child .btn-sm {
+                min-height: 44px !important;
+                padding: 0.625rem 1rem !important;
+                font-size: 0.875rem !important;
+            }
+        }
+
+        @media (min-width: 769px) {
+            /* Desktop: balanced spacing, flexible width */
+            .app-actions-wrap .btn-sm {
+                width: auto !important;
             }
         }
 

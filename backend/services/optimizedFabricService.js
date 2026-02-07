@@ -279,6 +279,45 @@ class OptimizedFabricService {
         }
     }
 
+    // Update vehicle - Fabric only (for pre-minted vehicles needing owner assignment)
+    async updateVehicle(vehicleData) {
+        // Auto-reconnect if connection lost
+        if (!this.isConnected || this.mode !== 'fabric') {
+            console.log('⚠️ Fabric connection lost, attempting to reconnect...');
+            try {
+                await this.initialize();
+                console.log('✅ Fabric connection restored');
+            } catch (reconnectError) {
+                throw new Error(`Not connected to Fabric network and reconnection failed: ${reconnectError.message}`);
+            }
+        }
+
+        try {
+            if (!this.contract) {
+                throw new Error('Fabric contract not initialized. Connection may have been lost.');
+            }
+
+            const vehicleJson = JSON.stringify(vehicleData);
+            const transaction = this.contract.createTransaction('UpdateVehicle');
+            const fabricResult = await transaction.submit(vehicleJson);
+            const transactionId = transaction.getTransactionId();
+
+            const result = {
+                success: true,
+                message: 'Vehicle updated successfully on Fabric',
+                transactionId: transactionId,
+                vin: vehicleData.vin
+            };
+
+            console.log(`✅ Vehicle updated on Fabric: ${result.transactionId}`);
+            return result;
+
+        } catch (error) {
+            console.error('❌ Failed to update vehicle on Fabric:', error);
+            throw new Error(`Vehicle update failed: ${error.message}`);
+        }
+    }
+
     // Get vehicle - Fabric only
     // Accepts optional userContext for MSP-based filtering
     async getVehicle(vin, userContext = null) {

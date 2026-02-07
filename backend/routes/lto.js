@@ -53,7 +53,7 @@ const upload = multer({
             'application/vnd.ms-excel',
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
         ];
-        
+
         if (allowedMimes.includes(file.mimetype)) {
             cb(null, true);
         } else {
@@ -67,7 +67,7 @@ const upload = multer({
 router.post('/inspect', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { vehicleId, inspectionResult, roadworthinessStatus, inspectionOfficer, inspectionNotes, documentReferences } = req.body;
-        
+
         if (!vehicleId) {
             return res.status(400).json({
                 success: false,
@@ -294,7 +294,7 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin', 'lto_admin', 
         } catch (transferLinkError) {
             console.warn('⚠️ Failed to update transfer requests after inspection:', transferLinkError.message);
         }
-        
+
         res.json({
             success: true,
             message: 'Vehicle inspection completed successfully',
@@ -323,7 +323,7 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin', 'lto_admin', 
 router.post('/inspect-documents', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), upload.any(), async (req, res) => {
     try {
         const { vehicleId } = req.body;
-        
+
         if (!vehicleId) {
             return res.status(400).json({
                 success: false,
@@ -388,7 +388,7 @@ router.post('/inspect-documents', authenticateToken, authorizeRole(['admin', 'lt
 
     } catch (error) {
         console.error('Error uploading inspection documents:', error);
-        
+
         // Clean up uploaded files on error
         if (req.files) {
             req.files.forEach(file => {
@@ -512,7 +512,7 @@ router.get('/inspection/:vehicleId', authenticateToken, authorizeRole(['admin', 
 router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lto_admin', 'lto_officer']), async (req, res) => {
     try {
         const { vehicleId, notes } = req.body;
-        
+
         if (!vehicleId) {
             return res.status(400).json({
                 success: false,
@@ -531,11 +531,11 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
         // Check if all required verifications are complete
         const verifications = await db.getVehicleVerifications(vehicleId);
         const clearanceRequests = await db.getClearanceRequestsByVehicle(vehicleId);
-        
+
         // Collect pending and rejected approvals for comprehensive error reporting
         const pendingApprovals = [];
         const rejectedApprovals = [];
-        
+
         // Check HPG clearance - MUST exist and be APPROVED or COMPLETED
         const hpgRequest = clearanceRequests.find(r => r.request_type === 'hpg');
         if (!hpgRequest) {
@@ -547,7 +547,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                 pendingApprovals.push('HPG');
             }
         }
-        
+
         // Check insurance verification - MUST exist and be APPROVED
         const insuranceVerification = verifications.find(v => v.verification_type === 'insurance');
         if (!insuranceVerification) {
@@ -559,7 +559,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                 pendingApprovals.push('Insurance');
             }
         }
-        
+
         // Log validation check for debugging
         console.log(`[LTO Approval] Checking verifications for vehicle ${vehicleId}:`, {
             hpg: hpgRequest ? hpgRequest.status : 'MISSING',
@@ -567,7 +567,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
             pendingApprovals,
             rejectedApprovals
         });
-        
+
         // Block approval if any organizations are pending
         if (pendingApprovals.length > 0) {
             return res.status(400).json({
@@ -577,7 +577,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                 message: `The following organizations must approve before LTO can finalize: ${pendingApprovals.join(', ')}`
             });
         }
-        
+
         // Block approval if any organizations have rejected
         if (rejectedApprovals.length > 0) {
             return res.status(400).json({
@@ -629,7 +629,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                     // Get current user for inspection officer
                     const currentUser = await db.getUserById(req.user.userId);
                     const officerName = `${currentUser.first_name} ${currentUser.last_name}`;
-                    
+
                     // Auto-generate inspection with default values (PASS, ROADWORTHY, COMPLIANT)
                     const inspectionResult = await db.assignMvirNumber(vehicleId, {
                         inspectionResult: 'PASS',
@@ -637,12 +637,12 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                         inspectionOfficer: officerName,
                         inspectionNotes: 'Auto-generated during approval process (transfer of ownership)'
                     });
-                    
+
                     mvirNumber = inspectionResult.mvirNumber;
                     inspectionDate = inspectionResult.inspectionDate;
-                    
+
                     console.log(`[LTO Approval] Auto-generated transfer inspection: MVIR ${mvirNumber}`);
-                    
+
                     // Log auto-inspection to vehicle history
                     await db.addVehicleHistory({
                         vehicleId,
@@ -677,7 +677,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
         // CRITICAL: Blockchain registration is MANDATORY for vehicle registration
         // If blockchain fails, the entire approval must fail (blockchain is source of truth)
         let blockchainTxId = null;
-        
+
         // STRICT FABRIC: Enforce real blockchain service - NO FALLBACKS ALLOWED
         const blockchainMode = process.env.BLOCKCHAIN_MODE || 'fabric';
         if (blockchainMode !== 'fabric') {
@@ -688,7 +688,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                 message: 'BLOCKCHAIN_MODE must be set to "fabric". System requires real Hyperledger Fabric network. No fallback modes allowed.'
             });
         }
-        
+
         // Validate Fabric connection - MANDATORY
         if (!fabricService.isConnected || fabricService.mode !== 'fabric') {
             return res.status(503).json({
@@ -702,7 +702,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
         // Step 1: If vehicle is SUBMITTED, transition to PENDING_BLOCKCHAIN first
         // Step 2: Then validate transition from PENDING_BLOCKCHAIN to REGISTERED
         let currentStatus = vehicle.status;
-        
+
         if (currentStatus === VEHICLE_STATUS.SUBMITTED) {
             // First transition: SUBMITTED → PENDING_BLOCKCHAIN
             const step1Validation = validateVehicleStatusTransition(currentStatus, VEHICLE_STATUS.PENDING_BLOCKCHAIN);
@@ -716,7 +716,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                     newStatus: VEHICLE_STATUS.PENDING_BLOCKCHAIN
                 });
             }
-            
+
             // Update to PENDING_BLOCKCHAIN before blockchain registration
             await db.updateVehicle(vehicleId, {
                 status: VEHICLE_STATUS.PENDING_BLOCKCHAIN
@@ -724,7 +724,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
             console.log(`[LTO Approval] Vehicle status updated: ${currentStatus} → ${VEHICLE_STATUS.PENDING_BLOCKCHAIN}`);
             currentStatus = VEHICLE_STATUS.PENDING_BLOCKCHAIN;
         }
-        
+
         // Step 2: Validate transition from current status (now PENDING_BLOCKCHAIN) to REGISTERED
         const statusValidation = validateVehicleStatusTransition(currentStatus, VEHICLE_STATUS.REGISTERED);
         if (!statusValidation.valid) {
@@ -740,18 +740,18 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
 
         // Blockchain is ALWAYS required - proceed with registration
         {
-            
+
             try {
                 // Fetch vehicle documents and build document CIDs object
                 const documents = await db.getDocumentsByVehicle(vehicleId);
                 const documentCids = {};
                 const docTypes = require('../config/documentTypes');
-                
+
                 for (const doc of documents) {
                     if (doc.ipfs_cid) {
                         // Map database type to logical type
                         const logicalType = docTypes.mapToLogicalType(doc.document_type);
-                        
+
                         // Only include valid logical types (exclude 'other')
                         if (logicalType && logicalType !== 'other' && docTypes.isValidLogicalType(logicalType)) {
                             documentCids[logicalType] = {
@@ -762,9 +762,9 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                         }
                     }
                 }
-                
+
                 console.log(`[LTO Approval] Prepared ${Object.keys(documentCids).length} document(s) for blockchain registration`);
-                
+
                 // Get owner user details for blockchain record
                 let ownerData = vehicle.owner_name || vehicle.owner_email;
                 if (vehicle.owner_id) {
@@ -782,10 +782,10 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                         console.warn(`[LTO Approval] Could not fetch owner user details: ${ownerError.message}`);
                     }
                 }
-                
+
                 // Fetch current user to get employee_id
                 const currentUser = await db.getUserById(req.user.userId);
-                
+
                 const vehicleData = {
                     vin: vehicle.vin,
                     plateNumber: vehicle.plate_number,
@@ -819,12 +819,12 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                     if (existingVehicle && existingVehicle.success && existingVehicle.vehicle) {
                         vehicleExists = true;
                         // Get transaction ID from existing vehicle
-                        blockchainTxId = existingVehicle.vehicle.blockchainTxId || 
-                                        existingVehicle.vehicle.transactionId ||
-                                        existingVehicle.vehicle.lastTxId ||
-                                        existingVehicle.vehicle.history?.[0]?.transactionId ||
-                                        null;
-                        
+                        blockchainTxId = existingVehicle.vehicle.blockchainTxId ||
+                            existingVehicle.vehicle.transactionId ||
+                            existingVehicle.vehicle.lastTxId ||
+                            existingVehicle.vehicle.history?.[0]?.transactionId ||
+                            null;
+
                         if (blockchainTxId) {
                             console.log(`[LTO Approval] Vehicle already exists on blockchain. Using existing transaction ID: ${blockchainTxId}`);
                         } else {
@@ -835,7 +835,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                     // Vehicle doesn't exist on blockchain - proceed with registration
                     vehicleExists = false;
                 }
-                
+
                 // Only register if vehicle doesn't exist
                 if (!vehicleExists) {
                     // Initialize Fabric service with current user context for dynamic identity selection
@@ -845,32 +845,68 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                     });
                     const result = await fabricService.registerVehicle(vehicleData);
                     blockchainTxId = result.transactionId;
-                    
+
                     if (!blockchainTxId) {
                         throw new Error('Blockchain registration completed but no transaction ID returned');
                     }
-                    
+
                     console.log(`[LTO Approval] Vehicle registered on blockchain. Transaction ID: ${blockchainTxId}`);
                 } else {
-                    console.log(`[LTO Approval] Vehicle already on blockchain. Skipping registration. Status will be updated to REGISTERED.`);
+                    // Vehicle exists on chain - check if it needs owner assignment (pre-minted scenario)
+                    const existingVehicle = await fabricService.getVehicle(vehicle.vin);
+                    const onChainVehicle = existingVehicle?.vehicle;
+                    const onChainOwner = onChainVehicle?.owner;
+
+                    const needsOwnerUpdate = !onChainOwner || !onChainOwner.email;
+
+                    if (needsOwnerUpdate) {
+                        console.log(`[LTO Approval] Pre-minted vehicle found on blockchain without owner. Updating owner...`);
+
+                        await fabricService.initialize({
+                            role: req.user.role,
+                            email: req.user.email
+                        });
+
+                        // Prepare owner data for update
+                        const currentUser = await db.getUserById(req.user.userId);
+                        const updateResult = await fabricService.updateVehicle({
+                            vin: vehicle.vin,
+                            owner: ownerData,
+                            plateNumber: vehicle.plate_number,
+                            crNumber: crNumber,
+                            documents: documentCids,
+                            status: 'REGISTERED',
+                            officerInfo: {
+                                userId: req.user.userId,
+                                email: req.user.email,
+                                name: `${req.user.first_name || ''} ${req.user.last_name || ''}`.trim() || req.user.email,
+                                employeeId: currentUser?.employee_id || null
+                            }
+                        });
+
+                        blockchainTxId = updateResult.transactionId;
+                        console.log(`[LTO Approval] Pre-minted vehicle updated with owner. Transaction ID: ${blockchainTxId}`);
+                    } else {
+                        console.log(`[LTO Approval] Vehicle already on blockchain with owner. Skipping registration. Status will be updated to REGISTERED.`);
+                    }
                 }
             } catch (blockchainError) {
                 const errorMessage = blockchainError.message || blockchainError.toString();
-                const isAlreadyExists = errorMessage.includes('already exists') || 
-                                       (errorMessage.includes('Vehicle with VIN') && errorMessage.includes('already exists'));
-                
+                const isAlreadyExists = errorMessage.includes('already exists') ||
+                    (errorMessage.includes('Vehicle with VIN') && errorMessage.includes('already exists'));
+
                 if (isAlreadyExists) {
                     // Vehicle already exists - try to get transaction ID
                     console.log(`[LTO Approval] Vehicle already exists on blockchain. Attempting to retrieve transaction ID...`);
                     try {
                         const existingVehicle = await fabricService.getVehicle(vehicle.vin);
                         if (existingVehicle && existingVehicle.success && existingVehicle.vehicle) {
-                            blockchainTxId = existingVehicle.vehicle.blockchainTxId || 
-                                            existingVehicle.vehicle.transactionId ||
-                                            existingVehicle.vehicle.lastTxId ||
-                                            existingVehicle.vehicle.history?.[0]?.transactionId ||
-                                            null;
-                            
+                            blockchainTxId = existingVehicle.vehicle.blockchainTxId ||
+                                existingVehicle.vehicle.transactionId ||
+                                existingVehicle.vehicle.lastTxId ||
+                                existingVehicle.vehicle.history?.[0]?.transactionId ||
+                                null;
+
                             if (blockchainTxId) {
                                 console.log(`[LTO Approval] Recovered transaction ID from existing blockchain record: ${blockchainTxId}`);
                             } else {
@@ -898,7 +934,7 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                 }
             }
         }
-        
+
         // STRICT FABRIC: Validate blockchain transaction ID exists - MANDATORY
         if (!blockchainTxId) {
             console.error('❌ CRITICAL: Blockchain transaction ID missing after registration');
@@ -912,13 +948,13 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
         // PHASE 1 FIX: Validate blockchain transaction ID format
         // Fabric transaction IDs are 64-character hexadecimal strings (no hyphens)
         // UUIDs contain hyphens and are NOT blockchain transaction IDs
-        const isValidBlockchainTxId = blockchainTxId && 
-                                     typeof blockchainTxId === 'string' &&
-                                     blockchainTxId.length >= 40 && 
-                                     blockchainTxId.length <= 255 &&
-                                     !blockchainTxId.includes('-') &&
-                                     /^[0-9a-fA-F]+$/.test(blockchainTxId);
-        
+        const isValidBlockchainTxId = blockchainTxId &&
+            typeof blockchainTxId === 'string' &&
+            blockchainTxId.length >= 40 &&
+            blockchainTxId.length <= 255 &&
+            !blockchainTxId.includes('-') &&
+            /^[0-9a-fA-F]+$/.test(blockchainTxId);
+
         if (!isValidBlockchainTxId) {
             console.error('❌ CRITICAL: Invalid blockchain transaction ID format:', {
                 blockchainTxId,
@@ -967,11 +1003,11 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                 }
             });
         }
-        
+
         // Set registration expiry (1 year from now)
         const expiryService = require('../services/expiryService');
         await expiryService.setRegistrationExpiry(vehicleId, new Date());
-        
+
         // PHASE 3: Create BLOCKCHAIN_REGISTERED history entry with standardized action name
         await db.addVehicleHistory({
             vehicleId,
@@ -993,18 +1029,18 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
 
         // Send approval email to owner (only on successful blockchain registration)
         try {
-                if (vehicle.owner_id) {
-                    const ownerUser = await db.getUserById(vehicle.owner_id);
-                    const ownerEmail = ownerUser?.email || vehicle.owner_email;
-                    const ownerName = ownerUser ? `${ownerUser.first_name || ''} ${ownerUser.last_name || ''}`.trim() : (vehicle.owner_name || 'Owner');
-                    if (ownerEmail) {
-                        const appBaseUrl = process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org';
-                        const subject = 'Vehicle Registration Approved';
-                        const statusLabel = blockchainTxId ? 'REGISTERED' : 'APPROVED';
-                        const trackUrl = `${appBaseUrl}`;
-                        const downloadNote = 'You can download your OR/CR by logging in to your account.';
+            if (vehicle.owner_id) {
+                const ownerUser = await db.getUserById(vehicle.owner_id);
+                const ownerEmail = ownerUser?.email || vehicle.owner_email;
+                const ownerName = ownerUser ? `${ownerUser.first_name || ''} ${ownerUser.last_name || ''}`.trim() : (vehicle.owner_name || 'Owner');
+                if (ownerEmail) {
+                    const appBaseUrl = process.env.APP_BASE_URL || 'https://ltoblockchain.duckdns.org';
+                    const subject = 'Vehicle Registration Approved';
+                    const statusLabel = blockchainTxId ? 'REGISTERED' : 'APPROVED';
+                    const trackUrl = `${appBaseUrl}`;
+                    const downloadNote = 'You can download your OR/CR by logging in to your account.';
 
-                        const text = `
+                    const text = `
 Dear ${ownerName || 'Owner'},
 
 Your vehicle registration has been ${statusLabel}.
@@ -1023,7 +1059,7 @@ Thank you,
 TrustChain LTO Team
                         `.trim();
 
-                        const html = `
+                    const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -1074,12 +1110,12 @@ TrustChain LTO Team
 </html>
                         `.trim();
 
-                        await sendMail({ to: ownerEmail, subject, text, html });
-                        console.log('✅ Approval email sent to owner:', ownerEmail);
-                    } else {
-                        console.warn('⚠️ No owner email available, skipping approval email');
-                    }
+                    await sendMail({ to: ownerEmail, subject, text, html });
+                    console.log('✅ Approval email sent to owner:', ownerEmail);
+                } else {
+                    console.warn('⚠️ No owner email available, skipping approval email');
                 }
+            }
         } catch (emailError) {
             console.error('❌ Failed to send approval email:', emailError);
         }
@@ -1093,7 +1129,7 @@ TrustChain LTO Team
                 : `Clearance approved by ${req.user.email}. OR: ${orNumber || 'Pending'}, CR: ${crNumber || 'Pending'}. ${notes || 'All verifications complete.'}`,
             performedBy: req.user.userId,
             transactionId: blockchainTxId,
-            metadata: { 
+            metadata: {
                 notes,
                 blockchainTxId,
                 orNumber,
@@ -1156,14 +1192,14 @@ router.post('/scrap/:vehicleId', authenticateToken, authorizeRole(['admin', 'lto
     try {
         const { vehicleId } = req.params;
         const { scrapReason } = req.body;
-        
+
         if (!scrapReason) {
             return res.status(400).json({
                 success: false,
                 error: 'Scrap reason is required'
             });
         }
-        
+
         // Get vehicle
         const vehicle = await db.getVehicleById(vehicleId);
         if (!vehicle) {
@@ -1172,7 +1208,7 @@ router.post('/scrap/:vehicleId', authenticateToken, authorizeRole(['admin', 'lto
                 error: 'Vehicle not found'
             });
         }
-        
+
         // Cannot scrap already scrapped vehicles
         if (vehicle.status === 'SCRAPPED') {
             return res.status(400).json({
@@ -1180,10 +1216,10 @@ router.post('/scrap/:vehicleId', authenticateToken, authorizeRole(['admin', 'lto
                 error: 'Vehicle is already scrapped'
             });
         }
-        
+
         // Call chaincode to scrap on blockchain
         const blockchainResult = await fabricService.scrapVehicle(vehicle.vin, scrapReason);
-        
+
         // Update PostgreSQL
         const dbModule = require('../database/db');
         await dbModule.query(
@@ -1196,7 +1232,7 @@ router.post('/scrap/:vehicleId', authenticateToken, authorizeRole(['admin', 'lto
              WHERE id = $3`,
             [scrapReason, req.user.userId, vehicleId]
         );
-        
+
         // Revoke any active OR records
         await dbModule.query(
             `UPDATE certificates 
@@ -1204,7 +1240,7 @@ router.post('/scrap/:vehicleId', authenticateToken, authorizeRole(['admin', 'lto
              WHERE vehicle_id = $1 AND status = 'ACTIVE'`,
             [vehicleId]
         );
-        
+
         // Add to vehicle history
         await db.addVehicleHistory({
             vehicleId,
@@ -1217,13 +1253,13 @@ router.post('/scrap/:vehicleId', authenticateToken, authorizeRole(['admin', 'lto
                 blockchainTxId: blockchainResult.transactionId
             })
         });
-        
+
         res.json({
             success: true,
             message: 'Vehicle scrapped successfully',
             transactionId: blockchainResult.transactionId
         });
-        
+
     } catch (error) {
         console.error('Scrap vehicle error:', error);
         res.status(500).json({

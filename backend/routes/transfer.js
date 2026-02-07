@@ -52,6 +52,24 @@ function isAutoForwardEligible(request) {
     if (!AUTO_FORWARD_CONFIG.enabled) return false;
     const metadata = request?.metadata || {};
     if (!AUTO_FORWARD_CONFIG.includeExisting && metadata.autoForwardEligible !== true) return false;
+
+    // Require all buyer documents before auto-forwarding
+    // This ensures auto-forward only triggers after documents are complete, not at acceptance
+    const transferDocs = request.transferDocuments || [];
+    const presentRoles = new Set(transferDocs.map(d => d.document_type));
+
+    const requiredBuyerRoles = [
+        docTypes.TRANSFER_ROLES.BUYER_ID,
+        docTypes.TRANSFER_ROLES.BUYER_CTPL,
+        docTypes.TRANSFER_ROLES.BUYER_HPG_CLEARANCE
+    ];
+
+    const hasAllBuyerDocs = requiredBuyerRoles.every(role => presentRoles.has(role));
+    if (!hasAllBuyerDocs) {
+        console.log(`[AutoForward] Not eligible: missing buyer docs. Present: ${[...presentRoles].join(', ')}`);
+        return false;
+    }
+
     return true;
 }
 
@@ -1239,11 +1257,28 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
                         engineNumber: extractedData.engineNumber,
                         chassisNumber: extractedData.chassisNumber
                     });
+
+                    // Fuzzy string matching helper for OCR variations
+                    const normalizeForOCR = (str) => {
+                        if (!str) return '';
+                        return str.toUpperCase()
+                            .replace(/[^A-Z0-9]/g, '') // Remove non-alphanumeric
+                            .replace(/O/g, '0')        // O → 0
+                            .replace(/I/g, '1')        // I → 1
+                            .replace(/L/g, '1')        // L → 1
+                            .replace(/S/g, '5')        // S → 5
+                            .replace(/B/g, '8')        // B → 8
+                            .trim();
+                    };
+
+                    const fuzzyMatch = (a, b) => {
+                        if (!a || !b) return null;
+                        return normalizeForOCR(a) === normalizeForOCR(b);
+                    };
+
                     const dataMatch = {
-                        engineNumber: extractedData.engineNumber && request.vehicle.engine_number ?
-                            extractedData.engineNumber.toUpperCase().trim() === request.vehicle.engine_number.toUpperCase().trim() : null,
-                        chassisNumber: extractedData.chassisNumber && request.vehicle.chassis_number ?
-                            extractedData.chassisNumber.toUpperCase().trim() === request.vehicle.chassis_number.toUpperCase().trim() : null
+                        engineNumber: fuzzyMatch(extractedData.engineNumber, request.vehicle.engine_number),
+                        chassisNumber: fuzzyMatch(extractedData.chassisNumber, request.vehicle.chassis_number)
                     };
                     extractedData.dataMatch = dataMatch;
                     extractedData.ocrExtracted = true;
@@ -3401,7 +3436,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
             for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
                 try {
                     console.log(`[Transfer Approval] Attempting blockchain transfer (attempt ${attempt + 1}/${MAX_RETRIES})...`);
-                    
+
                     // Re-initialize Fabric connection before each retry to refresh discovery
                     if (attempt > 0) {
                         console.log(`[Transfer Approval] Re-initializing Fabric connection before retry...`);
@@ -3479,7 +3514,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
         } catch (blockchainError) {
             console.error('❌ CRITICAL: Blockchain transfer failed:', blockchainError.message);
             console.error('❌ Blockchain error stack:', blockchainError.stack);
-            
+
             // Provide more helpful error messages based on error type
             let userMessage = `Cannot complete transfer: ${blockchainError.message}`;
             let diagnostics = [];

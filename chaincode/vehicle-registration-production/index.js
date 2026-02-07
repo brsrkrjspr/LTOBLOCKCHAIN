@@ -186,6 +186,124 @@ class VehicleRegistrationContract extends Contract {
         }
     }
 
+    // Update an existing vehicle (e.g., set owner for pre-minted vehicles)
+    // Follows blockchain append-only principles - adds to history, does not overwrite
+    async UpdateVehicle(ctx, vehicleData) {
+        try {
+            const updates = JSON.parse(vehicleData);
+
+            // Validate required fields
+            if (!updates.vin) {
+                throw new Error('VIN is required for vehicle update');
+            }
+
+            // Check if vehicle exists
+            const existingBytes = await ctx.stub.getState(updates.vin);
+            if (!existingBytes || existingBytes.length === 0) {
+                throw new Error(`Vehicle with VIN ${updates.vin} not found`);
+            }
+
+            // Organization-based authorization (Permissioned Network)
+            // Only LTO organization can update vehicles
+            const clientMSPID = ctx.clientIdentity.getMSPID();
+            if (clientMSPID !== 'LTOMSP') {
+                throw new Error(`Unauthorized: Only LTO organization (LTOMSP) can update vehicles. Current MSP: ${clientMSPID}`);
+            }
+
+            const vehicle = JSON.parse(existingBytes.toString());
+            const txId = ctx.stub.getTxID();
+            const timestamp = this._getTxTimestamp(ctx);
+
+            // Track what was updated for history
+            const changedFields = [];
+
+            // Update owner if provided
+            if (updates.owner) {
+                if (!vehicle.owner || !vehicle.owner.email) {
+                    changedFields.push('owner (set)');
+                } else if (vehicle.owner.email !== updates.owner.email) {
+                    changedFields.push(`owner (${vehicle.owner.email} → ${updates.owner.email})`);
+                }
+                vehicle.owner = updates.owner;
+            }
+
+            // Update other allowed fields
+            if (updates.plateNumber !== undefined) {
+                changedFields.push('plateNumber');
+                vehicle.plateNumber = updates.plateNumber;
+            }
+            if (updates.crNumber !== undefined) {
+                changedFields.push('crNumber');
+                vehicle.crNumber = updates.crNumber;
+            }
+            if (updates.orNumber !== undefined) {
+                changedFields.push('orNumber');
+                // OR is stored separately, but we can update the reference
+            }
+            if (updates.documents !== undefined) {
+                changedFields.push('documents');
+                vehicle.documents = { ...vehicle.documents, ...updates.documents };
+            }
+            if (updates.status !== undefined) {
+                changedFields.push(`status (${vehicle.status} → ${updates.status})`);
+                vehicle.status = updates.status;
+            }
+
+            // Extract officer information if provided
+            const officerInfo = updates.officerInfo || {};
+
+            // Update timestamp
+            vehicle.lastUpdated = timestamp;
+
+            // Append to history (blockchain append-only)
+            vehicle.history.push({
+                action: 'UPDATED',
+                timestamp: timestamp,
+                performedBy: clientMSPID,
+                officerInfo: {
+                    userId: officerInfo.userId || null,
+                    email: officerInfo.email || null,
+                    name: officerInfo.name || null,
+                    employeeId: officerInfo.employeeId || null,
+                    mspId: clientMSPID
+                },
+                details: `Vehicle updated: ${changedFields.join(', ') || 'no changes'}`,
+                transactionId: txId
+            });
+
+            // Store updated vehicle
+            await ctx.stub.putState(updates.vin, Buffer.from(JSON.stringify(vehicle)));
+
+            // Update composite keys if owner changed
+            if (updates.owner && updates.owner.email) {
+                const ownerKey = ctx.stub.createCompositeKey('owner~vin', [updates.owner.email, updates.vin]);
+                await ctx.stub.putState(ownerKey, Buffer.from(updates.vin));
+            }
+
+            // Emit event
+            ctx.stub.setEvent('VehicleUpdated', Buffer.from(JSON.stringify({
+                vin: updates.vin,
+                changedFields: changedFields,
+                timestamp: timestamp,
+                transactionId: txId
+            })));
+
+            console.log(`Vehicle ${updates.vin} updated successfully. Changes: ${changedFields.join(', ')}`);
+            return JSON.stringify({
+                success: true,
+                message: 'Vehicle updated successfully',
+                vin: updates.vin,
+                changedFields: changedFields,
+                transactionId: txId,
+                timestamp: timestamp
+            });
+
+        } catch (error) {
+            console.error('Error updating vehicle:', error);
+            throw new Error(`Failed to update vehicle: ${error.message}`);
+        }
+    }
+
     // Get vehicle by VIN
     async GetVehicle(ctx, vin) {
         try {

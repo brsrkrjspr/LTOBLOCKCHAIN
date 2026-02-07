@@ -787,15 +787,25 @@ function renderDocuments(documentCategories) {
 
         documentCategories.forEach(doc => {
             const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
-            if (doc.is_vehicle_document || doc.source === 'vehicle' || doc.auto_included) {
-                vehicleDocuments.push(doc);
-            } else if (docType === 'deed_of_sale' || docType === 'seller_id') {
-                sellerDocuments.push(doc);
-            } else if (docType.startsWith('buyer_') || docType === 'buyer_id' || docType === 'buyer_tin' ||
+            const source = (doc.source || '').toLowerCase();
+
+            // Buyer docs: anything with buyer_ prefix OR uploaded by buyer
+            if (docType.startsWith('buyer_') || source === 'buyer' ||
+                docType === 'buyer_id' || docType === 'buyer_tin' ||
                 docType === 'buyer_ctpl' || docType === 'buyer_hpg_clearance') {
                 buyerDocuments.push(doc);
+                // HPG Clearance without buyer_ prefix but from transfer_documents = buyer's
+            } else if (docType === 'hpg_clearance' && doc.transfer_document_id) {
+                buyerDocuments.push(doc);
+                // Seller docs
+            } else if (docType === 'deed_of_sale' || docType === 'seller_id' || source === 'seller') {
+                sellerDocuments.push(doc);
+                // Vehicle docs: only from vehicle registration (is_vehicle_document or auto_included from vehicle)
+            } else if (doc.is_vehicle_document || doc.auto_included || source === 'vehicle') {
+                vehicleDocuments.push(doc);
             } else {
-                vehicleDocuments.push(doc); // Default to vehicle documents
+                // Default: don't add to any category (prevents buyer docs from leaking into vehicle)
+                console.log(`[renderDocuments] Unmatched doc: ${docType}, source: ${source}`);
             }
         });
 
@@ -816,9 +826,16 @@ function renderDocuments(documentCategories) {
         }
     });
 
+    // Filter vehicle docs to only show historical registration documents (CTPL, HPG, MVIR, CSR from registration)
+    // Exclude any buyer-related docs that might have leaked in
+    const historicalVehicleDocTypes = ['or_cr', 'registration_cert', 'registrationcert', 'insurance_cert', 'insurancecert',
+        'ctpl', 'hpg_clearance', 'mvir', 'csr', 'sales_invoice', 'owner_id', 'ownerid'];
     const normalizedVehicleDocuments = vehicleDocuments.filter(doc => {
         const docType = (doc.document_type || doc.type || doc.document_db_type || '').toLowerCase();
-        return !['deed_of_sale', 'seller_id', 'buyer_id', 'buyer_tin', 'buyer_ctpl', 'buyer_hpg_clearance'].includes(docType);
+        // Must be a known historical type AND not a buyer document
+        return historicalVehicleDocTypes.includes(docType.replace(/_/g, '').toLowerCase()) &&
+            !docType.startsWith('buyer_') &&
+            !['deed_of_sale', 'seller_id', 'buyer_id', 'buyer_tin', 'buyer_ctpl', 'buyer_hpg_clearance'].includes(docType);
     });
 
     console.log('[renderDocuments] Rendering categorized documents:', {
@@ -828,20 +845,32 @@ function renderDocuments(documentCategories) {
     });
 
     const totalDocs = normalizedVehicleDocuments.length + mergedSellerDocuments.length + buyerDocuments.length;
-    if (totalDocs === 0) {
-        documentsContainer.innerHTML = `
-            <div class="empty-state" style="text-align: center; padding: 2rem; color: #7f8c8d;">
-                <i class="fas fa-file-alt" style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
-                <p>No documents uploaded for this transfer request</p>
-            </div>
-        `;
-        return;
-    }
 
     // Render categorized documents
     let html = '';
 
-    // Vehicle Original Documents Section (owned by seller while transfer is not approved)
+    // OR/CR Certificate Buttons (system-generated, not uploaded)
+    if (currentTransferRequest?.vehicle?.id || currentTransferRequest?.vehicle_id) {
+        const vehicleId = currentTransferRequest?.vehicle?.id || currentTransferRequest?.vehicle_id;
+        html += `
+            <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
+                <h4 style="color: #6366f1; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                    <i class="fas fa-certificate" style="color: #818cf8;"></i>
+                    Official Certificates (System Generated)
+                </h4>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn-secondary" onclick="viewGeneratedCertificate('${vehicleId}', 'or')" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-file-alt"></i> View OR (Official Receipt)
+                    </button>
+                    <button class="btn-secondary" onclick="viewGeneratedCertificate('${vehicleId}', 'cr')" style="display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-file-alt"></i> View CR (Certificate of Registration)
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // Vehicle Original Documents Section (historical docs from previous registration/transfer)
     if (normalizedVehicleDocuments.length > 0) {
         html += `
             <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
@@ -849,7 +878,7 @@ function renderDocuments(documentCategories) {
                     <i class="fas fa-car" style="color: #8b5cf6;"></i>
                     Vehicle Original Documents
                     <span style="font-size: 0.875rem; font-weight: 400; color: #6b7280; margin-left: auto;">
-                        (Owned by seller until transfer approved)
+                        (From previous registration/transfer)
                     </span>
                 </h4>
                 <div class="documents-grid" style="margin-top: 0;">
@@ -889,8 +918,19 @@ function renderDocuments(documentCategories) {
         `;
     }
 
+    if (html === '' || (totalDocs === 0 && !currentTransferRequest?.vehicle?.id)) {
+        documentsContainer.innerHTML = `
+            <div class="empty-state" style="text-align: center; padding: 2rem; color: #7f8c8d;">
+                <i class="fas fa-file-alt" style="font-size: 3rem; margin-bottom: 1rem; display: block;"></i>
+                <p>No documents uploaded for this transfer request</p>
+            </div>
+        `;
+        return;
+    }
+
     documentsContainer.innerHTML = html;
 }
+
 
 function renderDocumentCard(doc) {
     const docId = doc.document_id || doc.id;
@@ -920,6 +960,43 @@ function renderDocumentCard(doc) {
             </div>
         </div>
     `;
+}
+
+// View system-generated certificates (OR/CR) 
+async function viewGeneratedCertificate(vehicleId, type) {
+    try {
+        // Open certificate generation page with the vehicle and type
+        const auth = getAuthData();
+        if (!auth || !auth.token) {
+            showToast('Please log in to view certificates', 'warning');
+            return;
+        }
+
+        // Open in new window/tab for viewing/downloading
+        const apiBase = window.API_BASE_URL || '/api';
+        const url = `${apiBase}/certificates/vehicle/${vehicleId}?type=${type}`;
+
+        // First check if the certificate endpoint exists
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${auth.token}`
+            }
+        });
+
+        if (response.ok) {
+            // Open certificate in new window
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            window.open(blobUrl, '_blank');
+        } else {
+            const errorData = await response.json().catch(() => ({}));
+            showToast(errorData.message || `Unable to load ${type.toUpperCase()} certificate`, 'error');
+        }
+    } catch (error) {
+        console.error('[viewGeneratedCertificate] Error:', error);
+        showToast(`Error loading certificate: ${error.message}`, 'error');
+    }
 }
 
 function getDocumentTypeLabel(type) {

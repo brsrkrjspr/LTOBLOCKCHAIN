@@ -41,12 +41,20 @@ docker compose -f docker-compose.unified.yml rm -f \
     orderer.lto.gov.ph cli chaincode-vehicle-reg \
     ca-lto ca-hpg ca-insurance 2>/dev/null || true
 
-# Clean CouchDB data (ledger state) since channel is being recreated
+# Clean CouchDB
 docker compose -f docker-compose.unified.yml stop couchdb 2>/dev/null || true
 docker compose -f docker-compose.unified.yml rm -f couchdb 2>/dev/null || true
-docker volume rm $(docker volume ls -q | grep couchdb) 2>/dev/null || true
 
-log_success "Fabric containers stopped"
+# Remove ALL Fabric-related Docker volumes (orderer ledger, peer ledgers, CouchDB, CAs)
+# This is critical: orderer-data stores old channel config and will reject new channel creation
+log_info "Removing Fabric Docker volumes..."
+COMPOSE_PROJECT=$(basename "$PROJECT_ROOT" | tr '[:upper:]' '[:lower:]')
+for vol in orderer-data peer-data peer-hpg-data peer-insurance-data couchdb-data ca-lto-data ca-hpg-data ca-insurance-data; do
+    docker volume rm "${COMPOSE_PROJECT}_${vol}" 2>/dev/null || \
+    docker volume rm "$(docker volume ls -q | grep "${vol}$")" 2>/dev/null || true
+done
+
+log_success "Fabric containers stopped and volumes cleaned"
 
 # ==========================================================
 # PHASE 2: CLEAN OLD CRYPTO & ARTIFACTS

@@ -123,6 +123,8 @@ async function linkTransferDocuments({ transferRequestId, documents = {}, upload
         'seller_id': docTypes.TRANSFER_ROLES.SELLER_ID,
         'buyerId': docTypes.TRANSFER_ROLES.BUYER_ID,
         'buyer_id': docTypes.TRANSFER_ROLES.BUYER_ID,
+        'ownerId': docTypes.TRANSFER_ROLES.BUYER_ID,    // Map generic ownerId to buyer_id for buyer uploads
+        'owner_id': docTypes.TRANSFER_ROLES.BUYER_ID,   // Snake_case variant
         // OR/CR removed: Not required for transfer requests. System automatically generates new OR/CR after transfer completion.
         // 'orCr': docTypes.TRANSFER_ROLES.OR_CR, // DEPRECATED
         // 'or_cr': docTypes.TRANSFER_ROLES.OR_CR, // DEPRECATED
@@ -1793,7 +1795,8 @@ router.post('/requests', authenticateToken, authorizeRole(['vehicle_owner', 'adm
                 status: [
                     TRANSFER_STATUS.PENDING,
                     TRANSFER_STATUS.AWAITING_BUYER_DOCS,
-                    TRANSFER_STATUS.UNDER_REVIEW
+                    TRANSFER_STATUS.UNDER_REVIEW,
+                    TRANSFER_STATUS.FORWARDED_TO_HPG  // Include transfers waiting for HPG/Insurance verification
                 ]
             });
         } catch (checkError) {

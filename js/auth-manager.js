@@ -45,10 +45,12 @@ class AuthManager {
                 }
             }
             
-            // THEN: Check if user has a refresh token cookie (indicates logged in)
-            const hasRefreshToken = this.getCookie('refreshToken');
-            
-            if (hasRefreshToken) {
+            // THEN: Check if user has an active session
+            // NOTE: refreshToken cookie is HttpOnly so JS can't read it directly.
+            // Use XSRF-TOKEN cookie (set at login with same lifetime) or stored user as session indicator.
+            const hasSession = this.getCsrfToken() || localStorage.getItem('currentUser');
+
+            if (hasSession) {
                 // If we don't have a valid token, refresh immediately
                 if (!this.accessToken) {
                     console.log('🔄 No valid access token, refreshing...');

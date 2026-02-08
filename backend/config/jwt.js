@@ -11,7 +11,7 @@ if (!process.env.JWT_SECRET) {
 
 // Access token configuration
 const ACCESS_TOKEN_SECRET = process.env.JWT_SECRET;
-const ACCESS_TOKEN_EXPIRY = process.env.JWT_ACCESS_EXPIRY || '10m'; // 10 minutes
+const ACCESS_TOKEN_EXPIRY = process.env.JWT_ACCESS_EXPIRY || '2h'; // 2 hours (government work session)
 
 // Refresh token configuration
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET + '_refresh';

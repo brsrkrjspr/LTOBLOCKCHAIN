@@ -1,7 +1,7 @@
 // My Vehicle Ownership - Owner JavaScript
 // Handles vehicle ownership history for current user
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     initializeMyOwnership();
 });
 
@@ -24,7 +24,7 @@ function initializeMyOwnership() {
     const sidebar = document.querySelector('.dashboard-sidebar');
     const logoToggle = document.getElementById('logoToggle');
     if (logoToggle && sidebar) {
-        logoToggle.addEventListener('click', function() {
+        logoToggle.addEventListener('click', function () {
             sidebar.classList.toggle('collapsed');
             localStorage.setItem('ownerSidebarCollapsed', sidebar.classList.contains('collapsed') ? 'true' : 'false');
         });
@@ -33,7 +33,7 @@ function initializeMyOwnership() {
     // Logout
     const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
     if (sidebarLogoutBtn) {
-        sidebarLogoutBtn.addEventListener('click', function(e) {
+        sidebarLogoutBtn.addEventListener('click', function (e) {
             e.preventDefault();
             if (confirm('Are you sure you want to logout?')) {
                 if (typeof AuthUtils !== 'undefined') {
@@ -48,7 +48,7 @@ function initializeMyOwnership() {
 
     // Load vehicles
     loadMyVehicles();
-    
+
     // Load transfer requests (where user is seller)
     loadMyTransferRequests();
 }
@@ -62,13 +62,13 @@ async function loadMyVehicles() {
 
         // Get ownership history for current user
         const response = await apiClient.get('/api/vehicles/my-vehicles/ownership-history');
-        
+
         if (!response.success) {
             throw new Error(response.error || 'Failed to load ownership history');
         }
 
         myVehiclesData = response.ownershipHistory || [];
-        
+
         // Display vehicles list
         displayVehiclesList(myVehiclesData);
 
@@ -110,14 +110,14 @@ function displayVehiclesList(ownershipHistory) {
 
         // Normalize status for comparison (handle both uppercase and lowercase)
         const status = (vehicle.status || '').toUpperCase().trim();
-        
+
         // TRANSFER_COMPLETED should be treated as REGISTERED (it's a temporary status that should be reverted)
         // Also handle TRANSFER_IN_PROGRESS which might appear in pending vehicles
-        const normalizedStatus = (status === 'TRANSFER_COMPLETED' || status === 'TRANSFER_IN_PROGRESS') 
-            ? 'REGISTERED' 
+        const normalizedStatus = (status === 'TRANSFER_COMPLETED' || status === 'TRANSFER_IN_PROGRESS')
+            ? 'REGISTERED'
             : status;
-        
-        const isApprovedOrRegistered = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.isApprovedOrRegistered) 
+
+        const isApprovedOrRegistered = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.isApprovedOrRegistered)
             ? window.StatusUtils.isApprovedOrRegistered(normalizedStatus)
             : (normalizedStatus === 'APPROVED' || normalizedStatus === 'REGISTERED');
 
@@ -181,7 +181,7 @@ function displayVehiclesList(ownershipHistory) {
 // Create origin type badge helper function
 function createOriginTypeBadge(vehicle) {
     const originType = vehicle.origin_type || vehicle.originType || 'NEW_REG';
-    
+
     if (originType === 'TRANSFER') {
         return '<span class="badge badge-green" style="background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: white; padding: 0.4rem 0.8rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.4rem;"><i class="fas fa-exchange-alt"></i> Transferred</span>';
     } else {
@@ -199,7 +199,7 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
         vehicle.make ? vehicle.make : '',
         vehicle.model ? vehicle.model : ''
     ].filter(Boolean).join(' ') || 'Vehicle';
-    
+
     const color = vehicle.color ? ` • ${vehicle.color}` : '';
     const vehicleType = vehicle.vehicleType || vehicle.vehicle_type ? ` • ${vehicle.vehicleType || vehicle.vehicle_type}` : '';
 
@@ -223,9 +223,9 @@ function createVehicleCard(vehicle, isCurrent, historyCount) {
     const vehicleExtras = [vehicle.color || '', vehicle.vehicleType || vehicle.vehicle_type || ''].filter(Boolean).join(' • ');
 
     // Format dates
-    const regDateFormatted = registrationDate ? 
-        new Date(registrationDate).toLocaleDateString('en-US', { 
-            year: 'numeric', month: 'short', day: 'numeric' 
+    const regDateFormatted = registrationDate ?
+        new Date(registrationDate).toLocaleDateString('en-US', {
+            year: 'numeric', month: 'short', day: 'numeric'
         }) : 'N/A';
 
     card.innerHTML = `
@@ -357,7 +357,7 @@ async function viewOwnershipHistory(vinOrId, plateNumber) {
             // Try to get by ID or find in my vehicles
             const myVehiclesResponse = await apiClient.get('/api/vehicles/my-vehicles/ownership-history');
             if (myVehiclesResponse.success) {
-                const vehicleData = myVehiclesResponse.ownershipHistory.find(v => 
+                const vehicleData = myVehiclesResponse.ownershipHistory.find(v =>
                     v.vehicle.id === vinOrId || v.vehicle.vin === vinOrId
                 );
                 if (vehicleData) {
@@ -397,6 +397,13 @@ function displayOwnershipTimeline(vehicleData) {
     // Hide vehicle lists, show timeline
     if (myVehiclesList) myVehiclesList.style.display = 'none';
     if (pendingVehiclesList) pendingVehiclesList.style.display = 'none';
+
+    // Also hide transfer request sections
+    const myTransferRequestsList = document.getElementById('myTransferRequestsList');
+    const incomingTransfersList = document.getElementById('incomingTransfersList');
+    if (myTransferRequestsList) myTransferRequestsList.style.display = 'none';
+    if (incomingTransfersList) incomingTransfersList.style.display = 'none';
+
     if (timelineContainer) timelineContainer.classList.add('active');
 
     // Clear and populate timeline
@@ -478,7 +485,7 @@ function createLimitedTimelineNode(period, vehicle, isCurrent) {
     const startDate = period.performed_at || period.timestamp || period.startDate || new Date().toISOString();
     const endDate = period.metadata?.endDate || period.endDate || (isCurrent ? null : startDate);
     const transactionId = period.transaction_id || period.transactionId || period.metadata?.transactionId || null;
-    
+
     // Calculate duration
     const startDateObj = new Date(startDate);
     const endDateObj = endDate ? new Date(endDate) : new Date();
@@ -488,7 +495,7 @@ function createLimitedTimelineNode(period, vehicle, isCurrent) {
     const remainingDays = durationDays % 365;
     const durationMonths = Math.floor(remainingDays / 30);
     const finalDays = remainingDays % 30;
-    
+
     let durationText = '';
     if (durationYears > 0) {
         durationText = `${durationYears} year${durationYears > 1 ? 's' : ''}`;
@@ -503,35 +510,35 @@ function createLimitedTimelineNode(period, vehicle, isCurrent) {
     } else {
         durationText = `${durationDays} day${durationDays !== 1 ? 's' : ''}`;
     }
-    
+
     // Mask transaction ID (first 8 chars + "..." + last 4 chars)
     const maskedTxId = transactionId && transactionId.length >= 12
         ? `${transactionId.substring(0, 8)}...${transactionId.substring(transactionId.length - 4)}`
         : null;
-    
+
     // Determine action type
-    const actionType = period.action === 'OWNERSHIP_TRANSFERRED' 
-        ? 'Ownership Transfer' 
+    const actionType = period.action === 'OWNERSHIP_TRANSFERRED'
+        ? 'Ownership Transfer'
         : period.action === 'REGISTERED' || period.action === 'BLOCKCHAIN_REGISTERED'
-        ? 'Initial Registration'
-        : period.action || 'Ownership Record';
-    
+            ? 'Initial Registration'
+            : period.action || 'Ownership Record';
+
     const actionDescription = period.action === 'OWNERSHIP_TRANSFERRED'
         ? 'Vehicle ownership was transferred'
         : period.action === 'REGISTERED' || period.action === 'BLOCKCHAIN_REGISTERED'
-        ? 'Vehicle was initially registered'
-        : 'Ownership record created';
+            ? 'Vehicle was initially registered'
+            : 'Ownership record created';
 
-    const startDateFormatted = new Date(startDate).toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+    const startDateFormatted = new Date(startDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
     });
-    const endDateFormatted = endDate ? 
-        new Date(endDate).toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
+    const endDateFormatted = endDate ?
+        new Date(endDate).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
         }) : 'Present';
 
     const periodTitle = isCurrent ? 'Current Ownership Period' : 'Previous Ownership Period';
@@ -603,21 +610,38 @@ function backToVehicleList() {
     const pendingVehiclesList = document.getElementById('pendingVehiclesList');
     const timelineContainer = document.getElementById('limitedTimelineContainer');
 
+    const myTransferRequestsList = document.getElementById('myTransferRequestsList');
+    const incomingTransfersList = document.getElementById('incomingTransfersList');
+
     // Show vehicle lists if they have content, hide timeline
-    if (myVehiclesList && myVehiclesList.querySelector('#myVehiclesContent')?.children.length > 0) {
-        myVehiclesList.style.display = 'block';
-    }
-    if (pendingVehiclesList && pendingVehiclesList.querySelector('#pendingVehiclesContent')?.children.length > 0) {
-        pendingVehiclesList.style.display = 'block';
-    }
     if (timelineContainer) timelineContainer.classList.remove('active');
 
-    // Scroll to first visible vehicle list
-    if (myVehiclesList && myVehiclesList.style.display !== 'none') {
-        myVehiclesList.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else if (pendingVehiclesList && pendingVehiclesList.style.display !== 'none') {
-        pendingVehiclesList.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Restore Transfer Requests (Seller)
+    if (myTransferRequestsList && document.getElementById('myTransferRequestsContent')?.children.length > 0) {
+        myTransferRequestsList.style.display = 'block';
     }
+
+    // Restore Incoming Transfer Requests (Buyer)
+    if (incomingTransfersList && document.getElementById('incomingTransfersContent')?.children.length > 0) {
+        incomingTransfersList.style.display = 'block';
+    }
+
+    // Restore My Vehicles and Pending Vehicles
+    // IMPORTANT: Re-display functionality to ensure lists are visible and not stuck in loading state
+    if (typeof displayVehiclesList === 'function' && Array.isArray(myVehiclesData)) {
+        displayVehiclesList(myVehiclesData);
+    } else {
+        // Fallback if data not available
+        if (myVehiclesList && myVehiclesList.querySelector('#myVehiclesContent')?.children.length > 0) {
+            myVehiclesList.style.display = 'block';
+        }
+        if (pendingVehiclesList && pendingVehiclesList.querySelector('#pendingVehiclesContent')?.children.length > 0) {
+            pendingVehiclesList.style.display = 'block';
+        }
+    }
+
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function verifyOwnershipPeriod(plateNumber, startDate, endDate, isCurrent) {
@@ -625,10 +649,10 @@ function verifyOwnershipPeriod(plateNumber, startDate, endDate, isCurrent) {
     if (!modal) return;
 
     // Find the vehicle
-    const vehicleData = myVehiclesData.find(v => 
+    const vehicleData = myVehiclesData.find(v =>
         (v.vehicle.plateNumber || v.vehicle.plate_number) === plateNumber
     );
-    
+
     if (!vehicleData) {
         showError('Vehicle data not found');
         return;
@@ -638,32 +662,32 @@ function verifyOwnershipPeriod(plateNumber, startDate, endDate, isCurrent) {
     const period = vehicleData.history.find(p => {
         const pStart = p.performed_at || p.timestamp || p.startDate;
         const pEnd = p.metadata?.endDate || p.endDate;
-        return pStart === startDate && 
-               (pEnd === endDate || (pEnd === null && endDate === 'Present'));
+        return pStart === startDate &&
+            (pEnd === endDate || (pEnd === null && endDate === 'Present'));
     });
 
     // Format dates
-    const startDateFormatted = new Date(startDate).toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+    const startDateFormatted = new Date(startDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
     });
-    const endDateFormatted = endDate === 'Present' ? 'Present' : 
-        new Date(endDate).toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
+    const endDateFormatted = endDate === 'Present' ? 'Present' :
+        new Date(endDate).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
         });
 
     // Update modal content
     const verifyPlateNumber = document.getElementById('verifyPlateNumber');
     const verifyOwnershipPeriod = document.getElementById('verifyOwnershipPeriod');
     const verifyStatus = document.getElementById('verifyStatus');
-    
+
     if (verifyPlateNumber) verifyPlateNumber.textContent = plateNumber;
     if (verifyOwnershipPeriod) verifyOwnershipPeriod.textContent = `${startDateFormatted} - ${endDateFormatted}`;
     if (verifyStatus) {
-        verifyStatus.innerHTML = isCurrent ? 
+        verifyStatus.innerHTML = isCurrent ?
             '<span class="badge-current-limited"><i class="fas fa-star"></i> Current Ownership</span>' :
             '<span class="badge-verified-limited"><i class="fas fa-check"></i> Previous Ownership</span>';
     }
@@ -706,7 +730,7 @@ function showLoading() {
     const myVehiclesContent = document.getElementById('myVehiclesContent');
     const pendingVehiclesContent = document.getElementById('pendingVehiclesContent');
     const emptyState = document.getElementById('emptyState');
-    
+
     if (emptyState) emptyState.style.display = 'none';
     if (myVehiclesContent) {
         myVehiclesContent.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>Loading...</h3></div>';
@@ -726,11 +750,11 @@ function showError(message) {
     } else {
         alert(message);
     }
-    
+
     const myVehiclesContent = document.getElementById('myVehiclesContent');
     const pendingVehiclesContent = document.getElementById('pendingVehiclesContent');
     const emptyState = document.getElementById('emptyState');
-    
+
     if (myVehiclesContent) myVehiclesContent.innerHTML = '';
     if (pendingVehiclesContent) pendingVehiclesContent.innerHTML = '';
     if (emptyState) {
@@ -755,7 +779,7 @@ async function downloadVehicleCertificate(vehicleId, orCrNumber) {
     console.log('=== downloadVehicleCertificate START ===');
     console.log('Vehicle ID:', vehicleId);
     console.log('OR/CR Number:', orCrNumber);
-    
+
     try {
         // Show loading notification
         if (typeof ToastNotification !== 'undefined') {
@@ -771,20 +795,20 @@ async function downloadVehicleCertificate(vehicleId, orCrNumber) {
 
         const apiClient = window.apiClient || new APIClient();
         console.log('API Client ready');
-        
+
         // Get vehicle details
         console.log('Fetching vehicle details from API...');
         const vehicleResponse = await apiClient.get(`/api/vehicles/id/${vehicleId}`);
         console.log('Vehicle API response:', vehicleResponse);
-        
+
         if (!vehicleResponse.success) {
             throw new Error(vehicleResponse.error || 'Failed to load vehicle data');
         }
-        
+
         const vehicle = vehicleResponse.vehicle;
         console.log('Vehicle data:', vehicle);
         console.log('Vehicle OR/CR from API:', vehicle.or_cr_number);
-        
+
         // Get owner details
         console.log('Fetching owner profile...');
         let owner = { email: 'N/A' };
@@ -798,12 +822,12 @@ async function downloadVehicleCertificate(vehicleId, orCrNumber) {
             console.warn('Could not load owner profile:', e);
         }
         console.log('Owner data:', owner);
-        
+
         // Generate certificate
         console.log('Calling CertificateGenerator.generateCertificate...');
         const result = await CertificateGenerator.generateCertificate(vehicle, owner);
         console.log('Certificate generation result:', result);
-        
+
         // Show success message
         if (result && result.method === 'download') {
             if (typeof ToastNotification !== 'undefined') {
@@ -814,14 +838,14 @@ async function downloadVehicleCertificate(vehicleId, orCrNumber) {
                 ToastNotification.show('Certificate opened! Use Print dialog to save as PDF.', 'success');
             }
         }
-        
+
         console.log('=== downloadVehicleCertificate SUCCESS ===');
-        
+
     } catch (error) {
         console.error('=== downloadVehicleCertificate ERROR ===');
         console.error('Error:', error.message);
         console.error('Stack:', error.stack);
-        
+
         if (typeof ToastNotification !== 'undefined') {
             ToastNotification.show(`Error: ${error.message}`, 'error');
         } else {
@@ -838,7 +862,7 @@ function transferVehicle(vehicleId, plateNumber) {
     // Store vehicle ID in sessionStorage for transfer-ownership.html to pick up
     sessionStorage.setItem('selectedVehicleId', vehicleId);
     sessionStorage.setItem('selectedVehiclePlate', plateNumber || '');
-    
+
     // Redirect to transfer ownership page
     window.location.href = 'transfer-ownership.html';
 }
@@ -847,38 +871,38 @@ function transferVehicle(vehicleId, plateNumber) {
 async function loadMyTransferRequests() {
     try {
         const apiClient = window.apiClient || new APIClient();
-        
+
         // Get transfer requests where user is seller
         const response = await apiClient.get('/api/vehicles/transfer/requests?status=REJECTED,UNDER_REVIEW,AWAITING_BUYER_DOCS,PENDING');
-        
+
         if (!response.success) {
             console.warn('Failed to load transfer requests:', response.error);
             return;
         }
-        
+
         const requests = response.requests || [];
-        
+
         // Filter to only show rejected or pending requests (where document updates are needed)
         const updateableRequests = requests.filter(req => {
             const status = (req.status || '').toUpperCase();
-            const normalized = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus) 
+            const normalized = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus)
                 ? window.StatusUtils.normalizeStatus(req.status)
                 : status.toLowerCase();
-            return (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.canUpdateDocuments) 
+            return (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.canUpdateDocuments)
                 ? window.StatusUtils.canUpdateDocuments(req.status)
                 : (status === 'REJECTED' || status === 'UNDER_REVIEW' || status === 'AWAITING_BUYER_DOCS' || status === 'PENDING');
         });
-        
+
         if (updateableRequests.length === 0) {
             // Hide section if no updateable requests
             const listEl = document.getElementById('myTransferRequestsList');
             if (listEl) listEl.style.display = 'none';
             return;
         }
-        
+
         // Display transfer requests
         displayMyTransferRequests(updateableRequests);
-        
+
     } catch (error) {
         console.error('Error loading transfer requests:', error);
         // Don't show error to user - this is a secondary feature
@@ -890,21 +914,21 @@ function displayMyTransferRequests(requests) {
     const listEl = document.getElementById('myTransferRequestsList');
     const contentEl = document.getElementById('myTransferRequestsContent');
     const countEl = document.getElementById('myTransferRequestsCount');
-    
+
     if (!listEl || !contentEl) {
         console.error('Transfer requests DOM elements not found');
         return;
     }
-    
+
     // Show section
     listEl.style.display = 'block';
-    
+
     // Update count
     if (countEl) countEl.textContent = requests.length;
-    
+
     // Clear existing content
     contentEl.innerHTML = '';
-    
+
     // Create cards for each transfer request
     requests.forEach(request => {
         const card = createTransferRequestCard(request);
@@ -917,19 +941,19 @@ function createTransferRequestCard(request) {
     const card = document.createElement('div');
     card.className = 'vehicle-card';
     card.style.marginBottom = '1rem';
-    
+
     const vehicle = request.vehicle || {};
     const status = (request.status || '').toUpperCase();
-    const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus) 
+    const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus)
         ? window.StatusUtils.normalizeStatus(request.status)
         : status.toLowerCase();
-    const canUpdate = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.canUpdateDocuments) 
+    const canUpdate = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.canUpdateDocuments)
         ? window.StatusUtils.canUpdateDocuments(request.status)
         : ['rejected', 'under_review', 'awaiting_buyer_docs', 'pending'].includes(normalizedStatus);
-    
+
     // Get rejection reason if available
     const rejectionReason = request.rejectionReason || request.rejection_reason || null;
-    
+
     // Format date
     const createdDate = request.created_at || request.createdAt;
     const dateFormatted = createdDate ? new Date(createdDate).toLocaleDateString('en-US', {
@@ -937,12 +961,12 @@ function createTransferRequestCard(request) {
         month: 'short',
         day: 'numeric'
     }) : 'N/A';
-    
+
     // Get buyer name
-    const buyerName = request.buyer_name || 
-                     (request.buyer_info && request.buyer_info.email ? request.buyer_info.email : 'Pending') ||
-                     'Pending';
-    
+    const buyerName = request.buyer_name ||
+        (request.buyer_info && request.buyer_info.email ? request.buyer_info.email : 'Pending') ||
+        'Pending';
+
     card.innerHTML = `
         <div style="padding: 1.5rem; border: 1px solid #e2e8f0; border-radius: 8px; background: white;">
             <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 1rem;">
@@ -981,7 +1005,7 @@ function createTransferRequestCard(request) {
             ` : ''}
         </div>
     `;
-    
+
     return card;
 }
 
@@ -990,29 +1014,29 @@ async function showTransferRequestDetails(requestId) {
     try {
         // Store request ID for refreshing after document upload
         window.currentTransferRequestIdForDetails = requestId;
-        
+
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get(`/api/vehicles/transfer/requests/${requestId}`);
-        
+
         if (!response.success || !response.transferRequest) {
             throw new Error(response.error || 'Failed to load transfer request');
         }
-        
+
         const request = response.transferRequest;
         const vehicle = request.vehicle || {};
         const documents = request.documents || [];
         const status = (request.status || '').toUpperCase();
-        const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus) 
+        const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus)
             ? window.StatusUtils.normalizeStatus(request.status)
             : status.toLowerCase();
         // Allow document uploads when PENDING (accepting), AWAITING_BUYER_DOCS, or UNDER_REVIEW (updates)
         const canUpdate = status === 'PENDING' || status === 'AWAITING_BUYER_DOCS' || status === 'UNDER_REVIEW' || normalizedStatus === 'under_review';
-        
+
         // Create modal using existing CSS classes
         const modal = document.createElement('div');
         modal.id = 'transferRequestDetailsModal';
         modal.className = 'modal active';
-        
+
         // Buyer-required documents only (seller already submitted Deed of Sale, Valid ID; OR/CR is bound to vehicle)
         const buyerDocumentTypes = [
             { key: 'buyer_id', label: 'Valid ID', icon: 'fa-id-card', type: 'id' },
@@ -1020,7 +1044,7 @@ async function showTransferRequestDetails(requestId) {
             { key: 'buyer_hpg_clearance', label: 'HPG Clearance', icon: 'fa-shield-alt', type: 'other' },
             { key: 'buyer_ctpl', label: 'CTPL (Insurance)', icon: 'fa-shield-alt', type: 'insurance' }
         ];
-        
+
         // Build documents map
         const documentsMap = {};
         documents.forEach(doc => {
@@ -1031,14 +1055,14 @@ async function showTransferRequestDetails(requestId) {
                 type: key
             };
         });
-        
+
         // Show seller documents as read-only (already submitted by seller)
         const sellerDocumentsHTML = [];
         const sellerDocTypes = [
             { key: 'deed_of_sale', label: 'Deed of Sale', icon: 'fa-file-contract' },
             { key: 'seller_id', label: 'Seller Valid ID', icon: 'fa-user-tag' }
         ];
-        
+
         sellerDocTypes.forEach(docType => {
             const docData = documentsMap[docType.key];
             if (docData) {
@@ -1063,14 +1087,14 @@ async function showTransferRequestDetails(requestId) {
                 `);
             }
         });
-        
+
         // Show buyer-required documents with inline upload capability (mirroring seller wizard pattern)
         let buyerDocumentsHTML = '';
         buyerDocumentTypes.forEach(docType => {
             const docData = documentsMap[docType.key];
             const uniqueId = `buyer-${docType.key}-${requestId}`;
             const isUploaded = !!docData;
-            
+
             if (isUploaded) {
                 // Document already uploaded - show with view option and update capability
                 buyerDocumentsHTML += `
@@ -1118,11 +1142,11 @@ async function showTransferRequestDetails(requestId) {
                 `;
             }
         });
-        
+
         // Keep seller and buyer HTML separate for rendering with section headers
         const sellerDocumentsSectionHTML = sellerDocumentsHTML.join('');
         const buyerDocumentsSectionHTML = buyerDocumentsHTML;
-        
+
         modal.innerHTML = `
             <div class="modal-content modal-large">
                 <div class="modal-header">
@@ -1227,10 +1251,10 @@ async function showTransferRequestDetails(requestId) {
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(modal);
         document.body.style.overflow = 'hidden';
-        
+
     } catch (error) {
         console.error('Error showing transfer request details:', error);
         if (typeof ToastNotification !== 'undefined') {
@@ -1273,7 +1297,7 @@ async function updateTransferDocument(docKey, docLabel, docId, transferRequestId
         window.showDocumentUpdateModal(docKey, docLabel, docId, transferRequestId, true, transferRequestId, vehicleId);
         return;
     }
-    
+
     // Create our own modal for transfer requests
     showTransferDocumentUploadModal(docKey, docLabel, docId, transferRequestId, vehicleId);
 }
@@ -1285,12 +1309,12 @@ function showTransferDocumentUploadModal(docKey, docLabel, docId, transferReques
     if (existingModal) {
         existingModal.remove();
     }
-    
+
     // Create modal
     const modal = document.createElement('div');
     modal.id = 'transferDocumentUploadModal';
     modal.className = 'modal active';
-    
+
     modal.innerHTML = `
         <div class="modal-content modal-large">
             <div class="modal-header">
@@ -1337,30 +1361,30 @@ function showTransferDocumentUploadModal(docKey, docLabel, docId, transferReques
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
-    
+
     // Store context
     window.currentTransferDocKey = docKey;
     window.currentTransferDocId = docId;
     window.currentTransferRequestId = transferRequestId;
     window.currentTransferVehicleId = vehicleId;
-    
+
     // Setup file input
     const fileInput = document.getElementById('transferDocumentFile');
     const fileNameDiv = document.getElementById('transferDocumentFileName');
     const label = document.getElementById('label-transferDocumentFile');
-    
+
     if (label && fileInput) {
-        label.onclick = function(e) {
+        label.onclick = function (e) {
             e.preventDefault();
             fileInput.click();
         };
     }
-    
+
     if (fileInput) {
-        fileInput.onchange = function() {
+        fileInput.onchange = function () {
             if (this.files && this.files.length > 0) {
                 const fileName = this.files[0].name;
                 if (fileNameDiv) {
@@ -1394,7 +1418,7 @@ async function submitTransferDocument(docKey, transferRequestId, vehicleId) {
     const fileInput = document.getElementById('transferDocumentFile');
     const errorDiv = document.getElementById('transferDocumentError');
     const submitBtn = document.getElementById('submitTransferDocumentBtn');
-    
+
     if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
         if (errorDiv) {
             errorDiv.style.display = 'block';
@@ -1402,26 +1426,26 @@ async function submitTransferDocument(docKey, transferRequestId, vehicleId) {
         }
         return;
     }
-    
+
     const file = fileInput.files[0];
-    
+
     // Disable submit button
     if (submitBtn) {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
     }
-    
+
     if (errorDiv) {
         errorDiv.style.display = 'none';
         errorDiv.textContent = '';
     }
-    
+
     try {
         // Use the existing DocumentUploadUtils for upload
         if (!window.DocumentUploadUtils || !window.DocumentUploadUtils.uploadDocument) {
             throw new Error('Document upload utility not available. Please refresh the page.');
         }
-        
+
         // Map document key to logical document type (for upload utility)
         // Note: For buyer documents that aren't in DOCUMENT_TYPES, we'll use 'ownerId' as fallback
         // The backend will handle the actual document type mapping
@@ -1435,23 +1459,23 @@ async function submitTransferDocument(docKey, transferRequestId, vehicleId) {
             'seller_id': window.DocumentUploadUtils.DOCUMENT_TYPES.SELLER_ID || 'sellerId',
             'or_cr': window.DocumentUploadUtils.DOCUMENT_TYPES.REGISTRATION_CERT || 'registrationCert'
         };
-        
+
         const logicalDocType = docTypeMap[docKey] || window.DocumentUploadUtils.DOCUMENT_TYPES.OWNER_ID || 'ownerId';
-        
+
         // Step 1: Upload document using unified utility
         const uploadResult = await window.DocumentUploadUtils.uploadDocument(logicalDocType, file, {
             vehicleId: vehicleId
         });
-        
+
         if (!uploadResult.success || !uploadResult.document) {
             throw new Error(uploadResult.error || 'Failed to upload document');
         }
-        
+
         const documentId = uploadResult.document.id || uploadResult.document.document?.id;
         if (!documentId) {
             throw new Error('Document uploaded but no document ID returned');
         }
-        
+
         // Step 2: Map document key to transfer document role (for linking)
         const transferDocRoleMap = {
             'buyer_id': 'buyerId',
@@ -1463,9 +1487,9 @@ async function submitTransferDocument(docKey, transferRequestId, vehicleId) {
             'seller_id': 'sellerId',
             'or_cr': 'orCr'
         };
-        
+
         const transferDocRole = transferDocRoleMap[docKey] || docKey;
-        
+
         // Step 3: Link document to transfer request
         const apiClient = window.apiClient || new APIClient();
         const linkResponse = await apiClient.post(`/api/vehicles/transfer/requests/${transferRequestId}/link-document`, {
@@ -1473,21 +1497,21 @@ async function submitTransferDocument(docKey, transferRequestId, vehicleId) {
                 [transferDocRole]: documentId
             }
         });
-        
+
         if (!linkResponse.success) {
             throw new Error(linkResponse.error || 'Failed to link document to transfer request');
         }
-        
+
         // Success
         if (typeof ToastNotification !== 'undefined') {
             ToastNotification.show('Document uploaded and linked successfully!', 'success');
         } else {
             alert('Document uploaded and linked successfully!');
         }
-        
+
         // Close modal
         closeTransferDocumentUploadModal();
-        
+
         // Refresh transfer request details modal if it's open
         const detailsModal = document.getElementById('transferRequestDetailsModal');
         if (detailsModal && transferRequestId) {
@@ -1498,7 +1522,7 @@ async function submitTransferDocument(docKey, transferRequestId, vehicleId) {
                 }, 300);
             }
         }
-        
+
     } catch (error) {
         console.error('Error uploading transfer document:', error);
         if (errorDiv) {
@@ -1520,27 +1544,27 @@ async function submitTransferDocument(docKey, transferRequestId, vehicleId) {
 // Handle buyer document upload inline (mirrors seller wizard pattern but uses buyer API flow)
 async function handleBuyerDocumentUpload(input, docKey, transferRequestId, vehicleId) {
     console.log(`📤 handleBuyerDocumentUpload called for: ${docKey}`);
-    
+
     if (!input.files || input.files.length === 0) {
         console.log(`⚠️ No files selected for ${docKey}`);
         return;
     }
-    
+
     const file = input.files[0];
     const uniqueId = input.id;
     const label = document.getElementById(`label-${uniqueId}`);
     const filenameDiv = document.getElementById(`filename-${uniqueId}`);
     const uploadItem = document.getElementById(`upload-item-${uniqueId}`);
-    
-        // Map buyer document keys to logical document types (for DocumentUploadUtils)
-        const docTypeMap = {
-            'buyer_id': window.DocumentUploadUtils?.DOCUMENT_TYPES?.BUYER_ID || 'buyerId',
-            'buyer_tin': window.DocumentUploadUtils?.DOCUMENT_TYPES?.OWNER_ID || 'ownerId', // TIN uses ownerId type
-            'buyer_ctpl': window.DocumentUploadUtils?.DOCUMENT_TYPES?.INSURANCE_CERT || 'insuranceCert',
-            'buyer_hpg_clearance': window.DocumentUploadUtils?.DOCUMENT_TYPES?.HPG_CLEARANCE || 'hpgClearance', // FIXED: Use HPG_CLEARANCE type, not ownerId
-            'buyer_mvir': window.DocumentUploadUtils?.DOCUMENT_TYPES?.OWNER_ID || 'ownerId' // MVIR uses ownerId type
-        };
-    
+
+    // Map buyer document keys to logical document types (for DocumentUploadUtils)
+    const docTypeMap = {
+        'buyer_id': window.DocumentUploadUtils?.DOCUMENT_TYPES?.BUYER_ID || 'buyerId',
+        'buyer_tin': window.DocumentUploadUtils?.DOCUMENT_TYPES?.OWNER_ID || 'ownerId', // TIN uses ownerId type
+        'buyer_ctpl': window.DocumentUploadUtils?.DOCUMENT_TYPES?.INSURANCE_CERT || 'insuranceCert',
+        'buyer_hpg_clearance': window.DocumentUploadUtils?.DOCUMENT_TYPES?.HPG_CLEARANCE || 'hpgClearance', // FIXED: Use HPG_CLEARANCE type, not ownerId
+        'buyer_mvir': window.DocumentUploadUtils?.DOCUMENT_TYPES?.OWNER_ID || 'ownerId' // MVIR uses ownerId type
+    };
+
     const logicalDocType = docTypeMap[docKey];
     if (!logicalDocType) {
         console.error('[BUG] Buyer document key missing from docTypeMap:', docKey);
@@ -1556,7 +1580,7 @@ async function handleBuyerDocumentUpload(input, docKey, transferRequestId, vehic
         input.value = '';
         return;
     }
-    
+
     // Show uploading state
     if (label) {
         label.innerHTML = `
@@ -1564,29 +1588,29 @@ async function handleBuyerDocumentUpload(input, docKey, transferRequestId, vehic
             <span class="transfer-upload-text">Uploading...</span>
         `;
     }
-    
+
     try {
         // Step 1: Upload document using unified utility (same as seller wizard)
         if (!window.DocumentUploadUtils || !window.DocumentUploadUtils.uploadDocument) {
             throw new Error('Document upload utility not available. Please refresh the page.');
         }
-        
+
         const uploadResult = await window.DocumentUploadUtils.uploadDocument(logicalDocType, file, {
             vehicleId: vehicleId,
             onProgress: (progress) => {
                 console.log(`Upload progress for ${docKey}:`, progress);
             }
         });
-        
+
         if (!uploadResult.success || !uploadResult.document) {
             throw new Error(uploadResult.error || 'Failed to upload document');
         }
-        
+
         const documentId = uploadResult.document.id || uploadResult.document.document?.id;
         if (!documentId) {
             throw new Error('Document uploaded but no document ID returned');
         }
-        
+
         // Step 2: Map document key to transfer document role (for linking API)
         const transferDocRoleMap = {
             'buyer_id': 'buyerId',
@@ -1595,9 +1619,9 @@ async function handleBuyerDocumentUpload(input, docKey, transferRequestId, vehic
             'buyer_hpg_clearance': 'buyerHpgClearance',
             'buyer_mvir': 'buyerMvir'
         };
-        
+
         const transferDocRole = transferDocRoleMap[docKey] || docKey;
-        
+
         // Step 3: Link document to transfer request (buyer-specific API flow)
         const apiClient = window.apiClient || new APIClient();
         const linkResponse = await apiClient.post(`/api/vehicles/transfer/requests/${transferRequestId}/link-document`, {
@@ -1605,11 +1629,11 @@ async function handleBuyerDocumentUpload(input, docKey, transferRequestId, vehic
                 [transferDocRole]: documentId
             }
         });
-        
+
         if (!linkResponse.success) {
             throw new Error(linkResponse.error || 'Failed to link document to transfer request');
         }
-        
+
         // Success - update UI inline (no modal closing)
         if (label) {
             label.classList.add('uploaded');
@@ -1625,24 +1649,24 @@ async function handleBuyerDocumentUpload(input, docKey, transferRequestId, vehic
             filenameDiv.textContent = file.name;
             filenameDiv.style.color = '#27ae60';
         }
-        
+
         // Show success notification
         if (typeof ToastNotification !== 'undefined') {
             ToastNotification.show(`${file.name} uploaded and linked successfully!`, 'success');
         } else {
             alert(`${file.name} uploaded successfully!`);
         }
-        
+
         console.log(`✅ Buyer document uploaded and linked successfully:`, {
             docKey,
             logicalType: logicalDocType,
             documentId,
             transferRequestId
         });
-        
+
     } catch (error) {
         console.error('Error uploading buyer document:', error);
-        
+
         // Reset label on error
         if (label) {
             label.classList.remove('uploaded');
@@ -1657,14 +1681,14 @@ async function handleBuyerDocumentUpload(input, docKey, transferRequestId, vehic
         if (uploadItem) {
             uploadItem.classList.remove('uploaded');
         }
-        
+
         // Show error notification
         if (typeof ToastNotification !== 'undefined') {
             ToastNotification.show(`Upload failed: ${error.message || 'Unknown error'}`, 'error');
         } else {
             alert(`Upload failed: ${error.message || 'Unknown error'}`);
         }
-        
+
         // Reset file input
         input.value = '';
     }
@@ -1682,18 +1706,18 @@ function escapeHtml(text) {
 async function submitTransferAcceptance(requestId) {
     try {
         const apiClient = window.apiClient || new APIClient();
-        
+
         // Get the current transfer request to check what documents are uploaded
         const response = await apiClient.get(`/api/vehicles/transfer/requests/${requestId}`);
-        
+
         if (!response.success || !response.transferRequest) {
             throw new Error(response.error || 'Failed to load transfer request');
         }
-        
+
         const request = response.transferRequest;
         const documents = request.documents || [];
         const status = (request.status || '').toUpperCase();
-        
+
         // Map uploaded documents to the format expected by the backend
         const documentsMap = {};
         documents.forEach(doc => {
@@ -1706,11 +1730,11 @@ async function submitTransferAcceptance(requestId) {
                 else if (docType === 'buyer_hpg_clearance') documentsMap.buyer_hpg_clearance = doc.document_id;
             }
         });
-        
+
         // Check if buyer has uploaded required documents
         const requiredDocs = ['buyer_id', 'buyer_tin', 'buyer_ctpl', 'buyer_hpg_clearance'];
         const missingDocs = requiredDocs.filter(docKey => !documentsMap[docKey]);
-        
+
         if (missingDocs.length > 0) {
             const missingLabels = {
                 'buyer_id': 'Valid ID',
@@ -1721,27 +1745,27 @@ async function submitTransferAcceptance(requestId) {
             const missingList = missingDocs.map(key => missingLabels[key] || key).join(', ');
             throw new Error(`Please upload all required documents: ${missingList}`);
         }
-        
+
         // Accept and submit documents in one action (accept endpoint handles both PENDING and AWAITING_BUYER_DOCS)
         const acceptResponse = await apiClient.post(`/api/vehicles/transfer/requests/${requestId}/accept`, {
             documents: documentsMap
         });
-        
+
         if (acceptResponse.success) {
             // Build success message with auto-forward information
             let successMessage = 'Documents submitted successfully! Transfer request is now under review.';
-            
+
             if (acceptResponse.autoForward) {
                 const autoForward = acceptResponse.autoForward;
                 const forwardedOrgs = [];
-                
+
                 if (autoForward.results?.hpg?.success) {
                     forwardedOrgs.push('HPG');
                 }
                 if (autoForward.results?.insurance?.success) {
                     forwardedOrgs.push('Insurance');
                 }
-                
+
                 if (forwardedOrgs.length > 0) {
                     successMessage += ` Documents have been automatically sent to ${forwardedOrgs.join(' and ')} for verification.`;
                 } else if (autoForward.skipped) {
@@ -1749,16 +1773,16 @@ async function submitTransferAcceptance(requestId) {
                     console.log('Auto-forward skipped:', autoForward.reason);
                 }
             }
-            
+
             if (typeof ToastNotification !== 'undefined') {
                 ToastNotification.show(successMessage, 'success', 5000);
             } else {
                 alert(successMessage);
             }
-            
+
             // Close the modal
             closeTransferRequestDetailsModal();
-            
+
             // Reload incoming requests
             if (typeof loadIncomingTransferRequests === 'function') {
                 loadIncomingTransferRequests();

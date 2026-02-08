@@ -2352,6 +2352,16 @@ router.post('/requests/:id/accept', authenticateToken, authorizeRole(['vehicle_o
         let updatedRequest = await db.getTransferRequestById(id);
         let autoForward = null;
 
+        // Fetch and attach transfer documents for auto-forward eligibility check
+        // Without this, isAutoForwardEligible always fails because transferDocuments is empty
+        try {
+            const transferDocs = await db.getTransferRequestDocuments(id);
+            updatedRequest.transferDocuments = transferDocs || [];
+        } catch (docFetchError) {
+            console.warn('[Buyer Accept] Failed to fetch transfer docs for auto-forward check:', docFetchError.message);
+            updatedRequest.transferDocuments = [];
+        }
+
         if (statusAfterAccept === TRANSFER_STATUS.UNDER_REVIEW && isAutoForwardEligible(updatedRequest)) {
             try {
                 autoForward = await autoForwardTransferRequest(updatedRequest, req.user.userId);

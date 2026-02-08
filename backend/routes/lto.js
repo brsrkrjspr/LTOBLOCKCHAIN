@@ -873,6 +873,8 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
                             vin: vehicle.vin,
                             owner: ownerData,
                             plateNumber: vehicle.plate_number,
+                            engineNumber: vehicle.engine_number,
+                            chassisNumber: vehicle.chassis_number || vehicle.vin,
                             crNumber: crNumber,
                             documents: documentCids,
                             status: 'REGISTERED',

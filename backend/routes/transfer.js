@@ -2836,7 +2836,31 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'vehicle_
         request.buyerDocuments = normalizedDocs.filter(doc =>
             ['buyer_id', 'buyer_tin', 'buyer_ctpl', 'buyer_hpg_clearance'].includes(doc.document_type)
         );
-        request.vehicleDocuments = vehicleDocs || [];
+
+        // Vehicle Original Documents: Only show HISTORICAL registration docs from BEFORE this transfer
+        // Excludes: buyer_ docs, seller_ docs, deed_of_sale, and anything uploaded after transfer started
+        const transferCreatedAt = new Date(request.created_at || request.createdAt || 0);
+        const historicalDocTypes = ['or_cr', 'registration_cert', 'registrationcert', 'insurance_cert',
+            'insurancecert', 'ctpl', 'hpg_clearance', 'mvir', 'mvir_cert', 'csr', 'sales_invoice',
+            'owner_id', 'ownerid', 'registration'];
+        const excludedDocTypes = ['deed_of_sale', 'seller_id', 'buyer_id', 'buyer_tin',
+            'buyer_ctpl', 'buyer_hpg_clearance'];
+
+        request.vehicleDocuments = (vehicleDocs || []).filter(doc => {
+            const docType = (doc.document_type || '').toLowerCase();
+            const docCreatedAt = new Date(doc.created_at || doc.uploaded_at || Date.now());
+
+            // Exclude any buyer/seller transfer docs
+            if (excludedDocTypes.includes(docType) || docType.startsWith('buyer_') || docType.startsWith('seller_')) {
+                return false;
+            }
+
+            // Only include known historical doc types uploaded BEFORE transfer started
+            const isHistoricalType = historicalDocTypes.includes(docType.replace(/_/g, ''));
+            const wasUploadedBeforeTransfer = docCreatedAt < transferCreatedAt;
+
+            return isHistoricalType && wasUploadedBeforeTransfer;
+        });
 
         // Get verification history
         const verificationHistory = await db.getTransferVerificationHistory(id);

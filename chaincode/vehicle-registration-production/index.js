@@ -240,6 +240,14 @@ class VehicleRegistrationContract extends Contract {
                 changedFields.push('orNumber');
                 // OR is stored separately, but we can update the reference
             }
+            if (updates.engineNumber !== undefined) {
+                changedFields.push('engineNumber');
+                vehicle.engineNumber = updates.engineNumber;
+            }
+            if (updates.chassisNumber !== undefined) {
+                changedFields.push('chassisNumber');
+                vehicle.chassisNumber = updates.chassisNumber;
+            }
             if (updates.documents !== undefined) {
                 changedFields.push('documents');
                 vehicle.documents = { ...vehicle.documents, ...updates.documents };

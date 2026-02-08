@@ -962,65 +962,6 @@ class VehicleRegistrationContract extends Contract {
         }
     }
 
-    // Update vehicle information
-    async UpdateVehicle(ctx, vin, updateData) {
-        try {
-            const vehicleBytes = await ctx.stub.getState(vin);
-            if (!vehicleBytes || vehicleBytes.length === 0) {
-                throw new Error(`Vehicle with VIN ${vin} not found`);
-            }
-
-            const vehicle = JSON.parse(vehicleBytes.toString());
-            const updates = JSON.parse(updateData);
-            const txId = ctx.stub.getTxID();
-            const timestamp = this._getTxTimestamp(ctx);
-
-            // Update allowed fields (LTO-compliant)
-            const allowedFields = ['color', 'engineNumber', 'chassisNumber', 'vehicleType', 'vehicleCategory', 'passengerCapacity', 'grossVehicleWeight', 'netWeight', 'classification'];
-
-            for (const field of allowedFields) {
-                if (updates[field] !== undefined) {
-                    vehicle[field] = updates[field];
-                }
-            }
-
-            vehicle.lastUpdated = timestamp;
-
-            // Add to history
-            vehicle.history.push({
-                action: 'VEHICLE_UPDATED',
-                timestamp: timestamp,
-                performedBy: ctx.clientIdentity.getMSPID(),
-                details: 'Vehicle information updated',
-                transactionId: txId,
-                updates: updates
-            });
-
-            // Store updated vehicle
-            await ctx.stub.putState(vin, Buffer.from(JSON.stringify(vehicle)));
-
-            // Emit event (payload must be Buffer/Uint8Array per Fabric spec)
-            ctx.stub.setEvent('VehicleUpdated', Buffer.from(JSON.stringify({
-                vin: vin,
-                timestamp: timestamp,
-                transactionId: txId
-            })));
-
-            console.log(`Vehicle ${vin} updated successfully`);
-            return JSON.stringify({
-                success: true,
-                message: 'Vehicle updated successfully',
-                vin: vin,
-                transactionId: txId,
-                timestamp: timestamp
-            });
-
-        } catch (error) {
-            console.error('Error updating vehicle:', error);
-            throw new Error(`Failed to update vehicle: ${error.message}`);
-        }
-    }
-
     // Delete vehicle (admin only)
     async DeleteVehicle(ctx, vin) {
         try {

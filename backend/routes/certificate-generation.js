@@ -351,7 +351,12 @@ router.post('/hpg/generate-and-send', authenticateToken, authorizeRole(['admin']
                         compositeHash,
                         finalIssueDate,
                         null,
-                        JSON.stringify({ verificationDetails, vehiclePlate })
+                        JSON.stringify({
+                            engineNumber: engineNumber || null,  // Will be populated by verification
+                            chassisNumber: finalVIN,  // Chassis = VIN for modern vehicles
+                            vehiclePlate,
+                            verificationDetails
+                        })
                     ]
                 );
             }

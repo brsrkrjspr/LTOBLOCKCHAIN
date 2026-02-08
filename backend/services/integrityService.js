@@ -8,43 +8,57 @@ class IntegrityService {
     constructor() {
         // Field mapping: Database (snake_case) → Blockchain (camelCase)
         this.fieldMap = [
-            { 
-                dbKey: 'engine_number', 
-                blockchainKey: 'engineNumber', 
+            {
+                dbKey: 'engine_number',
+                blockchainKey: 'engineNumber',
                 label: 'Engine Number',
-                critical: true 
+                critical: true
             },
-            { 
-                dbKey: 'chassis_number', 
-                blockchainKey: 'chassisNumber', 
+            {
+                dbKey: 'chassis_number',
+                blockchainKey: 'chassisNumber',
                 label: 'Chassis Number',
-                critical: true 
+                critical: true
             },
-            { 
-                dbKey: 'plate_number', 
-                blockchainKey: 'plateNumber', 
+            {
+                dbKey: 'plate_number',
+                blockchainKey: 'plateNumber',
                 label: 'Plate Number',
-                critical: true 
+                critical: true
             },
-            { 
-                dbKey: 'make', 
-                blockchainKey: 'make', 
+            {
+                dbKey: 'make',
+                blockchainKey: 'make',
                 label: 'Make',
-                critical: false 
+                critical: false
             },
-            { 
-                dbKey: 'model', 
-                blockchainKey: 'model', 
+            {
+                dbKey: 'model',
+                blockchainKey: 'model',
                 label: 'Model',
-                critical: false 
+                critical: false
             },
-            { 
-                dbKey: 'year', 
-                blockchainKey: 'year', 
+            {
+                dbKey: 'year',
+                blockchainKey: 'year',
                 label: 'Year',
-                critical: false 
+                critical: false
+            },
+            {
+                dbKey: 'owner_email',
+                blockchainKey: 'owner.email',
+                label: 'Owner Identity',
+                critical: true
             }
         ];
+    }
+
+    // Helper to get nested value from object using dot notation
+    getNestedValue(obj, key) {
+        if (!obj || !key) return null;
+        if (!key.includes('.')) return obj[key];
+
+        return key.split('.').reduce((o, i) => (o ? o[i] : null), obj);
     }
 
     // Normalize value for comparison
@@ -61,12 +75,12 @@ class IntegrityService {
             db: this.normalize(dbValue),
             blockchain: this.normalize(blockchainValue)
         };
-        
+
         if (isCritical) {
             // Critical fields: case-insensitive comparison
             return normalized.db.toUpperCase() === normalized.blockchain.toUpperCase();
         }
-        
+
         // Non-critical fields: case-sensitive comparison
         return normalized.db === normalized.blockchain;
     }
@@ -76,7 +90,7 @@ class IntegrityService {
         try {
             // Step 1: Get vehicle from database
             const dbVehicle = await db.getVehicleByVin(vin);
-            
+
             if (!dbVehicle) {
                 return {
                     status: 'ERROR',
@@ -92,7 +106,7 @@ class IntegrityService {
             // Vehicles in SUBMITTED/APPROVED status are not yet on blockchain
             let blockchainVehicle = null;
             let blockchainError = null;
-            
+
             if (dbVehicle.status === 'REGISTERED') {
                 try {
                     const blockchainResult = await fabricService.getVehicle(vin);
@@ -139,8 +153,7 @@ class IntegrityService {
 
             // Compare each field
             for (const field of this.fieldMap) {
-                const dbValue = dbVehicle[field.dbKey];
-                const blockchainValue = blockchainVehicle[field.blockchainKey];
+                const blockchainValue = this.getNestedValue(blockchainVehicle, field.blockchainKey);
                 const matches = this.compareValues(dbValue, blockchainValue, field.critical);
 
                 if (!matches) {
@@ -206,7 +219,8 @@ class IntegrityService {
                     chassisNumber: dbVehicle.chassis_number,
                     make: dbVehicle.make,
                     model: dbVehicle.model,
-                    year: dbVehicle.year
+                    year: dbVehicle.year,
+                    ownerEmail: dbVehicle.owner_email
                 },
                 blockchainVehicle: {
                     vin: blockchainVehicle.vin,
@@ -215,7 +229,8 @@ class IntegrityService {
                     chassisNumber: blockchainVehicle.chassisNumber,
                     make: blockchainVehicle.make,
                     model: blockchainVehicle.model,
-                    year: blockchainVehicle.year
+                    year: blockchainVehicle.year,
+                    ownerEmail: blockchainVehicle.owner ? blockchainVehicle.owner.email : null
                 },
                 checkedAt: new Date().toISOString()
             };
@@ -238,7 +253,7 @@ class IntegrityService {
     async checkIntegrityById(vehicleId) {
         try {
             const dbVehicle = await db.getVehicleById(vehicleId);
-            
+
             if (!dbVehicle) {
                 return {
                     status: 'ERROR',

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,53 +10,55 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
     <style>
         /* ============================================
            OWNER DASHBOARD SIDEBAR TOGGLE & HEADER IMPROVEMENTS
            ============================================ */
-        
+
         /* Smooth Sidebar Transitions */
         .dashboard-sidebar {
             transition: width 0.3s ease-in-out;
         }
-        
+
         .dashboard-main {
             transition: margin-left 0.3s ease-in-out;
         }
-        
+
         /* Logo Toggle Styling */
         .dashboard-sidebar .logo#logoToggle {
             transition: opacity 0.2s ease, transform 0.2s ease;
             cursor: pointer;
         }
-        
+
         .dashboard-sidebar .logo#logoToggle:hover {
             opacity: 0.9;
             transform: scale(1.05);
         }
-        
+
         .dashboard-sidebar .logo#logoToggle:active {
             transform: scale(0.95);
         }
-        
+
         .dashboard-sidebar .logo#logoToggle:focus {
             outline: 2px solid rgba(255, 255, 255, 0.5);
             outline-offset: 2px;
             border-radius: 4px;
         }
-        
+
         .dashboard-sidebar .logo-image {
             transition: transform 0.2s ease;
             max-width: 80px !important;
             width: 80px !important;
             height: auto !important;
         }
-        
+
         .dashboard-sidebar .logo#logoToggle:hover .logo-image {
             transform: scale(1.05);
         }
-        
+
         /* Center logo at top of sidebar and remove extra spacing */
         .dashboard-sidebar .sidebar-header {
             display: flex !important;
@@ -64,7 +67,7 @@
             padding: 0.75rem 0 !important;
             margin: 0 !important;
         }
-        
+
         .dashboard-sidebar .logo#logoToggle {
             display: flex !important;
             justify-content: center !important;
@@ -72,30 +75,30 @@
             margin: 0 auto !important;
             padding: 0 !important;
         }
-        
+
         /* Header Improvements */
         .dashboard-header .container {
             padding-left: 1.5rem;
             padding-right: 1.5rem;
         }
-        
+
         .dashboard-header .dashboard-nav {
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
-        
+
         .dashboard-header .nav-left {
             display: flex;
             align-items: center;
             flex: 1;
         }
-        
+
         .dashboard-header .logo {
             display: flex;
             align-items: center;
         }
-        
+
         .dashboard-header .logo h1 {
             margin: 0;
             font-size: 1.5rem;
@@ -103,19 +106,18 @@
             color: var(--gray-900, #111827);
             line-height: 1.2;
         }
-        
+
         .dashboard-header .nav-right {
             display: flex;
             align-items: center;
             gap: 1rem;
-            margin-left: auto; /* Push to far right */
+            margin-left: auto;
+            /* Push to far right */
         }
 
-        /* Notification Bell Icon - Fixed at right side */
+        /* Notification Bell Icon - Positioned in header flex */
         .notification-bell {
-            position: fixed !important;
-            top: 1.5rem;
-            right: 1.5rem;
+            position: relative;
             background: none;
             border: none;
             cursor: pointer;
@@ -124,11 +126,9 @@
             color: var(--text-secondary);
             font-size: 1.25rem;
             transition: all 0.2s ease;
-            z-index: 1000;
             width: auto;
             height: auto;
-            visibility: visible !important;
-            display: flex !important;
+            display: flex;
             align-items: center;
             justify-content: center;
         }
@@ -238,7 +238,7 @@
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
 
         .notification-modal-close:hover {
@@ -261,8 +261,10 @@
             display: flex;
             flex-direction: column;
             gap: 1rem;
-            min-height: 100%; /* Ensure list takes full height */
-            width: 100%; /* Ensure full width */
+            min-height: 100%;
+            /* Ensure list takes full height */
+            width: 100%;
+            /* Ensure full width */
         }
 
         .notification-item {
@@ -271,10 +273,14 @@
             border-radius: 12px;
             background: #fff;
             transition: all 0.2s ease;
-            width: 100%; /* Ensure full width */
-            box-sizing: border-box; /* Include padding in width */
-            opacity: 1; /* Ensure visibility */
-            visibility: visible; /* Ensure visibility */
+            width: 100%;
+            /* Ensure full width */
+            box-sizing: border-box;
+            /* Include padding in width */
+            opacity: 1;
+            /* Ensure visibility */
+            visibility: visible;
+            /* Ensure visibility */
             display: flex;
             flex-direction: column;
         }
@@ -367,7 +373,8 @@
             text-align: center;
             padding: 3rem 1.5rem;
             color: var(--text-secondary);
-            min-height: 200px; /* Ensure empty state is visible */
+            min-height: 200px;
+            /* Ensure empty state is visible */
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -388,13 +395,14 @@
         }
 
         @media (max-width: 768px) {
+
             /* Notification Modal - Mobile: 85vh max, close always visible */
             .notification-modal {
                 padding: 0.75rem;
                 align-items: center;
                 justify-content: center;
             }
-            
+
             .notification-modal-content {
                 max-width: 92vw;
                 width: 92vw;
@@ -402,16 +410,16 @@
                 margin: auto;
                 border-radius: 12px;
             }
-            
+
             .notification-modal-header {
                 padding: 1rem 1.25rem;
                 flex-shrink: 0;
             }
-            
+
             .notification-modal-header h2 {
                 font-size: 1.2rem;
             }
-            
+
             .notification-modal-close {
                 font-size: 1.25rem;
                 min-width: 44px;
@@ -419,43 +427,41 @@
                 width: 44px;
                 height: 44px;
             }
-            
+
             .notification-modal-body {
                 padding: 16px 20px;
                 max-height: calc(85vh - 76px);
                 -webkit-overflow-scrolling: touch;
             }
-            
+
             .notification-item {
                 padding: 0.875rem;
             }
-            
+
             .notification-item-header {
                 flex-direction: column;
                 gap: 0.5rem;
             }
-            
+
             .notification-item-time {
                 white-space: normal;
             }
-            
+
             .notification-item-actions {
                 flex-direction: column;
                 gap: 0.5rem;
             }
-            
+
             .notification-item-actions button {
                 width: 100%;
             }
 
-            /* Notification Bell - Mobile Position */
+            /* Notification Bell - Mobile Size */
             .notification-bell {
-                top: 1rem;
-                right: 1rem;
                 padding: 0.625rem;
                 font-size: 1.125rem;
             }
-            
+
             .notification-badge {
                 width: 18px;
                 height: 18px;
@@ -463,28 +469,29 @@
                 border-width: 1.5px;
             }
         }
-        
+
         @media (max-width: 480px) {
+
             /* Extra small: keep 85vh, rounded corners, 44px close */
             .notification-modal {
                 padding: 0.5rem;
             }
-            
+
             .notification-modal-content {
                 max-height: 85vh;
                 width: 94vw;
                 max-width: 94vw;
                 border-radius: 12px;
             }
-            
+
             .notification-modal-header {
                 padding: 0.875rem 1rem;
             }
-            
+
             .notification-modal-header h2 {
                 font-size: 1.125rem;
             }
-            
+
             .notification-modal-close {
                 font-size: 1.125rem;
                 min-width: 44px;
@@ -492,21 +499,19 @@
                 width: 44px;
                 height: 44px;
             }
-            
+
             .notification-modal-body {
                 padding: 16px;
                 max-height: calc(85vh - 72px);
                 -webkit-overflow-scrolling: touch;
             }
-            
+
             .notification-bell {
-                top: 0.75rem;
-                right: 0.75rem;
                 padding: 0.5rem;
                 font-size: 1rem;
             }
         }
-        
+
         /* My Applications - Responsive Button Sizing */
         #my-registrations-tbody .btn-sm,
         #my-registrations-tbody .btn-secondary.btn-sm,
@@ -527,7 +532,7 @@
             min-width: auto !important;
             max-width: none !important;
         }
-        
+
         /* View Details - secondary action styling */
         #my-registrations-tbody .btn-secondary.btn-sm {
             border: 2px solid var(--navy-primary) !important;
@@ -543,7 +548,7 @@
             border-color: var(--navy-light) !important;
             color: var(--navy-light) !important;
         }
-        
+
         /* Actions column: wrap controls layout with 8px gap; td centers it */
         #my-registrations-tbody td:last-child,
         #my-registrations-tbody .app-actions-cell {
@@ -557,7 +562,7 @@
         #my-registrations-tbody .app-actions-wrap {
             gap: 0.5rem;
         }
-        
+
         /* Responsive button sizing - proportional to screen, not overly large */
         #my-registrations-tbody td:last-child .btn-sm,
         #my-registrations-tbody .app-actions-cell .btn-sm {
@@ -570,11 +575,11 @@
             font-size: 0.8125rem !important;
             box-sizing: border-box !important;
         }
-        
+
         /* ============================================
            COMPREHENSIVE UI/UX IMPROVEMENTS
            ============================================ */
-        
+
         /* 1. TEXT PLACEMENT & READABILITY */
         /* Typography Hierarchy */
         .dashboard-content h1,
@@ -585,7 +590,7 @@
             margin: 0 0 0.5rem 0;
             color: #111827;
         }
-        
+
         .dashboard-content h2,
         .section-title {
             font-size: 1.5rem;
@@ -594,7 +599,7 @@
             margin: 0 0 0.5rem 0;
             color: #1f2937;
         }
-        
+
         .dashboard-content h3 {
             font-size: 1.25rem;
             font-weight: 600;
@@ -602,7 +607,7 @@
             margin: 0 0 0.75rem 0;
             color: #374151;
         }
-        
+
         .section-subtitle,
         .dashboard-content p.subtitle {
             font-size: 0.9375rem;
@@ -611,15 +616,15 @@
             color: #6b7280;
             margin: 0 0 1.5rem 0;
         }
-        
+
         .section-header {
             margin-bottom: 1.5rem;
         }
-        
+
         .section-header h2 {
             margin-bottom: 0.25rem;
         }
-        
+
         /* Form Labels */
         .form-group label,
         label {
@@ -630,7 +635,7 @@
             display: block;
             line-height: 1.5;
         }
-        
+
         /* Helper Text */
         .hint,
         small.hint,
@@ -641,7 +646,7 @@
             display: block;
             line-height: 1.4;
         }
-        
+
         /* 2. BUTTON CONSISTENCY */
         /* Unified Button System */
         button,
@@ -678,7 +683,7 @@
             text-decoration: none;
             white-space: nowrap;
         }
-        
+
         /* Secondary buttons have border */
         .btn-secondary,
         a.btn-secondary {
@@ -710,7 +715,7 @@
             border-color: var(--navy-light);
             color: var(--navy-light);
         }
-        
+
         /* Small Buttons */
         .btn-sm {
             height: 36px;
@@ -718,7 +723,7 @@
             padding: 0.5rem 1rem;
             font-size: 0.875rem;
         }
-        
+
         /* Large Buttons */
         .btn-lg {
             height: 52px;
@@ -726,7 +731,7 @@
             padding: 1rem 2rem;
             font-size: 1.0625rem;
         }
-        
+
         /* Icon Buttons - Square */
         button.icon-btn,
         .btn-icon {
@@ -736,7 +741,7 @@
             min-height: 44px;
             padding: 0;
         }
-        
+
         /* Button Alignment */
         .btn-group,
         .button-group {
@@ -745,12 +750,12 @@
             align-items: center;
             flex-wrap: wrap;
         }
-        
+
         .btn-group .btn,
         .button-group button {
             flex: 0 0 auto;
         }
-        
+
         /* Button Hover States */
         .btn-primary:hover,
         .btn-secondary:hover,
@@ -759,20 +764,20 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 31, 63, 0.2);
         }
-        
+
         .btn-primary:active,
         .btn-secondary:active,
         .btn-success:active,
         .btn-danger:active {
             transform: translateY(0);
         }
-        
+
         /* 3. LAYOUT & SPACING */
         /* Unified Spacing System (8px base) */
         .dashboard-content {
             padding: 1.5rem;
         }
-        
+
         .dashboard-card-modern,
         .card,
         .dashboard-card {
@@ -781,42 +786,43 @@
             border-radius: 18px;
             box-shadow: 0 2px 8px rgba(0, 31, 63, 0.08);
         }
-        
+
         .form-group {
             margin-bottom: 1.5rem;
         }
-        
+
         .form-row {
             display: flex;
             gap: 1rem;
             margin-bottom: 1.5rem;
         }
-        
+
         /* Prevent Edge Touching */
         .dashboard-content .container {
             max-width: 100%;
             padding-left: 1rem;
             padding-right: 1rem;
         }
-        
+
         /* 4. RESPONSIVE DESIGN */
         /* Mobile (≤ 768px) */
         @media (max-width: 768px) {
+
             /* Typography */
             .dashboard-content h1,
             .dashboard-content .page-title {
                 font-size: 1.5rem;
             }
-            
+
             .dashboard-content h2,
             .section-title {
                 font-size: 1.25rem;
             }
-            
+
             .dashboard-content h3 {
                 font-size: 1.125rem;
             }
-            
+
             /* Buttons - Full Width */
             button,
             .btn,
@@ -827,79 +833,79 @@
                 width: 100%;
                 margin-bottom: 0.75rem;
             }
-            
+
             .btn-group,
             .button-group {
                 flex-direction: column;
                 width: 100%;
             }
-            
+
             .btn-group .btn:last-child,
             .button-group button:last-child {
                 margin-bottom: 0;
             }
-            
+
             /* Layout - Stack Vertically */
             .form-row {
                 flex-direction: column;
                 gap: 0;
             }
-            
+
             .dashboard-content {
                 padding: 1rem;
             }
-            
+
             .dashboard-card-modern,
             .card,
             .dashboard-card {
                 padding: 1rem;
                 margin-bottom: 1rem;
             }
-            
+
             .section-header {
                 margin-bottom: 1rem;
             }
-            
+
             /* Prevent Text Overflow */
             .dashboard-content {
                 word-wrap: break-word;
                 overflow-wrap: break-word;
             }
         }
-        
+
         /* Tablet (768px - 1024px) */
         @media (min-width: 769px) and (max-width: 1024px) {
             .form-row {
                 gap: 1rem;
             }
-            
+
             .btn-group,
             .button-group {
                 flex-wrap: wrap;
             }
         }
-        
+
         /* Collapsed Sidebar - Responsive Adjustments */
         @media (min-width: 769px) {
             .dashboard-sidebar.collapsed {
                 padding: 1.25rem 0.75rem;
             }
-            
+
             .dashboard-sidebar.collapsed .sidebar-nav .nav-item {
                 padding: 0.85rem 0.5rem;
             }
-            
+
             .dashboard-sidebar.collapsed .sidebar-nav .nav-item i {
                 width: 36px;
                 height: 36px;
             }
         }
-        
+
         @media (min-width: 1025px) {
             .dashboard-sidebar.collapsed {
                 padding: 1.25rem 0.875rem;
             }
-            
+
             .dashboard-sidebar.collapsed .sidebar-nav .nav-item {
                 padding: 0.9rem 0.625rem;
             }
@@ -911,28 +917,28 @@
                 max-width: 1400px;
                 margin: 0 auto;
             }
-            
+
             /* Grid Layouts */
             .grid-2 {
                 display: grid;
                 grid-template-columns: repeat(2, 1fr);
                 gap: 1.5rem;
             }
-            
+
             .grid-3 {
                 display: grid;
                 grid-template-columns: repeat(3, 1fr);
                 gap: 1.5rem;
             }
         }
-        
+
         /* 5. VISUAL CLEANLINESS */
         /* Improved Contrast */
         .dashboard-content {
             color: #1f2937;
             line-height: 1.6;
         }
-        
+
         /* Input Focus States */
         input:focus,
         textarea:focus,
@@ -941,21 +947,21 @@
             outline-offset: 2px;
             border-color: var(--navy-primary);
         }
-        
+
         /* Card Hover States */
         .dashboard-card-modern:hover,
         .card:hover {
             box-shadow: 0 4px 16px rgba(0, 31, 63, 0.12);
             transition: box-shadow 0.2s ease;
         }
-        
+
         /* Table Improvements */
         .table-modern,
         table {
             width: 100%;
             border-collapse: collapse;
         }
-        
+
         .table-modern th,
         table th {
             padding: 1rem;
@@ -965,7 +971,7 @@
             color: #374151;
             border-bottom: 2px solid #e5e7eb;
         }
-        
+
         .table-modern td,
         table td {
             padding: 1rem;
@@ -973,19 +979,47 @@
             color: #1f2937;
             border-bottom: 1px solid #f3f4f6;
         }
-        
+
         /* Alignment Helpers */
-        .text-left { text-align: left; }
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-        
-        .flex { display: flex; }
-        .flex-column { flex-direction: column; }
-        .items-center { align-items: center; }
-        .justify-between { justify-content: space-between; }
-        .gap-1 { gap: 0.5rem; }
-        .gap-2 { gap: 1rem; }
-        .gap-3 { gap: 1.5rem; }
+        .text-left {
+            text-align: left;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .flex-column {
+            flex-direction: column;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .gap-1 {
+            gap: 0.5rem;
+        }
+
+        .gap-2 {
+            gap: 1rem;
+        }
+
+        .gap-3 {
+            gap: 1.5rem;
+        }
 
         /* ============================================
            NAVY BLUE & WHITE GRADIENT THEME
@@ -1082,7 +1116,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: 
+            background:
                 linear-gradient(135deg, rgba(0, 31, 63, 0.08) 0%, transparent 50%),
                 linear-gradient(45deg, rgba(0, 61, 122, 0.06) 0%, transparent 60%),
                 linear-gradient(225deg, rgba(0, 21, 41, 0.05) 0%, transparent 70%),
@@ -1096,7 +1130,7 @@
             border-radius: inherit;
         }
 
-        .dashboard-sidebar > * {
+        .dashboard-sidebar>* {
             position: relative;
             z-index: 1;
         }
@@ -1288,7 +1322,7 @@
             left: 1.5rem;
         }
 
-        .dashboard-sidebar.collapsed ~ .dashboard-main {
+        .dashboard-sidebar.collapsed~.dashboard-main {
             margin-left: calc(80px + 1.5rem + 1.5rem);
         }
 
@@ -1444,7 +1478,7 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 5px 15px rgba(45,127,249,0.25);
+            box-shadow: 0 5px 15px rgba(45, 127, 249, 0.25);
         }
 
         .user-portal-profile .user-meta {
@@ -1478,7 +1512,7 @@
             right: 0;
             background: #ffffff;
             border: 1px solid var(--brand-border);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.08);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
             border-radius: 12px;
             min-width: 200px;
             padding: 0.5rem 0;
@@ -1602,7 +1636,7 @@
             display: grid;
             grid-template-columns: auto 1fr;
             gap: 1rem;
-            box-shadow: 0 6px 16px rgba(15,23,42,0.06);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
         }
 
         .stat-icon {
@@ -1616,7 +1650,7 @@
             justify-content: center;
             background: var(--brand-gradient);
             color: #fff;
-            box-shadow: 0 8px 20px rgba(45,127,249,0.25);
+            box-shadow: 0 8px 20px rgba(45, 127, 249, 0.25);
             font-size: 1.25rem;
         }
 
@@ -1817,15 +1851,23 @@
             margin-right: 0.5rem;
         }
 
-        .status-indicator.pending { background: #fbbf24; }
-        .status-indicator.success { background: #22c55e; }
-        .status-indicator.danger { background: #ef4444; }
+        .status-indicator.pending {
+            background: #fbbf24;
+        }
+
+        .status-indicator.success {
+            background: #22c55e;
+        }
+
+        .status-indicator.danger {
+            background: #ef4444;
+        }
 
         .mobile-application-card,
         .notifications-card {
             border: 1px solid var(--brand-border);
             border-radius: 16px;
-            box-shadow: 0 6px 16px rgba(15,23,42,0.06);
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
         }
 
         .mobile-application-card {
@@ -1909,6 +1951,7 @@
         }
 
         @media (min-width: 769px) {
+
             /* Desktop: balanced spacing, flexible width */
             .app-actions-wrap .btn-sm {
                 width: auto !important;
@@ -1989,7 +2032,7 @@
                 padding: 1.75rem 2rem;
             }
 
-            .dashboard-sidebar.collapsed ~ .dashboard-main {
+            .dashboard-sidebar.collapsed~.dashboard-main {
                 margin-left: calc(80px + 1rem + 1rem);
             }
         }
@@ -2135,20 +2178,20 @@
     </style>
     <script>
         // Apply sidebar state immediately to prevent flash and disable transitions on page load
-        (function() {
+        (function () {
             function initSidebar() {
                 const sidebar = document.querySelector('.dashboard-sidebar');
                 if (sidebar) {
                     // Disable transitions during page load
                     sidebar.classList.add('no-transition');
-                    
+
                     const savedState = localStorage.getItem('ownerSidebarCollapsed');
                     if (savedState === 'true') {
                         sidebar.classList.add('collapsed');
                     }
-                    
+
                     // Re-enable transitions after page loads
-                    setTimeout(function() {
+                    setTimeout(function () {
                         sidebar.classList.remove('no-transition');
                     }, 100);
                 } else {
@@ -2166,32 +2209,32 @@
     <script>
         // Early stub to prevent "showApplicationTab is not defined" error
         // Simple queue-based approach - queue calls until real function is available
-        (function() {
+        (function () {
             const callQueue = [];
             let checkInterval = null;
-            
-            const stubFunction = function(tab, btn) {
+
+            const stubFunction = function (tab, btn) {
                 // Check if real function is loaded (using flag or function content)
-                if (window.showApplicationTabLoaded || 
-                    (window.showApplicationTab && 
-                     window.showApplicationTab !== stubFunction && 
-                     window.showApplicationTab.toString().includes('Update tab buttons'))) {
+                if (window.showApplicationTabLoaded ||
+                    (window.showApplicationTab &&
+                        window.showApplicationTab !== stubFunction &&
+                        window.showApplicationTab.toString().includes('Update tab buttons'))) {
                     // Real function is loaded, call it directly
                     window.showApplicationTab(tab, btn);
                     return;
                 }
-                
+
                 // Otherwise, queue the call
                 callQueue.push({ tab, btn });
-                
+
                 // Start checking if not already checking
                 if (!checkInterval) {
                     checkInterval = setInterval(() => {
                         const currentFunc = window.showApplicationTab;
-                        if (window.showApplicationTabLoaded || 
-                            (currentFunc && 
-                             currentFunc !== stubFunction && 
-                             currentFunc.toString().includes('Update tab buttons'))) {
+                        if (window.showApplicationTabLoaded ||
+                            (currentFunc &&
+                                currentFunc !== stubFunction &&
+                                currentFunc.toString().includes('Update tab buttons'))) {
                             // Real function is loaded, execute all queued calls
                             callQueue.forEach(args => {
                                 currentFunc(args.tab, args.btn);
@@ -2201,7 +2244,7 @@
                             checkInterval = null;
                         }
                     }, 100);
-                    
+
                     // Stop checking after 5 seconds
                     setTimeout(() => {
                         if (checkInterval) {
@@ -2211,7 +2254,7 @@
                     }, 5000);
                 }
             };
-            
+
             // Only set if not already defined
             if (!window.showApplicationTab) {
                 window.showApplicationTab = stubFunction;
@@ -2219,6 +2262,7 @@
         })();
     </script>
 </head>
+
 <body>
     <div class="dashboard">
         <!-- Sidebar Navigation -->
@@ -2250,7 +2294,7 @@
                     <span>Transfer of Ownership</span>
                 </a>
             </nav>
-            
+
             <!-- Sidebar Footer with User Info -->
             <div class="sidebar-footer">
                 <div class="sidebar-user-profile">
@@ -2298,160 +2342,164 @@
                 </div>
             </header>
 
-        <main class="dashboard-content">
-            <div class="container">
-                <!-- Welcome Section -->
-                <div class="welcome-section">
-                    <div class="welcome-content">
-                        <h1 class="welcome-title">Welcome back, <span id="welcomeUserName">Owner</span>!</h1>
-                        <p class="welcome-subtitle">Manage your vehicle registrations and track application progress</p>
+            <main class="dashboard-content">
+                <div class="container">
+                    <!-- Welcome Section -->
+                    <div class="welcome-section">
+                        <div class="welcome-content">
+                            <h1 class="welcome-title">Welcome back, <span id="welcomeUserName">Owner</span>!</h1>
+                            <p class="welcome-subtitle">Manage your vehicle registrations and track application progress
+                            </p>
+                        </div>
+                        <div class="welcome-actions">
+                            <a class="btn-primary btn-lg" href="registration-wizard.html">
+                                <i class="fas fa-plus"></i> New Registration
+                            </a>
+                        </div>
                     </div>
-                    <div class="welcome-actions">
-                        <a class="btn-primary btn-lg" href="registration-wizard.html">
-                            <i class="fas fa-plus"></i> New Registration
-                        </a>
-                    </div>
-                </div>
 
-                <!-- Quick Stats -->
-                <div class="stats-grid-modern">
-                    <div class="stat-card-modern stat-card-primary">
-                        <div class="stat-icon-wrapper">
-                            <div class="stat-icon" style="background: linear-gradient(135deg, #001f3f 0%, #003d7a 100%);">
-                                <i class="fas fa-car" style="color: #ffffff; font-size: 1.5rem;"></i>
+                    <!-- Quick Stats -->
+                    <div class="stats-grid-modern">
+                        <div class="stat-card-modern stat-card-primary">
+                            <div class="stat-icon-wrapper">
+                                <div class="stat-icon"
+                                    style="background: linear-gradient(135deg, #001f3f 0%, #003d7a 100%);">
+                                    <i class="fas fa-car" style="color: #ffffff; font-size: 1.5rem;"></i>
+                                </div>
+                            </div>
+                            <div class="stat-content-modern">
+                                <div class="stat-number-modern" id="statVehicles">0</div>
+                                <div class="stat-label-modern">Registered Vehicles</div>
+                                <div class="stat-trend">
+                                    <i class="fas fa-arrow-trend-up"></i>
+                                    <span>All active</span>
+                                </div>
                             </div>
                         </div>
-                        <div class="stat-content-modern">
-                            <div class="stat-number-modern" id="statVehicles">0</div>
-                            <div class="stat-label-modern">Registered Vehicles</div>
-                            <div class="stat-trend">
-                                <i class="fas fa-arrow-trend-up"></i>
-                                <span>All active</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card-modern stat-card-warning">
-                        <div class="stat-icon-wrapper">
-                            <div class="stat-icon">
-                                <i class="fas fa-clock-rotate-left"></i>
-                            </div>
-                        </div>
-                        <div class="stat-content-modern">
-                            <div class="stat-number-modern" id="statPending">0</div>
-                            <div class="stat-label-modern">Pending Applications</div>
-                            <div class="stat-trend">
-                                <i class="fas fa-spinner"></i>
-                                <span>In review</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card-modern stat-card-success">
-                        <div class="stat-icon-wrapper">
-                            <div class="stat-icon">
-                                <i class="fas fa-circle-check"></i>
-                            </div>
-                        </div>
-                        <div class="stat-content-modern">
-                            <div class="stat-number-modern" id="statApproved">0</div>
-                            <div class="stat-label-modern">Approved Applications</div>
-                            <div class="stat-trend">
-                                <i class="fas fa-check-double"></i>
-                                <span>Completed</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card-modern stat-card-info">
-                        <div class="stat-icon-wrapper">
-                            <div class="stat-icon">
-                                <i class="fas fa-bell-ring"></i>
-                            </div>
-                        </div>
-                        <div class="stat-content-modern">
-                            <div class="stat-number-modern" id="statNotifications">0</div>
-                            <div class="stat-label-modern">Notifications</div>
-                            <div class="stat-trend">
-                                <i class="fas fa-envelope-open"></i>
-                                <span>Unread</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- Recent Applications -->
-                <div class="section-header">
-                    <h2 class="section-title">My Applications</h2>
-                    <p class="section-subtitle">Track your vehicle registration and transfer requests</p>
-                </div>
+                        <div class="stat-card-modern stat-card-warning">
+                            <div class="stat-icon-wrapper">
+                                <div class="stat-icon">
+                                    <i class="fas fa-clock-rotate-left"></i>
+                                </div>
+                            </div>
+                            <div class="stat-content-modern">
+                                <div class="stat-number-modern" id="statPending">0</div>
+                                <div class="stat-label-modern">Pending Applications</div>
+                                <div class="stat-trend">
+                                    <i class="fas fa-spinner"></i>
+                                    <span>In review</span>
+                                </div>
+                            </div>
+                        </div>
 
-                <!-- Tabs for Registration vs Transfer -->
-                <div class="application-tabs" style="margin-bottom: 1rem;">
-                    <button class="app-tab active" onclick="showApplicationTab('registrations', this)">
-                        <i class="fas fa-file-lines"></i> Registrations
-                    </button>
-                    <button class="app-tab" onclick="showApplicationTab('transfers', this)">
-                        <i class="fas fa-arrows-rotate"></i> Transfers
-                    </button>
-                </div>
+                        <div class="stat-card-modern stat-card-success">
+                            <div class="stat-icon-wrapper">
+                                <div class="stat-icon">
+                                    <i class="fas fa-circle-check"></i>
+                                </div>
+                            </div>
+                            <div class="stat-content-modern">
+                                <div class="stat-number-modern" id="statApproved">0</div>
+                                <div class="stat-label-modern">Approved Applications</div>
+                                <div class="stat-trend">
+                                    <i class="fas fa-check-double"></i>
+                                    <span>Completed</span>
+                                </div>
+                            </div>
+                        </div>
 
-                <div class="dashboard-card-modern table-card" id="applications">
-                    <!-- Registration Applications Table -->
-                    <div id="registrations-tab" class="application-tab-content active">
-                        <div class="table-container-modern">
-                            <table class="table-modern">
-                                <thead>
-                                    <tr>
-                                        <th>Vehicle</th>
-                                        <th>Application ID</th>
-                                        <th>OR/CR Number</th>
-                                        <th>Submitted</th>
-                                        <th>Verification Status</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="my-registrations-tbody">
-                                    <!-- Loaded dynamically -->
-                                </tbody>
-                            </table>
+                        <div class="stat-card-modern stat-card-info">
+                            <div class="stat-icon-wrapper">
+                                <div class="stat-icon">
+                                    <i class="fas fa-bell-ring"></i>
+                                </div>
+                            </div>
+                            <div class="stat-content-modern">
+                                <div class="stat-number-modern" id="statNotifications">0</div>
+                                <div class="stat-label-modern">Notifications</div>
+                                <div class="stat-trend">
+                                    <i class="fas fa-envelope-open"></i>
+                                    <span>Unread</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    
-                    <!-- Transfer Applications Table -->
-                    <div id="transfers-tab" class="application-tab-content" style="display: none;">
-                        <div class="table-container-modern">
-                            <table class="table-modern">
-                                <thead>
-                                    <tr>
-                                        <th>Vehicle</th>
-                                        <th>Request ID</th>
-                                        <th>Type</th>
-                                        <th>Other Party</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="my-transfers-tbody">
-                                    <!-- Loaded dynamically -->
-                                </tbody>
-                            </table>
+
+                    <!-- Recent Applications -->
+                    <div class="section-header">
+                        <h2 class="section-title">My Applications</h2>
+                        <p class="section-subtitle">Track your vehicle registration and transfer requests</p>
+                    </div>
+
+                    <!-- Tabs for Registration vs Transfer -->
+                    <div class="application-tabs" style="margin-bottom: 1rem;">
+                        <button class="app-tab active" onclick="showApplicationTab('registrations', this)">
+                            <i class="fas fa-file-lines"></i> Registrations
+                        </button>
+                        <button class="app-tab" onclick="showApplicationTab('transfers', this)">
+                            <i class="fas fa-arrows-rotate"></i> Transfers
+                        </button>
+                    </div>
+
+                    <div class="dashboard-card-modern table-card" id="applications">
+                        <!-- Registration Applications Table -->
+                        <div id="registrations-tab" class="application-tab-content active">
+                            <div class="table-container-modern">
+                                <table class="table-modern">
+                                    <thead>
+                                        <tr>
+                                            <th>Vehicle</th>
+                                            <th>Application ID</th>
+                                            <th>OR/CR Number</th>
+                                            <th>Submitted</th>
+                                            <th>Verification Status</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="my-registrations-tbody">
+                                        <!-- Loaded dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Transfer Applications Table -->
+                        <div id="transfers-tab" class="application-tab-content" style="display: none;">
+                            <div class="table-container-modern">
+                                <table class="table-modern">
+                                    <thead>
+                                        <tr>
+                                            <th>Vehicle</th>
+                                            <th>Request ID</th>
+                                            <th>Type</th>
+                                            <th>Other Party</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="my-transfers-tbody">
+                                        <!-- Loaded dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-            </div>
-        </main>
+                </div>
+            </main>
         </div>
     </div>
 
     <!-- Notification Modal -->
-    <div class="notification-modal" id="notificationModal" role="dialog" aria-modal="true" aria-labelledby="notificationModalTitle">
+    <div class="notification-modal" id="notificationModal" role="dialog" aria-modal="true"
+        aria-labelledby="notificationModalTitle">
         <div class="notification-modal-content">
             <div class="notification-modal-header">
                 <h2 id="notificationModalTitle">Notifications</h2>
-                <button class="notification-modal-close" id="notificationModalClose" aria-label="Close notification" type="button">
+                <button class="notification-modal-close" id="notificationModalClose" aria-label="Close notification"
+                    type="button">
                     <i class="fas fa-times" aria-hidden="true"></i>
                 </button>
             </div>
@@ -2469,7 +2517,7 @@
     <script src="js/api-client.js"></script>
     <script>
         // Initialize AuthManager on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             if (typeof window.authManager !== 'undefined') {
                 window.authManager.init().catch(error => {
                     console.error('AuthManager init error:', error);
@@ -2482,7 +2530,7 @@
 
         // Notification System
         let notifications = [];
-        
+
         function initNotifications() {
             const notificationBell = document.getElementById('notificationBell');
             const notificationModal = document.getElementById('notificationModal');
@@ -2495,21 +2543,21 @@
 
             // Open modal on bell click
             if (notificationBell) {
-                notificationBell.addEventListener('click', function() {
+                notificationBell.addEventListener('click', function () {
                     openNotificationModal();
                 });
             }
 
             // Close modal
             if (notificationModalClose) {
-                notificationModalClose.addEventListener('click', function() {
+                notificationModalClose.addEventListener('click', function () {
                     closeNotificationModal();
                 });
             }
 
             // Close modal on overlay click
             if (notificationModal) {
-                notificationModal.addEventListener('click', function(e) {
+                notificationModal.addEventListener('click', function (e) {
                     if (e.target === notificationModal) {
                         closeNotificationModal();
                     }
@@ -2517,7 +2565,7 @@
             }
 
             // Close modal on Escape key
-            document.addEventListener('keydown', function(e) {
+            document.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape' && notificationModal && notificationModal.classList.contains('active')) {
                     closeNotificationModal();
                 }
@@ -2529,7 +2577,7 @@
             return new Promise((resolve, reject) => {
                 console.log('🔍 [DEBUG] Starting loadNotifications()');
                 console.log('🔍 [DEBUG] API Client available:', typeof window.apiClient !== 'undefined' && !!window.apiClient);
-                
+
                 // Set a timeout to prevent hanging
                 const timeoutId = setTimeout(() => {
                     console.warn('⚠️ [TIMEOUT] API call timeout after 5 seconds, using fallback data');
@@ -2554,7 +2602,7 @@
                     }
                     resolve(notifications);
                 }, 5000); // 5 second timeout
-                
+
                 // Helper function to extract notifications from various response structures
                 const extractNotifications = (response) => {
                     console.log('🔍 [DEBUG] Extracting notifications from response:', {
@@ -2564,42 +2612,42 @@
                         isArray: Array.isArray(response),
                         responsePreview: JSON.stringify(response).substring(0, 200)
                     });
-                    
+
                     // Case 1: Response is already an array
                     if (Array.isArray(response)) {
                         console.log('✅ [DEBUG] Response is direct array, length:', response.length);
                         return response;
                     }
-                    
+
                     // Case 2: Standard structure { success: true, notifications: [...] }
                     if (response && response.success === true && Array.isArray(response.notifications)) {
                         console.log('✅ [DEBUG] Found notifications in response.notifications, length:', response.notifications.length);
                         return response.notifications;
                     }
-                    
+
                     // Case 3: Alternative structure { success: true, data: [...] }
                     if (response && response.success === true && Array.isArray(response.data)) {
                         console.log('✅ [DEBUG] Found notifications in response.data, length:', response.data.length);
                         return response.data;
                     }
-                    
+
                     // Case 4: Nested structure { result: { notifications: [...] } }
                     if (response && response.result && Array.isArray(response.result.notifications)) {
                         console.log('✅ [DEBUG] Found notifications in response.result.notifications, length:', response.result.notifications.length);
                         return response.result.notifications;
                     }
-                    
+
                     // Case 5: Error response
                     if (response && response.success === false) {
                         console.warn('⚠️ [DEBUG] API returned error response:', response.error || response.message);
                         return null;
                     }
-                    
+
                     // Case 6: Empty or unexpected structure
                     console.warn('⚠️ [DEBUG] Could not extract notifications from response structure');
                     return null;
                 };
-                
+
                 // Try to load from API, fallback to localStorage or sample data
                 if (typeof window.apiClient !== 'undefined' && window.apiClient) {
                     console.log('📡 [DEBUG] Making API request to /api/notifications');
@@ -2608,19 +2656,19 @@
                         .then(response => {
                             clearTimeout(timeoutId); // Clear timeout on success
                             console.log('✅ [DEBUG] API request successful');
-                            
+
                             // Extract notifications from response (handles multiple structures)
                             let apiNotifications = extractNotifications(response);
-                            
+
                             if (apiNotifications !== null) {
                                 console.log('✅ [DEBUG] Loaded notifications from API:', apiNotifications.length);
                                 console.log('📋 [DEBUG] Raw API notifications:', JSON.stringify(apiNotifications, null, 2));
-                                
+
                                 // Transform API notifications to match expected format
                                 notifications = apiNotifications.map((notif, index) => {
                                     // Ensure ID exists
                                     const notifId = notif.id || `api-notif-${Date.now()}-${index}`;
-                                    
+
                                     // Generate title from type or message if not provided
                                     let title = notif.title;
                                     if (!title) {
@@ -2638,7 +2686,7 @@
                                             title = 'Notification';
                                         }
                                     }
-                                    
+
                                     return {
                                         id: notifId,
                                         title: title,
@@ -2649,7 +2697,7 @@
                                     };
                                 });
                                 console.log('✅ [DEBUG] Transformed notifications:', notifications.length);
-                                
+
                                 // Save to localStorage for offline access
                                 try {
                                     localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
@@ -2698,7 +2746,7 @@
                                 stack: error.stack,
                                 name: error.name
                             });
-                            
+
                             // Try localStorage first, then sample
                             const saved = localStorage.getItem('ownerNotifications');
                             if (saved) {
@@ -2744,7 +2792,7 @@
                 const diffMins = Math.floor(diffMs / 60000);
                 const diffHours = Math.floor(diffMs / 3600000);
                 const diffDays = Math.floor(diffMs / 86400000);
-                
+
                 if (diffMins < 1) return 'Just now';
                 if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
                 if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
@@ -2770,7 +2818,7 @@
             } catch (e) {
                 console.error('Error loading notifications from localStorage:', e);
             }
-            
+
             // Default sample notifications with at least 1 unread
             const defaultNotifications = [
                 {
@@ -2798,7 +2846,7 @@
                     type: 'info'
                 }
             ];
-            
+
             console.log('Using default sample notifications:', defaultNotifications);
             return defaultNotifications;
         }
@@ -2808,7 +2856,7 @@
             console.log('🎨 [RENDER] Global notifications variable:', notifications);
             console.log('🎨 [RENDER] Notifications type:', typeof notifications);
             console.log('🎨 [RENDER] Is array:', Array.isArray(notifications));
-            
+
             const notificationList = document.getElementById('notificationList');
             if (!notificationList) {
                 console.error('❌ [RENDER] Notification list element not found - element ID: notificationList');
@@ -2862,7 +2910,7 @@
             // Render ALL notifications (not just first 5)
             try {
                 console.log('🎨 [RENDER] Starting to build HTML for', notifications.length, 'notifications');
-                
+
                 let renderedCount = 0;
                 const htmlParts = notifications.map((notification, index) => {
                     // Generate ID if missing
@@ -2870,7 +2918,7 @@
                         notification.id = `notif-${Date.now()}-${index}`;
                         console.warn(`⚠️ [RENDER] Notification missing ID, generated: ${notification.id}`, notification);
                     }
-                    
+
                     // Ensure required fields exist
                     const notif = {
                         id: notification.id,
@@ -2880,7 +2928,7 @@
                         read: notification.read === true || notification.read === 'true' || notification.read === 1,
                         type: notification.type || 'info'
                     };
-                    
+
                     renderedCount++;
                     // Ensure ID is properly quoted for onclick handlers
                     const notifIdStr = typeof notif.id === 'string' ? `'${notif.id.replace(/'/g, "\\'")}'` : notif.id;
@@ -2905,29 +2953,29 @@
                     `;
                     return itemHtml;
                 });
-                
+
                 const html = htmlParts.join('');
                 console.log('🎨 [RENDER] Generated HTML string, length:', html.length);
                 console.log('🎨 [RENDER] HTML preview (first 500 chars):', html.substring(0, 500));
-                
+
                 // CRITICAL: Verify element exists and is in DOM before manipulating
                 if (!notificationList || !notificationList.parentNode) {
                     console.error('❌ [RENDER] notificationList element is not in DOM!');
                     console.error('❌ [RENDER] Element:', notificationList);
                     return;
                 }
-                
+
                 // Verify element is the correct one
                 if (notificationList.id !== 'notificationList') {
                     console.error('❌ [RENDER] Element ID mismatch! Expected: notificationList, Got:', notificationList.id);
                 }
-                
+
                 console.log('✅ [RENDER] Element verified in DOM, parent:', notificationList.parentNode?.className);
-                
+
                 // CRITICAL: Clear loader first, then set HTML
                 console.log('🔄 [RENDER] Clearing innerHTML...');
                 notificationList.innerHTML = ''; // Clear first to remove any loader
-                
+
                 // Verify it's cleared
                 if (notificationList.children.length > 0) {
                     console.warn('⚠️ [RENDER] Element still has children after clear:', notificationList.children.length);
@@ -2936,22 +2984,22 @@
                         notificationList.removeChild(notificationList.firstChild);
                     }
                 }
-                
+
                 console.log('✅ [RENDER] Element cleared, children count:', notificationList.children.length);
-                
+
                 // Use direct innerHTML assignment for reliability
                 console.log('🔄 [RENDER] Setting innerHTML with', html.length, 'characters...');
                 notificationList.innerHTML = html;
-                
+
                 // Immediate verification (no await needed)
                 const immediateChildCount = notificationList.children.length;
                 console.log('🔍 [RENDER] Immediate children count after innerHTML:', immediateChildCount);
-                
+
                 // Verify the HTML was actually inserted
                 const childCount = notificationList.children.length;
                 console.log('🔍 [RENDER] Children count after insertion:', childCount);
                 console.log('🔍 [RENDER] Element innerHTML length:', notificationList.innerHTML.length);
-                
+
                 if (childCount === 0 || notificationList.innerHTML.trim() === '') {
                     console.error('❌ [RENDER] CRITICAL: HTML was set but no children found!');
                     console.error('❌ [RENDER] innerHTML is empty:', notificationList.innerHTML.length === 0);
@@ -2965,12 +3013,12 @@
                         offsetHeight: notificationList.offsetHeight,
                         offsetWidth: notificationList.offsetWidth
                     });
-                    
+
                     // Try alternative method - create elements directly
                     try {
                         console.log('🔄 [RENDER] Attempting alternative insertion method...');
                         notificationList.innerHTML = ''; // Clear again
-                        
+
                         // Create elements one by one
                         notifications.forEach((notification, index) => {
                             const notif = {
@@ -2981,11 +3029,11 @@
                                 read: notification.read === true || notification.read === 'true' || notification.read === 1,
                                 type: notification.type || 'info'
                             };
-                            
+
                             const itemDiv = document.createElement('div');
                             itemDiv.className = `notification-item ${notif.read ? '' : 'unread'}`;
                             itemDiv.setAttribute('data-id', notif.id);
-                            
+
                             // Ensure ID is properly quoted for onclick handlers
                             const notifIdStr = typeof notif.id === 'string' ? `'${notif.id.replace(/'/g, "\\'")}'` : notif.id;
                             itemDiv.innerHTML = `
@@ -3005,13 +3053,13 @@
                                     </button>
                                 </div>
                             `;
-                            
+
                             notificationList.appendChild(itemDiv);
                         });
-                        
+
                         const altChildCount = notificationList.children.length;
                         console.log('✅ [RENDER] Alternative method complete, children count:', altChildCount);
-                        
+
                         if (altChildCount === 0) {
                             throw new Error('Alternative insertion method also failed - no children created');
                         }
@@ -3036,16 +3084,16 @@
                     // Verify we have notification-item elements
                     const notificationItems = notificationList.querySelectorAll('.notification-item');
                     console.log(`✅ [RENDER] Found ${notificationItems.length} .notification-item elements`);
-                    
+
                     if (notificationItems.length === 0) {
                         console.warn('⚠️ [RENDER] Children exist but no .notification-item elements found!');
                         console.warn('⚠️ [RENDER] Children classes:', Array.from(notificationList.children).map(c => c.className));
                     }
                 }
-                
+
                 // Force a reflow to ensure rendering
                 void notificationList.offsetHeight;
-                
+
                 // Final check: ensure no loader is present
                 const remainingLoader = notificationList.querySelector('.fa-spinner');
                 const remainingEmptyState = notificationList.querySelector('.notification-empty');
@@ -3059,7 +3107,7 @@
                         remainingEmptyState.remove();
                     }
                 }
-                
+
                 // Final verification
                 const finalChildCount = notificationList.children.length;
                 const finalNotificationItems = notificationList.querySelectorAll('.notification-item').length;
@@ -3068,7 +3116,7 @@
                     notificationItems: finalNotificationItems,
                     innerHTMLLength: notificationList.innerHTML.length
                 });
-                
+
                 // If still no items, this is a critical error
                 if (finalNotificationItems === 0 && notifications.length > 0) {
                     console.error('❌ [RENDER] CRITICAL: Render completed but no notification items in DOM!');
@@ -3115,25 +3163,25 @@
         async function openNotificationModal() {
             const notificationModal = document.getElementById('notificationModal');
             const notificationList = document.getElementById('notificationList');
-            
+
             if (!notificationModal) {
                 console.error('❌ [MODAL] Notification modal element not found');
                 return;
             }
-            
+
             if (!notificationList) {
                 console.error('❌ [MODAL] Notification list element not found');
                 return;
             }
-            
+
             console.log('🔔 [MODAL] Opening notification modal...');
-            
+
             // Open modal first for better UX
             notificationModal.classList.add('active');
             document.body.style.overflow = 'hidden';
             var closeBtn = document.getElementById('notificationModalClose');
             if (closeBtn) closeBtn.focus();
-            
+
             // Show loading state immediately - THIS MUST BE REMOVED LATER
             const showLoader = () => {
                 notificationList.innerHTML = `
@@ -3143,13 +3191,13 @@
                     </div>
                 `;
             };
-            
+
             // Function to remove loader and render content
             const removeLoaderAndRender = async (notificationsToRender) => {
                 console.log('🔄 [MODAL] Removing loader and rendering notifications...');
                 console.log('🔄 [MODAL] Notifications to render:', notificationsToRender ? notificationsToRender.length : 0);
                 console.log('🔄 [MODAL] Notifications data:', JSON.stringify(notificationsToRender, null, 2));
-                
+
                 // CRITICAL: Set global notifications variable FIRST (synchronously)
                 // If notificationsToRender is null/undefined/empty, try to use existing global notifications or fallback
                 if (notificationsToRender && Array.isArray(notificationsToRender) && notificationsToRender.length > 0) {
@@ -3180,27 +3228,27 @@
                         console.log('✅ [MODAL] Using sample notifications (no cache), count:', notifications.length);
                     }
                 }
-                
+
                 // CRITICAL: Clear loader FIRST by clearing innerHTML immediately
                 console.log('🔄 [MODAL] Clearing loader immediately...');
                 notificationList.innerHTML = '';
-                
+
                 // Ensure element is visible
                 notificationList.style.display = 'flex';
                 notificationList.style.visibility = 'visible';
                 notificationList.style.opacity = '1';
-                
+
                 // Render immediately using direct DOM manipulation for reliability
                 if (notifications && Array.isArray(notifications) && notifications.length > 0) {
                     console.log('✅ [MODAL] Rendering', notifications.length, 'notifications immediately...');
-                    
+
                     // Use direct rendering here instead of calling renderNotifications to avoid timing issues
                     try {
                         // Clear any existing content
                         while (notificationList.firstChild) {
                             notificationList.removeChild(notificationList.firstChild);
                         }
-                        
+
                         // Render each notification directly
                         notifications.forEach((notification, index) => {
                             // Ensure notification has required fields
@@ -3212,15 +3260,15 @@
                                 read: notification.read === true || notification.read === 1 || notification.read === 'true' || notification.read === '1',
                                 type: notification.type || 'info'
                             };
-                            
+
                             // Create notification item element
                             const itemDiv = document.createElement('div');
                             itemDiv.className = `notification-item ${notif.read ? '' : 'unread'}`;
                             itemDiv.setAttribute('data-id', String(notif.id));
-                            
+
                             // Ensure ID is properly quoted for onclick handlers
                             const notifIdStr = typeof notif.id === 'string' ? `'${String(notif.id).replace(/'/g, "\\'")}'` : notif.id;
-                            
+
                             // Build HTML content
                             itemDiv.innerHTML = `
                                 <div class="notification-item-header">
@@ -3239,13 +3287,13 @@
                                     </button>
                                 </div>
                             `;
-                            
+
                             // Append to list
                             notificationList.appendChild(itemDiv);
                         });
-                        
+
                         console.log('✅ [MODAL] Direct rendering complete. Children count:', notificationList.children.length);
-                        
+
                         // Verify rendering worked
                         if (notificationList.children.length === 0) {
                             console.error('❌ [MODAL] CRITICAL: Direct rendering failed - no children created!');
@@ -3268,7 +3316,7 @@
                     `;
                 }
             };
-            
+
             // Function to show error state
             const showError = (errorMessage) => {
                 console.error('❌ [MODAL] Showing error state:', errorMessage);
@@ -3280,13 +3328,13 @@
                     </div>
                 `;
             };
-            
+
             // Show loader
             showLoader();
-            
+
             // Wait for modal to be fully visible in DOM
             await new Promise(resolve => setTimeout(resolve, 100));
-            
+
             // CRITICAL: Set a maximum timeout that ALWAYS removes the loader
             const MAX_LOAD_TIME = 3000; // 3 seconds max
             const forceRemoveLoader = setTimeout(() => {
@@ -3327,14 +3375,14 @@
                     }
                 }
             }, MAX_LOAD_TIME);
-            
+
             // Always reload notifications when opening modal to get latest data
             // But first, check if we already have notifications loaded
             if (notifications && Array.isArray(notifications) && notifications.length > 0) {
                 console.log('✅ [MODAL] Notifications already loaded, rendering immediately...');
                 clearTimeout(forceRemoveLoader);
                 await removeLoaderAndRender(notifications);
-                
+
                 // Still try to refresh in background
                 loadNotifications().then(updatedNotifications => {
                     if (updatedNotifications && Array.isArray(updatedNotifications) && updatedNotifications.length > 0) {
@@ -3347,7 +3395,7 @@
             } else {
                 try {
                     console.log('📥 [MODAL] Starting to load notifications...');
-                    
+
                     // Use Promise.race to ensure we don't wait forever
                     const loadPromise = loadNotifications();
                     const timeoutPromise = new Promise((resolve) => {
@@ -3356,14 +3404,14 @@
                             resolve(null);
                         }, 2500); // 2.5 seconds
                     });
-                    
+
                     const loadedNotifications = await Promise.race([loadPromise, timeoutPromise]);
-                    
+
                     // Clear the force timeout since we got a result
                     clearTimeout(forceRemoveLoader);
-                    
+
                     console.log('✅ [MODAL] Notifications loaded, count:', loadedNotifications ? loadedNotifications.length : 0);
-                    
+
                     // CRITICAL: Always remove loader and render, even if empty or null
                     if (loadedNotifications === null || !Array.isArray(loadedNotifications) || loadedNotifications.length === 0) {
                         // Timeout occurred or empty result, use fallback
@@ -3415,46 +3463,46 @@
                     }
                 }
             }
-                
-                // Double-check after a short delay to ensure rendering worked
-                setTimeout(async () => {
-                    const list = document.getElementById('notificationList');
-                    if (list) {
-                        const childCount = list.children.length;
-                        const hasLoader = list.querySelector('.fa-spinner');
-                        const hasEmptyState = list.querySelector('.notification-empty');
-                        const hasNotifications = list.querySelector('.notification-item');
-                        
-                        console.log('🔍 [MODAL] Verification check:', {
-                            childCount,
-                            hasLoader,
-                            hasEmptyState,
-                            hasNotifications,
-                            notificationsCount: notifications ? notifications.length : 0
-                        });
-                        
-                        // If loader is still showing, force remove it
-                        if (hasLoader) {
-                            console.warn('⚠️ [MODAL] Loader still visible after render, forcing removal...');
-                            if (notifications && Array.isArray(notifications) && notifications.length > 0) {
-                                await renderNotifications();
-                            } else {
-                                list.innerHTML = `
+
+            // Double-check after a short delay to ensure rendering worked
+            setTimeout(async () => {
+                const list = document.getElementById('notificationList');
+                if (list) {
+                    const childCount = list.children.length;
+                    const hasLoader = list.querySelector('.fa-spinner');
+                    const hasEmptyState = list.querySelector('.notification-empty');
+                    const hasNotifications = list.querySelector('.notification-item');
+
+                    console.log('🔍 [MODAL] Verification check:', {
+                        childCount,
+                        hasLoader,
+                        hasEmptyState,
+                        hasNotifications,
+                        notificationsCount: notifications ? notifications.length : 0
+                    });
+
+                    // If loader is still showing, force remove it
+                    if (hasLoader) {
+                        console.warn('⚠️ [MODAL] Loader still visible after render, forcing removal...');
+                        if (notifications && Array.isArray(notifications) && notifications.length > 0) {
+                            await renderNotifications();
+                        } else {
+                            list.innerHTML = `
                                     <div class="notification-empty">
                                         <i class="fas fa-bell-slash"></i>
                                         <p>No notifications available</p>
                                     </div>
                                 `;
-                            }
-                        }
-                        
-                        // If we have notifications but they're not displayed, force render
-                        if (notifications && notifications.length > 0 && !hasNotifications && !hasLoader) {
-                            console.warn('⚠️ [MODAL] Notifications exist but not displayed, forcing render...');
-                            await renderNotifications();
                         }
                     }
-                }, 300);
+
+                    // If we have notifications but they're not displayed, force render
+                    if (notifications && notifications.length > 0 && !hasNotifications && !hasLoader) {
+                        console.warn('⚠️ [MODAL] Notifications exist but not displayed, forcing render...');
+                        await renderNotifications();
+                    }
+                }
+            }, 300);
         }
 
         function closeNotificationModal() {
@@ -3469,37 +3517,37 @@
 
         async function markNotificationAsRead(id) {
             console.log('🔔 [MARK READ] Marking notification as read, ID:', id);
-            
+
             const notification = notifications.find(n => n.id === id || String(n.id) === String(id));
             if (!notification) {
                 console.error('❌ [MARK READ] Notification not found:', id);
                 showToast('Notification not found', 'error');
                 return;
             }
-            
+
             // Optimistically update UI
             const originalReadState = notification.read;
             notification.read = true;
-            
+
             // Update localStorage immediately for better UX
             try {
                 localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
             } catch (e) {
                 console.error('Error saving notifications to localStorage:', e);
             }
-            
+
             // Update UI immediately
             renderNotifications();
             updateNotificationBadge();
-            
+
             // Update via API
             if (typeof window.apiClient !== 'undefined' && window.apiClient) {
                 try {
                     console.log('📡 [MARK READ] Calling API to mark notification as read...');
                     const response = await window.apiClient.patch(`/api/notifications/${id}/read`, {});
-                    
+
                     console.log('✅ [MARK READ] API response:', response);
-                    
+
                     if (response && response.success) {
                         // Update notification with server response if available
                         if (response.notification) {
@@ -3513,7 +3561,7 @@
                                 localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
                             }
                         }
-                        
+
                         console.log('✅ [MARK READ] Successfully marked notification as read');
                         showToast('Notification marked as read', 'success');
                     } else {
@@ -3527,13 +3575,13 @@
                         status: error?.status,
                         stack: error?.stack
                     });
-                    
+
                     // Revert optimistic update on error
                     notification.read = originalReadState;
                     localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
                     renderNotifications();
                     updateNotificationBadge();
-                    
+
                     // Extract error message from various possible formats
                     let errorMessage = 'Failed to mark notification as read';
                     if (error?.message) {
@@ -3547,7 +3595,7 @@
                     } else if (error?.response?.message) {
                         errorMessage = error.response.message;
                     }
-                    
+
                     showToast(errorMessage, 'error');
                 }
             } else {
@@ -3557,43 +3605,43 @@
 
         async function deleteNotification(id) {
             console.log('🗑️ [DELETE] Deleting notification, ID:', id);
-            
+
             if (!confirm('Are you sure you want to delete this notification?')) {
                 return;
             }
-            
+
             const notification = notifications.find(n => n.id === id || String(n.id) === String(id));
             if (!notification) {
                 console.error('❌ [DELETE] Notification not found:', id);
                 showToast('Notification not found', 'error');
                 return;
             }
-            
+
             // Store original array for rollback
             const originalNotifications = [...notifications];
-            
+
             // Optimistically remove from array
             notifications = notifications.filter(n => n.id !== id && String(n.id) !== String(id));
-            
+
             // Update localStorage immediately
             try {
                 localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
             } catch (e) {
                 console.error('Error saving notifications to localStorage:', e);
             }
-            
+
             // Update UI immediately
             renderNotifications();
             updateNotificationBadge();
-            
+
             // Delete via API
             if (typeof window.apiClient !== 'undefined' && window.apiClient) {
                 try {
                     console.log('📡 [DELETE] Calling API to delete notification...');
                     const response = await window.apiClient.delete(`/api/notifications/${id}`);
-                    
+
                     console.log('✅ [DELETE] API response:', response);
-                    
+
                     if (response && response.success !== false) {
                         console.log('✅ [DELETE] Successfully deleted notification');
                         showToast('Notification deleted', 'success');
@@ -3608,13 +3656,13 @@
                         status: error?.status,
                         stack: error?.stack
                     });
-                    
+
                     // Revert optimistic update on error
                     notifications = originalNotifications;
                     localStorage.setItem('ownerNotifications', JSON.stringify(notifications));
                     renderNotifications();
                     updateNotificationBadge();
-                    
+
                     // Extract error message from various possible formats
                     let errorMessage = 'Failed to delete notification';
                     if (error?.message) {
@@ -3628,7 +3676,7 @@
                     } else if (error?.response?.message) {
                         errorMessage = error.response.message;
                     }
-                    
+
                     showToast(errorMessage, 'error');
                 }
             } else {
@@ -3642,7 +3690,7 @@
             div.textContent = text;
             return div.innerHTML;
         }
-        
+
         // Helper function to show toast notifications
         function showToast(message, type = 'info') {
             if (typeof ToastNotification !== 'undefined') {
@@ -3656,13 +3704,13 @@
         // Make functions globally available
         window.markNotificationAsRead = markNotificationAsRead;
         window.deleteNotification = deleteNotification;
-        
+
         // Debug helper function - call from browser console: debugNotifications()
-        window.debugNotifications = async function() {
+        window.debugNotifications = async function () {
             console.log('🔍 [DEBUG HELPER] Starting notification debug...');
             console.log('🔍 [DEBUG HELPER] Current notifications variable:', notifications);
             console.log('🔍 [DEBUG HELPER] API Client available:', typeof window.apiClient !== 'undefined' && !!window.apiClient);
-            
+
             if (typeof window.apiClient !== 'undefined' && window.apiClient) {
                 try {
                     console.log('🔍 [DEBUG HELPER] Making test API call...');
@@ -3672,7 +3720,7 @@
                     console.log('✅ [DEBUG HELPER] Is array:', Array.isArray(response));
                     console.log('✅ [DEBUG HELPER] Response keys:', response ? Object.keys(response) : 'null');
                     console.log('✅ [DEBUG HELPER] Full response JSON:', JSON.stringify(response, null, 2));
-                    
+
                     if (response && response.notifications) {
                         console.log('✅ [DEBUG HELPER] Found response.notifications:', response.notifications.length);
                     }
@@ -3682,7 +3730,7 @@
                     if (Array.isArray(response)) {
                         console.log('✅ [DEBUG HELPER] Response is direct array:', response.length);
                     }
-                    
+
                     return response;
                 } catch (error) {
                     console.error('❌ [DEBUG HELPER] API call failed:', error);
@@ -3709,12 +3757,12 @@
     <script src="js/owner-dashboard.js"></script>
     <script>
         // Initialize user data on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             if (typeof AuthUtils !== 'undefined') {
                 // Check authentication - but be lenient for demo tokens
                 const user = AuthUtils.getCurrentUser();
                 const isAuthenticated = AuthUtils.isAuthenticated();
-                
+
                 if (user && isAuthenticated) {
                     const userNameEl = document.getElementById('userName');
                     const userRoleEl = document.getElementById('userRole');
@@ -3722,7 +3770,7 @@
                     const sidebarUserNameEl = document.getElementById('sidebarUserName');
                     const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
                     const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
-                    
+
                     if (userNameEl) {
                         userNameEl.textContent = AuthUtils.getUserDisplayName();
                     }
@@ -3766,12 +3814,12 @@
                     if (welcomeUserNameEl) {
                         welcomeUserNameEl.textContent = AuthUtils.getUserDisplayName();
                     }
-                    
+
                     // Update sidebar user info
                     const sidebarUserNameEl = document.getElementById('sidebarUserName');
                     const sidebarUserRoleEl = document.getElementById('sidebarUserRole');
                     const sidebarUserAvatarEl = document.getElementById('sidebarUserAvatar');
-                    
+
                     if (sidebarUserNameEl) {
                         sidebarUserNameEl.textContent = AuthUtils.getUserDisplayName();
                     }
@@ -3807,7 +3855,7 @@
                     window.location.href = 'login-signup.html';
                 }
             }
-            
+
             // Load sidebar state from localStorage (desktop only)
             const sidebar = document.querySelector('.dashboard-sidebar');
             const savedSidebarState = localStorage.getItem('ownerSidebarCollapsed');
@@ -3817,7 +3865,7 @@
 
             // Sidebar toggle via logo (desktop only)
             const logoToggle = document.getElementById('logoToggle');
-            
+
             function toggleSidebar(e) {
                 if (e) {
                     e.preventDefault();
@@ -3828,7 +3876,7 @@
                 const isCollapsed = sidebar.classList.contains('collapsed');
                 localStorage.setItem('ownerSidebarCollapsed', isCollapsed ? 'true' : 'false');
             }
-            
+
             if (logoToggle && sidebar) {
                 logoToggle.addEventListener('click', toggleSidebar);
                 logoToggle.addEventListener('keydown', (e) => {
@@ -3883,7 +3931,7 @@
             // Mobile menu toggle
             const mobileMenuToggle = document.getElementById('mobileMenuToggle');
             const sidebarOverlay = document.getElementById('sidebarOverlay');
-            
+
             function toggleMobileSidebar() {
                 if (sidebar && window.innerWidth <= 1024) {
                     sidebar.classList.toggle('mobile-open');
@@ -3906,14 +3954,14 @@
 
             if (mobileMenuToggle) {
                 console.log('Mobile menu toggle button found, attaching event listener');
-                mobileMenuToggle.addEventListener('click', function(e) {
+                mobileMenuToggle.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
                     console.log('Mobile menu toggle clicked');
                     toggleMobileSidebar();
                 });
                 // Also add touchstart for better mobile support
-                mobileMenuToggle.addEventListener('touchstart', function(e) {
+                mobileMenuToggle.addEventListener('touchstart', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
                     console.log('Mobile menu toggle touched');
@@ -3924,7 +3972,7 @@
             }
 
             if (sidebarOverlay) {
-                sidebarOverlay.addEventListener('click', function() {
+                sidebarOverlay.addEventListener('click', function () {
                     closeMobileSidebar();
                 });
             }
@@ -3932,7 +3980,7 @@
             // Close sidebar when clicking on nav items (mobile)
             const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
             navItems.forEach(item => {
-                item.addEventListener('click', function() {
+                item.addEventListener('click', function () {
                     if (window.innerWidth <= 1024) {
                         closeMobileSidebar();
                     }
@@ -3941,9 +3989,9 @@
 
             // Handle window resize
             let resizeTimer;
-            window.addEventListener('resize', function() {
+            window.addEventListener('resize', function () {
                 clearTimeout(resizeTimer);
-                resizeTimer = setTimeout(function() {
+                resizeTimer = setTimeout(function () {
                     if (window.innerWidth > 1024) {
                         closeMobileSidebar();
                     }
@@ -3954,7 +4002,7 @@
             // Handle sidebar logout button
             const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
             if (sidebarLogoutBtn) {
-                sidebarLogoutBtn.addEventListener('click', function(e) {
+                sidebarLogoutBtn.addEventListener('click', function (e) {
                     e.preventDefault();
                     if (confirm('Are you sure you want to logout?')) {
                         if (typeof window.authManager !== 'undefined') {
@@ -3974,25 +4022,25 @@
                     }
                 });
             }
-            
+
             // Profile dropdown + logout
             const profileMenu = document.getElementById('userProfileMenu');
             const profileDropdown = document.getElementById('profileDropdown');
             const profileLogoutBtn = document.getElementById('profileLogoutBtn');
 
             if (profileMenu) {
-                profileMenu.addEventListener('click', function(e) {
+                profileMenu.addEventListener('click', function (e) {
                     e.stopPropagation();
                     profileMenu.classList.toggle('open');
                 });
             }
 
-            document.addEventListener('click', function() {
+            document.addEventListener('click', function () {
                 if (profileMenu) profileMenu.classList.remove('open');
             });
 
             if (profileLogoutBtn) {
-                profileLogoutBtn.addEventListener('click', function(e) {
+                profileLogoutBtn.addEventListener('click', function (e) {
                     e.preventDefault();
                     if (confirm('Are you sure you want to logout?')) {
                         if (typeof window.authManager !== 'undefined') {
@@ -4012,14 +4060,14 @@
                     }
                 });
             }
-            
+
             // Convert tables to cards on mobile
             convertTablesToCards();
-            
+
             // Handle window resize for responsive updates (already handled above, but keeping for compatibility)
         });
-        
-        
+
+
         // Convert tables to mobile cards
         function convertTablesToCards() {
             if (window.innerWidth > 768) {
@@ -4032,11 +4080,11 @@
                 });
                 return;
             }
-            
+
             // Mobile: Convert tables to cards
             const registrationsTable = document.getElementById('my-registrations-tbody');
             const transfersTable = document.getElementById('my-transfers-tbody');
-            
+
             // Handle registrations
             if (registrationsTable) {
                 const registrationsContainer = registrationsTable.closest('.application-tab-content');
@@ -4047,18 +4095,18 @@
                         mobileList.className = 'mobile-applications-list';
                         registrationsContainer.appendChild(mobileList);
                     }
-                    
+
                     // Hide table on mobile
                     const tableContainer = registrationsContainer.querySelector('.table-container-modern');
                     if (tableContainer) {
                         tableContainer.style.display = 'none';
                     }
-                    
+
                     // Generate cards from table rows
                     generateMobileCards(registrationsTable, mobileList, 'registration');
                 }
             }
-            
+
             // Handle transfers
             if (transfersTable) {
                 const transfersContainer = transfersTable.closest('.application-tab-content');
@@ -4069,39 +4117,39 @@
                         mobileList.className = 'mobile-applications-list';
                         transfersContainer.appendChild(mobileList);
                     }
-                    
+
                     // Hide table on mobile
                     const tableContainer = transfersContainer.querySelector('.table-container-modern');
                     if (tableContainer) {
                         tableContainer.style.display = 'none';
                     }
-                    
+
                     // Generate cards from table rows
                     generateMobileCards(transfersTable, mobileList, 'transfer');
                 }
             }
         }
-        
+
         // Generate mobile cards from table rows
         function generateMobileCards(tableBody, container, type) {
             if (!tableBody || !container) return;
-            
+
             const rows = tableBody.querySelectorAll('tr');
-            
+
             if (rows.length === 0) {
                 container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #6b7280;">No applications found</div>';
                 return;
             }
-            
+
             container.innerHTML = '';
-            
+
             rows.forEach(row => {
                 const cells = row.querySelectorAll('td');
                 if (cells.length === 0) return;
-                
+
                 const card = document.createElement('div');
                 card.className = 'mobile-application-card';
-                
+
                 if (type === 'registration') {
                     // Registration card structure
                     const vehicle = cells[0]?.textContent?.trim() || 'N/A';
@@ -4111,7 +4159,7 @@
                     const verificationStatus = cells[4]?.innerHTML || '';
                     const status = cells[5]?.innerHTML || '';
                     const actions = cells[6]?.innerHTML || '';
-                    
+
                     card.innerHTML = `
                         <div class="mobile-app-header">
                             <h3 class="mobile-app-title">${vehicle}</h3>
@@ -4147,7 +4195,7 @@
                     const otherParty = cells[3]?.textContent?.trim() || 'N/A';
                     const status = cells[4]?.innerHTML || '';
                     const actions = cells[5]?.innerHTML || '';
-                    
+
                     card.innerHTML = `
                         <div class="mobile-app-header">
                             <h3 class="mobile-app-title">${vehicle}</h3>
@@ -4172,10 +4220,11 @@
                         </div>
                     `;
                 }
-                
+
                 container.appendChild(card);
             });
         }
     </script>
 </body>
+
 </html>

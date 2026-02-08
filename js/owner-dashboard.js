@@ -1,15 +1,15 @@
 // Owner Dashboard JavaScript
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // SECURITY: Require authentication before initializing dashboard
     if (typeof AuthUtils !== 'undefined') {
         const isAuthDisabled = typeof window !== 'undefined' && window.DISABLE_AUTH === true;
-        
+
         if (!isAuthDisabled) {
             // Production mode: Require authentication
             if (!AuthUtils.requireAuth()) {
                 return; // Redirect to login page
             }
-            
+
             // Verify vehicle_owner role
             if (!AuthUtils.hasRole('vehicle_owner')) {
                 // Check if user has hpg_admin role and redirect to HPG dashboard
@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     }, 1000);
                     return;
                 }
-                
+
                 console.warn('❌ Access denied: Vehicle owner role required');
                 showNotification('Access denied. Vehicle owner role required. Redirecting to login...', 'error');
                 setTimeout(() => {
@@ -31,10 +31,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     }
-    
+
     initializeOwnerDashboard();
     initializeKeyboardShortcuts();
-    
+
     // Initialize pagination after a short delay to ensure table is rendered
     setTimeout(() => {
         initializePagination();
@@ -56,16 +56,16 @@ let isPageVisible = true;
 async function updateBlockchainStatus() {
     const badge = document.getElementById('blockchainStatusBadge');
     if (!badge) return;
-    
+
     const indicator = badge.querySelector('.status-indicator');
     const text = badge.querySelector('.status-text');
-    
+
     if (!indicator || !text) return;
-    
+
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get('/api/blockchain/status');
-        
+
         if (response.success && response.blockchain) {
             const blockchain = response.blockchain;
             if (blockchain.status === 'CONNECTED') {
@@ -94,23 +94,23 @@ async function updateBlockchainStatus() {
 function initializeOwnerDashboard() {
     // Initialize user information
     updateUserInfo();
-    
+
     // Initialize dashboard functionality
     updateOwnerStats();
-    
+
     // Initialize blockchain status
     updateBlockchainStatus();
     setInterval(updateBlockchainStatus, 30000);
-    
+
     // Initialize application tracking
     initializeApplicationTracking();
-    
+
     // Initialize notifications
     initializeNotifications();
-    
+
     // Initialize submitted applications
     initializeSubmittedApplications();
-    
+
     // Set up auto-refresh
     setInterval(updateOwnerStats, 60000); // Update every minute
 }
@@ -118,21 +118,21 @@ function initializeOwnerDashboard() {
 function updateUserInfo() {
     // Get current user from localStorage
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    
+
     if (currentUser && currentUser.firstName) {
         // Update user name
         const userNameElement = document.querySelector('.user-name');
         if (userNameElement) {
             userNameElement.textContent = `${currentUser.firstName} ${currentUser.lastName}`;
         }
-        
+
         // Update user avatar with initials
         const userAvatarElement = document.querySelector('.user-avatar');
         if (userAvatarElement) {
             const initials = `${currentUser.firstName.charAt(0)}${currentUser.lastName.charAt(0)}`.toUpperCase();
             userAvatarElement.textContent = initials;
         }
-        
+
         // Update user role
         const userRoleElement = document.querySelector('.user-role');
         if (userRoleElement) {
@@ -144,7 +144,7 @@ function updateUserInfo() {
         if (userNameElement) {
             userNameElement.textContent = 'User';
         }
-        
+
         const userAvatarElement = document.querySelector('.user-avatar');
         if (userAvatarElement) {
             userAvatarElement.textContent = 'U';
@@ -157,7 +157,7 @@ async function updateOwnerStats() {
     statCards.forEach(card => {
         card.textContent = '...';
     });
-    
+
     // Initialize stats with zeros
     const stats = {
         registeredVehicles: 0,
@@ -165,13 +165,13 @@ async function updateOwnerStats() {
         approvedApplications: 0,
         notifications: 0
     };
-    
+
     try {
         // Get real stats from API
-        const token = (typeof window !== 'undefined' && window.authManager) 
-            ? window.authManager.getAccessToken() 
+        const token = (typeof window !== 'undefined' && window.authManager)
+            ? window.authManager.getAccessToken()
             : (localStorage.getItem('authToken') || localStorage.getItem('token'));
-        
+
         // Check if it's a demo token - if so, skip API calls and use localStorage data
         if (token && token.startsWith('demo-token-')) {
             console.log('Demo mode: Using localStorage data instead of API');
@@ -206,28 +206,28 @@ async function updateOwnerStats() {
                         'Authorization': `Bearer ${token}`
                     }
                 });
-                
+
                 if (response.ok) {
                     const data = await response.json();
                     if (data.success && data.vehicles) {
                         const vehicles = data.vehicles;
-                        
+
                         // FIX: Use case-insensitive status comparison
                         stats.registeredVehicles = vehicles.filter(v => {
                             const status = (v.status || '').toUpperCase();
                             return status === 'REGISTERED' || status === 'APPROVED';
                         }).length;
-                        
+
                         stats.pendingApplications = vehicles.filter(v => {
                             const status = (v.status || '').toUpperCase();
                             return status === 'SUBMITTED' || status === 'PENDING_BLOCKCHAIN' || status === 'PROCESSING' || status === 'PENDING';
                         }).length;
-                        
+
                         stats.approvedApplications = vehicles.filter(v => {
                             const status = (v.status || '').toUpperCase();
                             return status === 'APPROVED' || status === 'REGISTERED';
                         }).length;
-                        
+
                         console.log('✅ Stats calculated:', {
                             total: vehicles.length,
                             registered: stats.registeredVehicles,
@@ -241,36 +241,36 @@ async function updateOwnerStats() {
                 console.warn('Could not fetch vehicle stats:', apiError);
             }
         }
-            
-            // Get notifications count
-            if (token && token.startsWith('demo-token-')) {
-                // Demo mode: use localStorage
-                const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
-                stats.notifications = localNotifs.filter(n => !n.read).length;
-            } else if (token) {
-                try {
-                    const notifResponse = await fetch('/api/notifications', {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-                    if (notifResponse.ok) {
-                        const notifData = await notifResponse.json();
-                        if (notifData.success && Array.isArray(notifData.notifications)) {
-                            stats.notifications = notifData.notifications.filter(n => !n.read).length;
-                        }
+
+        // Get notifications count
+        if (token && token.startsWith('demo-token-')) {
+            // Demo mode: use localStorage
+            const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
+            stats.notifications = localNotifs.filter(n => !n.read).length;
+        } else if (token) {
+            try {
+                const notifResponse = await fetch('/api/notifications', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
                     }
-                } catch (notifError) {
-                    console.warn('Could not fetch notifications:', notifError);
-                    // Fallback to localStorage if available
-                    const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
-                    stats.notifications = localNotifs.filter(n => !n.read).length;
+                });
+                if (notifResponse.ok) {
+                    const notifData = await notifResponse.json();
+                    if (notifData.success && Array.isArray(notifData.notifications)) {
+                        stats.notifications = notifData.notifications.filter(n => !n.read).length;
+                    }
                 }
-            } else {
-                // No token, use localStorage
+            } catch (notifError) {
+                console.warn('Could not fetch notifications:', notifError);
+                // Fallback to localStorage if available
                 const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
                 stats.notifications = localNotifs.filter(n => !n.read).length;
             }
+        } else {
+            // No token, use localStorage
+            const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
+            stats.notifications = localNotifs.filter(n => !n.read).length;
+        }
     } catch (error) {
         console.warn('Error loading dashboard stats:', error);
         // Fallback to localStorage if API fails
@@ -291,18 +291,18 @@ async function updateOwnerStats() {
         const localNotifs = JSON.parse(localStorage.getItem('userNotifications') || '[]');
         stats.notifications = localNotifs.filter(n => !n.read).length;
     }
-    
+
     // Update stat cards (using new IDs)
     const statVehiclesEl = document.getElementById('statVehicles');
     const statPendingEl = document.getElementById('statPending');
     const statApprovedEl = document.getElementById('statApproved');
     const statNotificationsEl = document.getElementById('statNotifications');
-    
+
     if (statVehiclesEl) statVehiclesEl.textContent = stats.registeredVehicles;
     if (statPendingEl) statPendingEl.textContent = stats.pendingApplications;
     if (statApprovedEl) statApprovedEl.textContent = stats.approvedApplications;
     if (statNotificationsEl) statNotificationsEl.textContent = stats.notifications;
-    
+
     // Fallback to old method if new IDs not found
     if (statCards.length >= 4) {
         statCards[0].textContent = stats.registeredVehicles;
@@ -316,13 +316,13 @@ function initializeApplicationTracking() {
     // Add event listeners for application actions
     const applicationTable = document.querySelector('.table tbody');
     if (applicationTable) {
-        applicationTable.addEventListener('click', function(e) {
+        applicationTable.addEventListener('click', function (e) {
             if (e.target.classList.contains('btn-secondary')) {
                 handleViewApplication(e);
             }
         });
     }
-    
+
     // Add status update animations
     animateStatusUpdates();
 }
@@ -331,7 +331,7 @@ function handleViewApplication(e) {
     const row = e.target.closest('tr');
     const vehicleInfo = row.querySelector('.vehicle-info strong').textContent;
     const applicationId = row.querySelector('td:nth-child(2)').textContent;
-    
+
     // Strict: do not navigate to full-page document viewers.
     // Guide user to use the in-page modal / details view instead.
     showNotification('Please use the in-page document modal to view documents (no new tabs). Open the application details and click "View Documents".', 'info');
@@ -341,12 +341,12 @@ function animateStatusUpdates() {
     // Add subtle animations to status badges
     const statusBadges = document.querySelectorAll('.status-badge');
     statusBadges.forEach(badge => {
-        badge.addEventListener('mouseenter', function() {
+        badge.addEventListener('mouseenter', function () {
             this.style.transform = 'scale(1.05)';
             this.style.transition = 'transform 0.2s ease';
         });
-        
-        badge.addEventListener('mouseleave', function() {
+
+        badge.addEventListener('mouseleave', function () {
             this.style.transform = 'scale(1)';
         });
     });
@@ -355,17 +355,17 @@ function animateStatusUpdates() {
 function initializeNotifications() {
     // Load and display user notifications
     loadUserNotifications();
-    
+
     // Add notification management functionality
     const notificationsList = document.querySelector('.notifications-list');
     if (notificationsList) {
-        notificationsList.addEventListener('click', function(e) {
+        notificationsList.addEventListener('click', function (e) {
             if (e.target.closest('.notification-item')) {
                 handleNotificationClick(e);
             }
         });
     }
-    
+
     // Set up auto-refresh for notifications (smart refresh - only when tab visible)
     setInterval(() => {
         if (document.visibilityState === 'visible') {
@@ -377,11 +377,11 @@ function initializeNotifications() {
 function handleNotificationClick(e) {
     const notification = e.target.closest('.notification-item');
     const title = notification.querySelector('h4').textContent;
-    
+
     // Mark as read (visual feedback)
     notification.style.opacity = '0.7';
     notification.style.backgroundColor = '#f8f9fa';
-    
+
     showNotification(`Notification "${title}" marked as read`, 'success');
 }
 
@@ -396,22 +396,22 @@ async function loadUserNotifications() {
         '.dashboard-card-modern.notifications-card .notifications-list-modern',
         '.notifications-list'
     ];
-    
+
     for (const selector of selectors) {
         notificationsList = document.querySelector(selector);
         if (notificationsList) break;
     }
-    
+
     if (!notificationsList) {
         console.warn('⚠️ Could not find notifications list - this is normal if using the modal notification system');
         return;
     }
-    
+
     // Load from API only (no localStorage fallback)
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get('/api/notifications');
-        
+
         if (response && response.success && response.notifications) {
             renderNotifications(response.notifications);
         } else {
@@ -424,13 +424,13 @@ async function loadUserNotifications() {
 }
 
 function renderNotifications(notifications) {
-    let notificationsList = document.querySelector('.notifications-list-modern') || 
-                           document.querySelector('.notifications-list');
-    
+    let notificationsList = document.querySelector('.notifications-list-modern') ||
+        document.querySelector('.notifications-list');
+
     if (!notificationsList) return;
-    
+
     notificationsList.innerHTML = '';
-    
+
     if (notifications.length === 0) {
         notificationsList.innerHTML = `
             <div style="text-align: center; padding: 20px; color: #666;">
@@ -439,13 +439,13 @@ function renderNotifications(notifications) {
         `;
         return;
     }
-    
+
     // Display notifications (show only latest 5)
     notifications.slice(0, 5).forEach(notification => {
         const notificationElement = createNotificationElement(notification);
         notificationsList.appendChild(notificationElement);
     });
-    
+
     // Update notification count in stats
     updateNotificationCount(notifications.filter(n => !n.read).length);
 }
@@ -453,10 +453,10 @@ function renderNotifications(notifications) {
 function createNotificationElement(notification) {
     const element = document.createElement('div');
     element.className = `notification-item ${notification.read ? 'read' : 'unread'}`;
-    
+
     const icon = notification.type === 'approved' ? '✅' : notification.type === 'info' ? 'ℹ️' : '❌';
     const timeAgo = getTimeAgo(notification.sentAt || notification.timestamp);
-    
+
     element.innerHTML = `
         <div class="notification-icon">${icon}</div>
         <div class="notification-content">
@@ -465,16 +465,16 @@ function createNotificationElement(notification) {
             <small>${timeAgo}</small>
         </div>
     `;
-    
+
     // Mark as read when clicked
-    element.addEventListener('click', async function() {
+    element.addEventListener('click', async function () {
         if (!notification.read) {
             await markNotificationAsRead(notification.id);
             element.classList.remove('unread');
             element.classList.add('read');
         }
     });
-    
+
     return element;
 }
 
@@ -482,7 +482,7 @@ function getTimeAgo(timestamp) {
     const now = new Date();
     const time = new Date(timestamp);
     const diffInSeconds = Math.floor((now - time) / 1000);
-    
+
     if (diffInSeconds < 60) return 'Just now';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
@@ -491,64 +491,64 @@ function getTimeAgo(timestamp) {
 
 async function markNotificationAsRead(notificationId) {
     console.log('🔔 [MARK READ] Marking notification as read, ID:', notificationId);
-    
+
     // Find button by data-id attribute on parent notification item
     const notificationItem = document.querySelector(`.notification-item[data-id="${notificationId}"], .notification-item[data-id="${String(notificationId)}"]`);
     const button = notificationItem?.querySelector('.btn-mark-read');
     const originalButtonText = button?.innerHTML || '';
     const originalButtonDisabled = button?.disabled || false;
-    
+
     if (button) {
         button.disabled = true;
         button.style.opacity = '0.6';
         button.style.cursor = 'not-allowed';
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Marking...';
     }
-    
+
     // Get the global notifications array if it exists (from owner-dashboard.html)
     const globalNotifications = window.notifications || [];
     const notification = globalNotifications.find(n => n.id === notificationId || String(n.id) === String(notificationId));
-    
+
     // Store original state for rollback
     let originalReadState = null;
-    
+
     // Optimistically update UI if notification found in global array
     if (notification) {
         originalReadState = notification.read;
         notification.read = true;
-        
+
         // Update localStorage immediately
         try {
             localStorage.setItem('ownerNotifications', JSON.stringify(globalNotifications));
         } catch (e) {
             console.error('Error saving to localStorage:', e);
         }
-        
+
         // Update UI if renderNotifications function exists
         if (typeof window.renderNotifications === 'function') {
             window.renderNotifications();
         }
-        
+
         // Update badge if function exists
         if (typeof window.updateNotificationBadge === 'function') {
             window.updateNotificationBadge();
         }
     }
-    
+
     try {
         const apiClient = window.apiClient || new APIClient();
         console.log('📡 [MARK READ] Calling API to mark notification as read...');
         console.log('📡 [MARK READ] Notification ID:', notificationId);
         console.log('📡 [MARK READ] API Client:', apiClient);
         console.log('📡 [MARK READ] Auth Token:', apiClient.getAuthToken() ? 'Present' : 'Missing');
-        
+
         // Use patch method
         const response = await apiClient.patch(`/api/notifications/${notificationId}/read`, {});
-        
+
         console.log('✅ [MARK READ] API response:', response);
         console.log('✅ [MARK READ] Response type:', typeof response);
         console.log('✅ [MARK READ] Response success:', response?.success);
-        
+
         if (response && response.success) {
             // Update notification with server response if available
             if (response.notification && notification) {
@@ -560,12 +560,12 @@ async function markNotificationAsRead(notificationId) {
                     console.error('Error saving to localStorage:', e);
                 }
             }
-            
+
             // Reload notifications to reflect the change
             if (typeof loadUserNotifications === 'function') {
                 await loadUserNotifications();
             }
-            
+
             // Update UI
             if (typeof window.renderNotifications === 'function') {
                 window.renderNotifications();
@@ -573,14 +573,14 @@ async function markNotificationAsRead(notificationId) {
             if (typeof window.updateNotificationBadge === 'function') {
                 window.updateNotificationBadge();
             }
-            
+
             // Show success message
             if (typeof showNotification === 'function') {
                 showNotification('Notification marked as read', 'success');
             } else if (typeof ToastNotification !== 'undefined') {
                 ToastNotification.show('Notification marked as read', 'success');
             }
-            
+
             console.log('✅ [MARK READ] Successfully marked notification as read');
         } else {
             const errorMsg = response?.error || response?.message || 'Failed to mark notification as read';
@@ -596,10 +596,10 @@ async function markNotificationAsRead(notificationId) {
             isServerError: error?.isServerError,
             stack: error?.stack
         });
-        
+
         // Log the full error object for debugging
         console.error('❌ [MARK READ] Full error object:', error);
-        
+
         // Revert optimistic update on error
         if (notification && originalReadState !== null) {
             notification.read = originalReadState;
@@ -608,7 +608,7 @@ async function markNotificationAsRead(notificationId) {
             } catch (e) {
                 console.error('Error reverting in localStorage:', e);
             }
-            
+
             // Update UI
             if (typeof window.renderNotifications === 'function') {
                 window.renderNotifications();
@@ -617,7 +617,7 @@ async function markNotificationAsRead(notificationId) {
                 window.updateNotificationBadge();
             }
         }
-        
+
         // Extract error message
         let errorMessage = 'Failed to mark notification as read';
         if (error?.message) {
@@ -627,7 +627,7 @@ async function markNotificationAsRead(notificationId) {
         } else if (typeof error === 'string') {
             errorMessage = error;
         }
-        
+
         // Show error message
         if (typeof showNotification === 'function') {
             showNotification(errorMessage, 'error');
@@ -649,28 +649,28 @@ async function markNotificationAsRead(notificationId) {
 
 async function deleteNotification(notificationId) {
     console.log('🗑️ [DELETE] Deleting notification, ID:', notificationId);
-    
+
     if (!confirm('Are you sure you want to delete this notification?')) {
         return;
     }
-    
+
     // Find button by data-id attribute on parent notification item
     const notificationItem = document.querySelector(`.notification-item[data-id="${notificationId}"], .notification-item[data-id="${String(notificationId)}"]`);
     const button = notificationItem?.querySelector('.btn-delete');
     const originalButtonText = button?.innerHTML || '';
     const originalButtonDisabled = button?.disabled || false;
-    
+
     if (button) {
         button.disabled = true;
         button.style.opacity = '0.6';
         button.style.cursor = 'not-allowed';
         button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
     }
-    
+
     // Get the global notifications array if it exists (from owner-dashboard.html)
     const globalNotifications = window.notifications || [];
     const notification = globalNotifications.find(n => n.id === notificationId || String(n.id) === String(notificationId));
-    
+
     if (!notification) {
         console.error('❌ [DELETE] Notification not found:', notificationId);
         const errorMsg = 'Notification not found';
@@ -679,7 +679,7 @@ async function deleteNotification(notificationId) {
         } else if (typeof ToastNotification !== 'undefined') {
             ToastNotification.show(errorMsg, 'error');
         }
-        
+
         // Re-enable button
         if (button) {
             button.disabled = originalButtonDisabled;
@@ -689,21 +689,21 @@ async function deleteNotification(notificationId) {
         }
         return;
     }
-    
+
     // Store original array for rollback
     const originalNotifications = [...globalNotifications];
-    
+
     // Optimistically remove from array
     const filteredNotifications = globalNotifications.filter(n => n.id !== notificationId && String(n.id) !== String(notificationId));
     window.notifications = filteredNotifications;
-    
+
     // Update localStorage immediately
     try {
         localStorage.setItem('ownerNotifications', JSON.stringify(filteredNotifications));
     } catch (e) {
         console.error('Error saving to localStorage:', e);
     }
-    
+
     // Update UI immediately
     if (typeof window.renderNotifications === 'function') {
         window.renderNotifications();
@@ -711,26 +711,26 @@ async function deleteNotification(notificationId) {
     if (typeof window.updateNotificationBadge === 'function') {
         window.updateNotificationBadge();
     }
-    
+
     // Delete via API
     try {
         const apiClient = window.apiClient || new APIClient();
         console.log('📡 [DELETE] Calling API to delete notification...');
-        
+
         const response = await apiClient.delete(`/api/notifications/${notificationId}`);
-        
+
         console.log('✅ [DELETE] API response:', response);
-        
+
         if (response && response.success !== false) {
             console.log('✅ [DELETE] Successfully deleted notification');
-            
+
             // Show success message
             if (typeof showNotification === 'function') {
                 showNotification('Notification deleted', 'success');
             } else if (typeof ToastNotification !== 'undefined') {
                 ToastNotification.show('Notification deleted', 'success');
             }
-            
+
             // Reload notifications
             if (typeof loadUserNotifications === 'function') {
                 await loadUserNotifications();
@@ -746,7 +746,7 @@ async function deleteNotification(notificationId) {
             status: error?.status,
             stack: error?.stack
         });
-        
+
         // Revert optimistic update on error
         window.notifications = originalNotifications;
         try {
@@ -754,7 +754,7 @@ async function deleteNotification(notificationId) {
         } catch (e) {
             console.error('Error reverting in localStorage:', e);
         }
-        
+
         // Update UI
         if (typeof window.renderNotifications === 'function') {
             window.renderNotifications();
@@ -762,7 +762,7 @@ async function deleteNotification(notificationId) {
         if (typeof window.updateNotificationBadge === 'function') {
             window.updateNotificationBadge();
         }
-        
+
         // Extract error message
         let errorMessage = 'Failed to delete notification';
         if (error?.message) {
@@ -772,7 +772,7 @@ async function deleteNotification(notificationId) {
         } else if (typeof error === 'string') {
             errorMessage = error;
         }
-        
+
         // Show error message
         if (typeof showNotification === 'function') {
             showNotification(errorMessage, 'error');
@@ -808,7 +808,7 @@ function updateNotificationCount(count) {
 function addNotificationToUI(notification) {
     const notificationsList = document.querySelector('.notifications-list');
     if (!notificationsList) return;
-    
+
     const notificationElement = document.createElement('div');
     notificationElement.className = 'notification-item';
     notificationElement.innerHTML = `
@@ -819,15 +819,15 @@ function addNotificationToUI(notification) {
             <small>${notification.time}</small>
         </div>
     `;
-    
+
     // Add to top of list
     notificationsList.insertBefore(notificationElement, notificationsList.firstChild);
-    
+
     // Remove oldest notification if more than 5
     if (notificationsList.children.length > 5) {
         notificationsList.removeChild(notificationsList.lastChild);
     }
-    
+
     // Show toast notification
     showNotification(`New notification: ${notification.title}`, 'info');
 }
@@ -865,12 +865,12 @@ function initializeSubmittedApplications() {
     // Ensure registrations tab is visible on initial load
     const registrationsTab = document.getElementById('registrations-tab');
     const transfersTab = document.getElementById('transfers-tab');
-    
+
     if (registrationsTab && transfersTab) {
         registrationsTab.style.display = 'block';
         transfersTab.style.display = 'none';
     }
-    
+
     // Wait for DOM to be ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
@@ -880,7 +880,7 @@ function initializeSubmittedApplications() {
         // DOM is ready, but wait a bit for dynamic content
         setTimeout(loadUserApplications, 100);
     }
-    
+
     // Set up auto-refresh for applications (silent background refresh)
     setInterval(() => {
         // Only refresh if page is visible and user is not actively interacting
@@ -917,31 +917,31 @@ async function loadUserApplications(isSilent = false) {
             }
         });
     }
-    
+
     // Target the registrations tbody specifically
     const applicationsTable = document.getElementById('my-registrations-tbody');
-    
+
     if (!applicationsTable) {
         console.error('❌ Could not find registrations table (#my-registrations-tbody). Retrying...');
         // Retry after a short delay
         setTimeout(() => loadUserApplications(isSilent), 500);
         return;
     }
-    
+
     console.log('✅ Found registrations table (#my-registrations-tbody)');
-    
+
     // Only show loading if NOT silent refresh
     if (!isSilent && applicationsTable) {
         applicationsTable.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">Loading applications...</td></tr>';
     }
-    
+
     try {
         // Try to load from API first
-        const token = (typeof window !== 'undefined' && window.authManager) 
-            ? window.authManager.getAccessToken() 
+        const token = (typeof window !== 'undefined' && window.authManager)
+            ? window.authManager.getAccessToken()
             : (localStorage.getItem('authToken') || localStorage.getItem('token'));
         console.log('🔍 Loading applications. Token exists:', !!token);
-        
+
         // Check if it's a demo token - if so, skip API calls
         if (token && token.startsWith('demo-token-')) {
             console.log('Demo mode: Loading applications from localStorage only');
@@ -951,21 +951,21 @@ async function loadUserApplications(isSilent = false) {
                 console.log('📡 Attempting API call to /api/vehicles/my-vehicles');
                 const apiClient = new APIClient();
                 const response = await apiClient.get('/api/vehicles/my-vehicles');
-                
+
                 console.log('📥 API Response:', response);
-                
+
                 if (response && response.success && response.vehicles) {
                     console.log(`✅ Loaded ${response.vehicles.length} vehicles from API`);
-                    
+
                     // Convert vehicles to application format using canonical mapper
                     const mapper = (window.VehicleMapper && window.VehicleMapper.mapVehicleToApplication) || null;
                     if (!mapper) {
                         console.error('❌ VehicleMapper not available. Make sure js/models/vehicle-mapper.js is loaded.');
                         throw new Error('VehicleMapper not available');
                     }
-                    
+
                     allApplications = response.vehicles.map(vehicle => mapper(vehicle));
-                    
+
                     // For vehicles with active transfer requests, use transfer request verification status
                     // Transfer requests need buyer documents before auto-verification can run
                     // Don't show original registration verification status for pending transfer requests
@@ -983,17 +983,17 @@ async function loadUserApplications(isSilent = false) {
                                     transferRequestsByVehicle[vehicleId].push(tr);
                                 }
                             });
-                            
+
                             // Update verification status for vehicles with active transfer requests
                             allApplications.forEach(app => {
                                 const vehicleId = app.id;
                                 const transferRequests = transferRequestsByVehicle[vehicleId] || [];
-                                
+
                                 // Find the most recent active transfer request
                                 const activeTransfer = transferRequests
                                     .filter(tr => ['PENDING', 'AWAITING_BUYER_DOCS', 'UNDER_REVIEW'].includes(tr.status))
                                     .sort((a, b) => new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt))[0];
-                                
+
                                 if (activeTransfer) {
                                     // For PENDING or AWAITING_BUYER_DOCS: Clear verification status (buyer hasn't uploaded docs yet)
                                     if (activeTransfer.status === 'PENDING' || activeTransfer.status === 'AWAITING_BUYER_DOCS') {
@@ -1012,26 +1012,26 @@ async function loadUserApplications(isSilent = false) {
                         console.warn('Could not load transfer requests for verification status check:', transferError);
                         // Continue without transfer request check
                     }
-                    
+
                     // Save to localStorage for offline access (v2 format)
                     localStorage.setItem('userApplications_v2', JSON.stringify(allApplications));
                     console.log(`💾 Saved ${allApplications.length} applications to localStorage (v2)`);
-                    
+
                     // Keep v1 for backward compatibility (read-only, don't overwrite if it exists)
                     if (!localStorage.getItem('userApplications')) {
                         localStorage.setItem('userApplications', JSON.stringify(allApplications));
                     }
-                    
+
                     // Sort applications by submission date (newest first)
                     allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
-                    
+
                     // Apply filters
                     filteredApplications = applyFilters(allApplications);
-                    
+
                     // Update pagination
                     updatePagination();
                     renderApplications();
-                    
+
                     // Update stats based on all applications
                     updateStatsFromApplications(allApplications);
                     return;
@@ -1045,20 +1045,20 @@ async function loadUserApplications(isSilent = false) {
         } else {
             console.warn('⚠️ No valid token found. Token:', token ? 'exists but invalid' : 'missing');
         }
-        
+
         // Fallback to localStorage with migration support
         console.log('📦 Loading from localStorage...');
-        
+
         // Try v2 first
         let localApps = JSON.parse(localStorage.getItem('userApplications_v2') || '[]');
-        
+
         // If v2 is empty but v1 exists, migrate
         if (localApps.length === 0) {
             const v1Apps = JSON.parse(localStorage.getItem('userApplications') || '[]');
             if (v1Apps.length > 0) {
                 console.log(`🔄 Migrating ${v1Apps.length} applications from v1 to v2...`);
                 const mapper = (window.VehicleMapper && window.VehicleMapper.mapVehicleToApplication) || null;
-                
+
                 if (mapper) {
                     // Attempt to migrate old entries
                     try {
@@ -1079,7 +1079,7 @@ async function loadUserApplications(isSilent = false) {
                             }
                             return oldApp; // Fallback to old structure if migration fails
                         });
-                        
+
                         // Save migrated data to v2
                         localStorage.setItem('userApplications_v2', JSON.stringify(localApps));
                         console.log(`✅ Migration complete: ${localApps.length} applications migrated`);
@@ -1093,10 +1093,10 @@ async function loadUserApplications(isSilent = false) {
                 }
             }
         }
-        
+
         console.log(`📦 Found ${localApps.length} applications in localStorage`);
         allApplications = localApps;
-        
+
         if (allApplications.length === 0) {
             console.log('ℹ️ No applications found in localStorage');
             applicationsTable.innerHTML = `
@@ -1108,22 +1108,22 @@ async function loadUserApplications(isSilent = false) {
             `;
             return;
         }
-        
+
         // Sort applications by submission date (newest first)
         allApplications.sort((a, b) => new Date(b.submittedDate) - new Date(a.submittedDate));
-        
+
         // Apply filters
         filteredApplications = applyFilters(allApplications);
-        
+
         // Update pagination
         updatePagination();
         renderApplications();
-        
+
         // Update stats based on all applications
         updateStatsFromApplications(allApplications);
-        
+
         console.log(`✅ Rendered ${filteredApplications.length} applications`);
-        
+
     } catch (error) {
         console.error('❌ Error loading applications:', error);
         applicationsTable.innerHTML = `
@@ -1144,21 +1144,21 @@ async function loadOwnerTransferRequests() {
             console.warn('Transfer requests tbody not found');
             return;
         }
-        
+
         // Convert tables to mobile cards after rendering transfers
         setTimeout(() => {
             if (typeof convertTablesToCards === 'function') {
                 convertTablesToCards();
             }
         }, 100);
-        
+
         tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 2rem;"><i class="fas fa-spinner fa-spin"></i> Loading transfer requests...</td></tr>';
-        
+
         const apiClient = window.apiClient || new APIClient();
-        
+
         // Get transfer requests where current user is seller or buyer
         const response = await apiClient.get('/api/vehicles/transfer/requests?limit=50');
-        
+
         if (!response.success || !response.requests || response.requests.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -1170,12 +1170,12 @@ async function loadOwnerTransferRequests() {
             `;
             return;
         }
-        
+
         // Filter to only show requests where current user is involved
         const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
         const currentUserId = currentUser.id || currentUser.userId;
         const currentUserEmail = currentUser.email;
-        
+
         const userRequests = response.requests.filter(r => {
             // User is seller
             if (r.seller_id === currentUserId || r.seller_email === currentUserEmail) {
@@ -1187,7 +1187,7 @@ async function loadOwnerTransferRequests() {
             }
             return false;
         });
-        
+
         if (userRequests.length === 0) {
             tbody.innerHTML = `
                 <tr>
@@ -1199,15 +1199,15 @@ async function loadOwnerTransferRequests() {
             `;
             return;
         }
-        
+
         tbody.innerHTML = userRequests.map(r => {
             const vehicleInfo = r.vehicle || {};
             const isSeller = r.seller_id === currentUserId || r.seller_email === currentUserEmail;
-            const otherParty = isSeller 
+            const otherParty = isSeller
                 ? (r.buyer_name || r.buyer_email || 'Buyer')
                 : (r.seller_name || r.seller_email || 'Seller');
             const transferType = isSeller ? 'Selling' : 'Buying';
-            
+
             return `
                 <tr>
                     <td>
@@ -1226,14 +1226,14 @@ async function loadOwnerTransferRequests() {
                 </tr>
             `;
         }).join('');
-        
+
         // Convert tables to mobile cards after rendering transfers
         setTimeout(() => {
             if (typeof convertTablesToCards === 'function') {
                 convertTablesToCards();
             }
         }, 100);
-        
+
     } catch (error) {
         console.error('Error loading transfer requests:', error);
         const tbody = document.getElementById('my-transfers-tbody');
@@ -1249,34 +1249,231 @@ async function loadOwnerTransferRequests() {
     }
 }
 
-// View transfer request details
-function viewTransferRequest(requestId) {
-    window.location.href = `transfer-confirmation.html?requestId=${requestId}`;
+// View transfer request details in a modal
+async function viewTransferRequest(requestId) {
+    try {
+        showNotification('Loading transfer request...', 'info');
+
+        const apiClient = window.apiClient || new APIClient();
+        const response = await apiClient.get(`/api/vehicles/transfer/requests/${requestId}`);
+
+        if (!response.success || !response.transferRequest) {
+            throw new Error(response.error || 'Failed to load transfer request');
+        }
+
+        const request = response.transferRequest;
+        const vehicle = request.vehicle || {};
+        const status = (request.status || '').toLowerCase();
+        const currentUserId = localStorage.getItem('userId');
+        const currentUserEmail = localStorage.getItem('userEmail');
+
+        // Determine if user is buyer or seller
+        const isSeller = request.seller_id === currentUserId || request.seller_email === currentUserEmail;
+        const transferRole = isSeller ? 'Seller' : 'Buyer';
+        const otherPartyLabel = isSeller ? 'Buyer' : 'Seller';
+        const otherPartyName = isSeller
+            ? (request.buyer_name || request.buyer_email || 'Unknown')
+            : (request.seller_name || request.seller_email || 'Unknown');
+
+        // Build documents list
+        const documents = request.documents || [];
+        let documentsHTML = '';
+        if (documents.length > 0) {
+            documents.forEach(doc => {
+                const docType = doc.document_type || doc.type || 'Document';
+                const filename = doc.original_name || doc.filename || docType;
+                documentsHTML += `
+                    <div class="doc-select-item" style="padding: 0.75rem; background: #f8f9fa; border-radius: 8px; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                        <div class="doc-select-icon" style="width: 36px; height: 36px; background: #3498db; color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-file"></i>
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 600; color: #2c3e50; font-size: 0.875rem;">${docType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</div>
+                            <div style="font-size: 0.75rem; color: #7f8c8d; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${filename}</div>
+                        </div>
+                        <button class="btn-icon" onclick="viewTransferDocument('${doc.document_id || doc.id}')" style="width: 32px; height: 32px; border: none; background: #e9ecef; border-radius: 6px; cursor: pointer;">
+                            <i class="fas fa-eye" style="color: #3498db;"></i>
+                        </button>
+                    </div>
+                `;
+            });
+        } else {
+            documentsHTML = '<p style="color: #7f8c8d; text-align: center; padding: 1rem;">No documents available</p>';
+        }
+
+        // Status badges
+        const statusConfig = {
+            'pending': { bg: '#f39c12', text: 'Pending' },
+            'awaiting_buyer_docs': { bg: '#3498db', text: 'Awaiting Buyer Documents' },
+            'under_review': { bg: '#9b59b6', text: 'Under Review' },
+            'completed': { bg: '#27ae60', text: 'Completed' },
+            'rejected': { bg: '#e74c3c', text: 'Rejected' },
+            'cancelled': { bg: '#95a5a6', text: 'Cancelled' }
+        };
+        const statusInfo = statusConfig[status] || { bg: '#7f8c8d', text: status };
+
+        // Blockchain info
+        const blockchainTxId = request.blockchain_tx_id || vehicle.blockchain_tx_id;
+        const blockchainSection = blockchainTxId ? `
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1rem; border-radius: 8px; margin-top: 1rem;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <i class="fas fa-link"></i>
+                    <span style="font-weight: 600;">Blockchain Proof</span>
+                    <span style="margin-left: auto; background: rgba(255,255,255,0.2); padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">
+                        <i class="fas fa-check"></i> Verified
+                    </span>
+                </div>
+                <code style="display: block; font-size: 0.75rem; background: rgba(0,0,0,0.2); padding: 0.5rem; border-radius: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${blockchainTxId}</code>
+            </div>
+        ` : '';
+
+        const modal = document.createElement('div');
+        modal.id = 'transferDetailsModal';
+        modal.className = 'owner-details-modal';
+        modal.innerHTML = `
+            <div class="owner-modal-overlay" onclick="closeTransferDetailsModal()"></div>
+            <div class="owner-modal-content">
+                <div class="owner-modal-header">
+                    <div class="owner-modal-title">
+                        <div class="owner-modal-icon">
+                            <i class="fas fa-exchange-alt"></i>
+                        </div>
+                        <div>
+                            <h3>Transfer Request Details</h3>
+                            <small>ID: ${requestId.substring(0, 8)}...</small>
+                        </div>
+                    </div>
+                    <button class="owner-modal-close" onclick="closeTransferDetailsModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="owner-modal-body">
+                    <!-- Status Banner -->
+                    <div style="background: ${statusInfo.bg}; color: white; padding: 0.75rem 1rem; border-radius: 8px; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; font-weight: 600;">
+                        <i class="fas fa-info-circle"></i>
+                        <span>${statusInfo.text}</span>
+                        <span style="margin-left: auto; font-size: 0.75rem; opacity: 0.9;">You are the ${transferRole}</span>
+                    </div>
+                    
+                    <!-- Vehicle Info -->
+                    <div class="detail-section" style="margin-bottom: 1.5rem;">
+                        <h4 style="display: flex; align-items: center; gap: 0.5rem; margin: 0 0 1rem 0; color: #2c3e50; font-size: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e9ecef;">
+                            <i class="fas fa-car" style="color: #3498db;"></i> Vehicle
+                        </h4>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                            <div>
+                                <span style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Plate</span>
+                                <div style="font-size: 1rem; color: #2c3e50; font-weight: 500;">${vehicle.plate_number || 'N/A'}</div>
+                            </div>
+                            <div>
+                                <span style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">VIN</span>
+                                <div style="font-size: 0.875rem; color: #2c3e50; font-weight: 500; word-break: break-all;">${vehicle.vin || 'N/A'}</div>
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <span style="font-size: 0.75rem; color: #7f8c8d; text-transform: uppercase; font-weight: 600;">Vehicle</span>
+                                <div style="font-size: 1rem; color: #2c3e50; font-weight: 500;">${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Party Info -->
+                    <div class="detail-section" style="margin-bottom: 1.5rem;">
+                        <h4 style="display: flex; align-items: center; gap: 0.5rem; margin: 0 0 1rem 0; color: #2c3e50; font-size: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e9ecef;">
+                            <i class="fas fa-users" style="color: #3498db;"></i> ${otherPartyLabel}
+                        </h4>
+                        <div style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: #f8f9fa; border-radius: 8px;">
+                            <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600;">
+                                ${otherPartyName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                                <div style="font-weight: 600; color: #2c3e50;">${otherPartyName}</div>
+                                <div style="font-size: 0.75rem; color: #7f8c8d;">${otherPartyLabel} in this transfer</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Documents -->
+                    <div class="detail-section" style="margin-bottom: 1rem;">
+                        <h4 style="display: flex; align-items: center; gap: 0.5rem; margin: 0 0 1rem 0; color: #2c3e50; font-size: 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid #e9ecef;">
+                            <i class="fas fa-folder-open" style="color: #3498db;"></i> Documents (${documents.length})
+                        </h4>
+                        ${documentsHTML}
+                    </div>
+                    
+                    ${blockchainSection}
+                </div>
+                
+                <div class="owner-modal-footer">
+                    ${status !== 'completed' && status !== 'rejected' && status !== 'cancelled' ? `
+                        <button class="btn-primary" onclick="window.location.href='transfer-confirmation.html?requestId=${requestId}'">
+                            <i class="fas fa-external-link-alt"></i> Manage Transfer
+                        </button>
+                    ` : ''}
+                    <button class="btn-secondary" onclick="closeTransferDetailsModal()">Close</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        document.body.style.overflow = 'hidden';
+
+    } catch (error) {
+        console.error('Error loading transfer request:', error);
+        showNotification(error.message || 'Failed to load transfer request', 'error');
+    }
+}
+
+// Close transfer details modal
+function closeTransferDetailsModal() {
+    const modal = document.getElementById('transferDetailsModal');
+    if (modal) {
+        modal.remove();
+        document.body.style.overflow = '';
+    }
+}
+
+// View document from transfer request
+function viewTransferDocument(documentId) {
+    if (!documentId) {
+        showNotification('Document not available', 'error');
+        return;
+    }
+
+    if (typeof DocumentModal !== 'undefined') {
+        DocumentModal.view({
+            id: documentId,
+            url: `/api/documents/${documentId}/view`,
+            filename: 'Document'
+        });
+    } else {
+        showNotification('Document viewer not available. Please refresh the page.', 'error');
+    }
 }
 
 function applyFilters(applications) {
     const searchInput = document.getElementById('applicationSearch');
     const statusFilter = document.getElementById('statusFilter');
-    
+
     let filtered = [...applications];
-    
+
     if (searchInput && searchInput.value.trim()) {
         const searchTerm = searchInput.value.toLowerCase();
-        filtered = filtered.filter(app => 
+        filtered = filtered.filter(app =>
             app.id.toLowerCase().includes(searchTerm) ||
             `${app.vehicle.make} ${app.vehicle.model}`.toLowerCase().includes(searchTerm) ||
             app.vehicle.plateNumber.toLowerCase().includes(searchTerm)
         );
     }
-    
+
     if (statusFilter && statusFilter.value !== 'all') {
         var v = (statusFilter.value || '').toLowerCase();
-        filtered = filtered.filter(function(app) {
+        filtered = filtered.filter(function (app) {
             var s = (app.status || '').toLowerCase();
             return s === v || (v === 'approved' && (s === 'registered' || s === 'approved'));
         });
     }
-    
+
     return filtered;
 }
 
@@ -1284,17 +1481,17 @@ function renderApplications() {
     // Try multiple selectors
     // Target the registrations tbody specifically
     const applicationsTable = document.getElementById('my-registrations-tbody');
-    
+
     if (!applicationsTable) {
         console.error('❌ Could not find registrations table (#my-registrations-tbody) for rendering');
         return;
     }
-    
+
     // Only clear if table has content (prevents flicker during silent refresh)
     if (applicationsTable.children.length > 0) {
         applicationsTable.innerHTML = '';
     }
-    
+
     if (filteredApplications.length === 0) {
         applicationsTable.innerHTML = `
             <tr>
@@ -1305,18 +1502,18 @@ function renderApplications() {
         `;
         return;
     }
-    
+
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
     const pageApplications = filteredApplications.slice(startIndex, endIndex);
-    
+
     console.log(`📊 Rendering ${pageApplications.length} applications (page ${currentPage})`);
-    
+
     pageApplications.forEach(app => {
         const row = createUserApplicationRow(app);
         applicationsTable.appendChild(row);
     });
-    
+
     // Convert tables to mobile cards after rendering
     setTimeout(() => {
         if (typeof convertTablesToCards === 'function') {
@@ -1350,7 +1547,7 @@ function initializePagination() {
                 </select>
             </div>
         `;
-        
+
         const table = tableContainer.querySelector('table');
         if (table) {
             // Safely insert toolbar before table
@@ -1365,28 +1562,28 @@ function initializePagination() {
             // Table not found yet, insert at beginning of container
             tableContainer.insertBefore(toolbar, tableContainer.firstChild);
         }
-        
+
         document.getElementById('applicationSearch')?.addEventListener('input', () => {
             currentPage = 1;
             loadUserApplications();
         });
-        
+
         document.getElementById('statusFilter')?.addEventListener('change', () => {
             currentPage = 1;
             loadUserApplications();
         });
     }
-    
+
     // Try multiple selectors for tbody
-    const tbody = document.querySelector('.table-modern tbody') || 
-                  document.querySelector('#applications .table-modern tbody') ||
-                  document.querySelector('.dashboard-card:nth-child(3) .table tbody');
-    
+    const tbody = document.querySelector('.table-modern tbody') ||
+        document.querySelector('#applications .table-modern tbody') ||
+        document.querySelector('.dashboard-card:nth-child(3) .table tbody');
+
     if (tbody && !document.getElementById('pagination-container-owner')) {
         const paginationContainer = document.createElement('div');
         paginationContainer.id = 'pagination-container-owner';
         paginationContainer.style.marginTop = '1rem';
-        
+
         // Find the table wrapper to append pagination
         const tableElement = tbody.closest('table');
         const tableWrapper = tableElement?.parentElement;
@@ -1399,7 +1596,7 @@ function initializePagination() {
 function updatePagination() {
     const totalPages = Math.ceil(filteredApplications.length / itemsPerPage);
     const container = document.getElementById('pagination-container-owner');
-    
+
     if (container) {
         PaginationHelper.createPagination(container, currentPage, totalPages, (page) => {
             currentPage = page;
@@ -1410,7 +1607,7 @@ function updatePagination() {
 }
 
 function initializeKeyboardShortcuts() {
-    document.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function (e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
             const searchInput = document.getElementById('applicationSearch');
             if (searchInput) {
@@ -1428,16 +1625,16 @@ function createBlockchainProofSection(vehicle) {
     // Normalize status to uppercase for consistent comparison
     const normalizedStatus = (vehicle.status || '').toUpperCase();
     const isVerified = hasBlockchainTx && !['SUBMITTED', 'PENDING_BLOCKCHAIN'].includes(normalizedStatus);
-    
+
     return `
         <div class="blockchain-proof-section ${isVerified ? 'verified' : 'pending'}">
             <div class="proof-header">
                 <i class="fas fa-link"></i>
                 <span>Blockchain Proof</span>
-                ${isVerified ? 
-                    '<span class="proof-badge verified"><i class="fas fa-check-circle"></i> Immutable</span>' : 
-                    '<span class="proof-badge pending"><i class="fas fa-clock"></i> Pending</span>'
-                }
+                ${isVerified ?
+            '<span class="proof-badge verified"><i class="fas fa-check-circle"></i> Immutable</span>' :
+            '<span class="proof-badge pending"><i class="fas fa-clock"></i> Pending</span>'
+        }
             </div>
             <div class="proof-details">
                 <div class="proof-item">
@@ -1514,7 +1711,7 @@ function renderTimelineItem(title, date, isCompleted, transactionId, action) {
     const hasBlockchainTx = transactionId && !transactionId.includes('-'); // UUIDs contain hyphens
     const isBlockchainAction = ['BLOCKCHAIN_REGISTERED', 'APPROVED', 'REGISTERED'].includes(action);
     const isBlockchainRecorded = hasBlockchainTx && isBlockchainAction;
-    
+
     return `
         <div class="mini-timeline-item ${isCompleted ? 'completed' : ''} ${isBlockchainRecorded ? 'blockchain-recorded' : ''}">
             <div class="mini-timeline-dot">
@@ -1644,14 +1841,14 @@ function renderStatusHistorySection(historyEntries) {
 function renderHistoryItem(historyEntry) {
     const hasBlockchainTx = historyEntry.transaction_id && !historyEntry.transaction_id.includes('-');
     const isBlockchainAction = ['BLOCKCHAIN_REGISTERED', 'OWNERSHIP_TRANSFERRED', 'VERIFICATION_APPROVED'].includes(historyEntry.action);
-    
+
     return `
         <div class="history-item ${hasBlockchainTx ? 'blockchain-recorded' : 'database-only'}">
             <div class="history-icon">
-                ${hasBlockchainTx ? 
-                    '<i class="fas fa-cube" title="Recorded on Blockchain"></i>' : 
-                    '<i class="fas fa-database" title="Database Record Only"></i>'
-                }
+                ${hasBlockchainTx ?
+            '<i class="fas fa-cube" title="Recorded on Blockchain"></i>' :
+            '<i class="fas fa-database" title="Database Record Only"></i>'
+        }
             </div>
             <div class="history-content">
                 <div class="history-header">
@@ -1732,11 +1929,11 @@ function createUserApplicationRow(application) {
     const isApproved = application.status === 'approved' || application.status === 'registered';
     const rawId = (application.id || '');
     const appId = rawId.length <= 14 ? rawId : rawId.substring(0, 12) + '...';
-    
+
     // Get verification status display
     const verificationStatus = application.verificationStatus || {};
     const verificationStatusText = getVerificationStatusDisplay(verificationStatus, application.status);
-    
+
     // Format OR/CR display
     let orCrDisplay = '-';
     if (isApproved && (orNumber || crNumber)) {
@@ -1753,7 +1950,7 @@ function createUserApplicationRow(application) {
     } else if (isApproved && orCrNumber !== '-') {
         orCrDisplay = `<span style="background: #d4edda; color: #155724; padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.9rem;">${escapeHtml(orCrNumber)}</span>`;
     }
-    
+
     row.innerHTML = `
         <td>
             <div class="vehicle-info">
@@ -1813,25 +2010,25 @@ function getStatusText(status) {
 
 function getVerificationStatusDisplay(verificationStatus, applicationStatus) {
     // Normalize status for comparison (handle both cases and separators)
-    const normalizedStatus = applicationStatus 
+    const normalizedStatus = applicationStatus
         ? String(applicationStatus).toUpperCase().replace(/[-_]/g, '_').trim()
         : '';
-    
-    const isPendingBlockchain = normalizedStatus === 'PENDING_BLOCKCHAIN' || 
-                                 normalizedStatus === 'SUBMITTED' ||
-                                 normalizedStatus === 'PENDING';
-    
+
+    const isPendingBlockchain = normalizedStatus === 'PENDING_BLOCKCHAIN' ||
+        normalizedStatus === 'SUBMITTED' ||
+        normalizedStatus === 'PENDING';
+
     const isEmpty = !verificationStatus || typeof verificationStatus !== 'object' || Object.keys(verificationStatus).length === 0;
-    
+
     // If verificationStatus is empty, show dash
     if (isEmpty) {
         return '<span style="color: #6c757d;">-</span>';
     }
-    
+
     const statuses = [];
     const insuranceStatus = (verificationStatus.insurance || '').toLowerCase();
     const hpgStatus = (verificationStatus.hpg || '').toLowerCase();
-    
+
     var itemStyle = 'display:inline-flex;align-items:center;gap:4px;';
     if (insuranceStatus === 'approved') {
         statuses.push('<span style="color: #28a745;' + itemStyle + '"><i class="fas fa-check-circle" aria-hidden="true"></i> Insurance</span>');
@@ -1840,7 +2037,7 @@ function getVerificationStatusDisplay(verificationStatus, applicationStatus) {
     } else if (insuranceStatus === 'rejected') {
         statuses.push('<span style="color: #dc3545;' + itemStyle + '"><i class="fas fa-times-circle" aria-hidden="true"></i> Insurance</span>');
     }
-    
+
     if (hpgStatus === 'approved') {
         statuses.push('<span style="color: #28a745;' + itemStyle + '"><i class="fas fa-check-circle" aria-hidden="true"></i> HPG</span>');
     } else if (hpgStatus === 'pending') {
@@ -1848,11 +2045,11 @@ function getVerificationStatusDisplay(verificationStatus, applicationStatus) {
     } else if (hpgStatus === 'rejected') {
         statuses.push('<span style="color: #dc3545;' + itemStyle + '"><i class="fas fa-times-circle" aria-hidden="true"></i> HPG</span>');
     }
-    
+
     if (statuses.length === 0) {
         return '<span style="color: #6c757d;">Pending</span>';
     }
-    
+
     return statuses.join(' | ');
 }
 
@@ -1876,18 +2073,18 @@ function updateStatsFromApplications(applications) {
             return status === 'SUBMITTED' || status === 'REJECTED';
         }).length
     };
-    
+
     // Update stat cards (using new IDs)
     const statVehiclesEl = document.getElementById('statVehicles');
     const statPendingEl = document.getElementById('statPending');
     const statApprovedEl = document.getElementById('statApproved');
     const statNotificationsEl = document.getElementById('statNotifications');
-    
+
     if (statVehiclesEl) statVehiclesEl.textContent = stats.registeredVehicles;
     if (statPendingEl) statPendingEl.textContent = stats.pendingApplications;
     if (statApprovedEl) statApprovedEl.textContent = stats.approvedApplications;
     if (statNotificationsEl) statNotificationsEl.textContent = stats.notifications;
-    
+
     // Fallback to old method
     const statCards = document.querySelectorAll('.stat-card .stat-number');
     if (statCards.length >= 4) {
@@ -1901,41 +2098,41 @@ function updateStatsFromApplications(applications) {
 async function viewUserApplication(applicationId) {
     // Show loading state
     showNotification('Loading application details...', 'info');
-    
+
     console.log('📂 viewUserApplication called with ID:', applicationId);
-    
+
     // Find the application to get vehicle details
     let application = allApplications.find(app => app.id === applicationId);
-    
+
     // Also check localStorage
     if (!application) {
         const storedApps = JSON.parse(localStorage.getItem('userApplications') || '[]');
         const storedSubmitted = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
-        application = storedApps.find(app => app.id === applicationId) || 
-                     storedSubmitted.find(app => app.id === applicationId);
+        application = storedApps.find(app => app.id === applicationId) ||
+            storedSubmitted.find(app => app.id === applicationId);
     }
-    
+
     if (!application) {
         showNotification('Application not found', 'error');
         return;
     }
-    
+
     console.log('📂 Found application:', application);
     console.log('📂 Existing documents:', application.documents);
-    
+
     // Check if the application ID looks like a real UUID (from API)
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(applicationId);
     console.log('📂 Is UUID:', isUUID);
-    
+
     // Try to load full vehicle details and documents from API if it's a real vehicle
     if (isUUID) {
         try {
             const apiClient = window.apiClient || new APIClient();
             console.log('📂 Fetching full vehicle details from API for vehicle:', applicationId);
-            
+
             // Fetch full vehicle details (includes blockchain_tx_id)
             const vehicleResponse = await apiClient.get(`/api/vehicles/id/${applicationId}`);
-            
+
             if (vehicleResponse.success && vehicleResponse.vehicle) {
                 console.log('📂 Vehicle details fetched:', vehicleResponse.vehicle);
                 // Update application with full vehicle data including blockchain_tx_id
@@ -1949,11 +2146,11 @@ async function viewUserApplication(applicationId) {
                 application.blockchain_tx_id = vehicleResponse.vehicle.blockchain_tx_id || vehicleResponse.vehicle.blockchainTxId;
                 application.blockchainTxId = vehicleResponse.vehicle.blockchainTxId || vehicleResponse.vehicle.blockchain_tx_id;
                 application.history = vehicleResponse.vehicle.history || application.history || [];
-                
+
                 // Update documents if available
                 if (vehicleResponse.vehicle.documents && vehicleResponse.vehicle.documents.length > 0) {
                     console.log('📂 Found', vehicleResponse.vehicle.documents.length, 'documents from vehicle API');
-                    
+
                     // Convert array format to object format for the modal
                     const docsMap = {};
                     vehicleResponse.vehicle.documents.forEach(doc => {
@@ -1972,27 +2169,27 @@ async function viewUserApplication(applicationId) {
                     application.documents = docsMap;
                 }
             }
-            
+
             // Also try to fetch documents separately if vehicle API didn't return them
             if (!application.documents || Object.keys(application.documents).length === 0) {
-                const token = (typeof window !== 'undefined' && window.authManager) 
-                    ? window.authManager.getAccessToken() 
+                const token = (typeof window !== 'undefined' && window.authManager)
+                    ? window.authManager.getAccessToken()
                     : (localStorage.getItem('authToken') || localStorage.getItem('token'));
                 console.log('📂 Fetching documents from API for vehicle:', applicationId);
-                
+
                 const response = await fetch(`/api/documents/vehicle-id/${applicationId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                
+
                 console.log('📂 API response status:', response.status);
-                
+
                 if (response.ok) {
                     const data = await response.json();
                     console.log('📂 API response data:', data);
-                    
+
                     if (data.documents && data.documents.length > 0) {
                         console.log('📂 Found', data.documents.length, 'documents from API');
-                        
+
                         // Convert array format to object format for the modal
                         const docsMap = {};
                         data.documents.forEach(doc => {
@@ -2021,7 +2218,7 @@ async function viewUserApplication(applicationId) {
             // Continue with existing data
         }
     }
-    
+
     // If documents is still empty and we have existing documents in localStorage format, try to use them
     if ((!application.documents || Object.keys(application.documents).length === 0)) {
         // Check if there are documents stored in submittedApplications
@@ -2032,9 +2229,9 @@ async function viewUserApplication(applicationId) {
             application.documents = submittedApp.documents;
         }
     }
-    
+
     console.log('📂 Final application documents:', application.documents);
-    
+
     // Show application details modal with document selection
     showApplicationDetailsModal(application);
 }
@@ -2088,21 +2285,21 @@ let currentModalApplication = null;
 // Show application details modal with document chooser
 function showApplicationDetailsModal(application) {
     console.log('📂 showApplicationDetailsModal called with:', application);
-    
+
     // Remove existing modal if any
     const existingModal = document.getElementById('applicationDetailsModal');
     if (existingModal) existingModal.remove();
-    
+
     const vehicle = application.vehicle || {};
     let documents = application.documents || {};
     const status = application.status || 'submitted';
     // Normalize status for consistent comparison
-            const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus) 
-                ? window.StatusUtils.normalizeStatus(status)
-                : (status || '').toLowerCase();
-            
-            console.log('📂 Initial documents:', documents, 'Type:', typeof documents, 'IsArray:', Array.isArray(documents));
-    
+    const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus)
+        ? window.StatusUtils.normalizeStatus(status)
+        : (status || '').toLowerCase();
+
+    console.log('📂 Initial documents:', documents, 'Type:', typeof documents, 'IsArray:', Array.isArray(documents));
+
     // Handle documents if they're in array format (from API)
     if (Array.isArray(documents)) {
         console.log('📂 Converting array format to object format');
@@ -2141,13 +2338,13 @@ function showApplicationDetailsModal(application) {
             documents = normalizedDocs;
         }
     }
-    
+
     console.log('📂 Final documents object:', documents);
-    
+
     // Store for access by click handlers
     currentModalDocuments = documents;
     currentModalApplication = application;
-    
+
     // Build document list
     const documentTypes = [
         { key: 'registrationCert', label: 'Registration Certificate (OR/CR)', icon: 'fa-car', type: 'registration' },
@@ -2161,11 +2358,11 @@ function showApplicationDetailsModal(application) {
         { key: 'hpgClearance', label: 'HPG Clearance Certificate', icon: 'fa-shield-alt', type: 'other' },
         { key: 'salesInvoice', label: 'Sales Invoice', icon: 'fa-receipt', type: 'other' }
     ];
-    
+
     let documentListHTML = '';
     let hasDocuments = false;
     let docCount = 0;
-    
+
     documentTypes.forEach(docType => {
         const docData = documents[docType.key];
         if (docData) {
@@ -2173,16 +2370,16 @@ function showApplicationDetailsModal(application) {
             docCount++;
             // Get filename for display
             const filename = typeof docData === 'object' ? (docData.filename || docType.label) : docType.label;
-            
+
             // Check if application is pending/rejected (allows document updates)
             // Normalize status to handle both uppercase and lowercase from backend
-            const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus) 
+            const normalizedStatus = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.normalizeStatus)
                 ? window.StatusUtils.normalizeStatus(status)
                 : (status || '').toLowerCase();
-            const canUpdate = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.canUpdateDocuments) 
+            const canUpdate = (typeof window !== 'undefined' && window.StatusUtils && window.StatusUtils.canUpdateDocuments)
                 ? window.StatusUtils.canUpdateDocuments(status)
                 : ['submitted', 'processing', 'rejected', 'pending'].includes(normalizedStatus);
-            
+
             documentListHTML += `
                 <div class="doc-select-item" data-doc-key="${docType.key}" data-doc-id="${docData.id || ''}">
                     <div class="doc-select-icon">
@@ -2209,7 +2406,7 @@ function showApplicationDetailsModal(application) {
             `;
         }
     });
-    
+
     if (!hasDocuments) {
         console.log('📂 No documents found. Documents object:', documents);
         documentListHTML = `
@@ -2225,7 +2422,7 @@ function showApplicationDetailsModal(application) {
     } else {
         console.log('📂 Found', docCount, 'documents to display');
     }
-    
+
     const modal = document.createElement('div');
     modal.id = 'applicationDetailsModal';
     modal.className = 'owner-details-modal';
@@ -2328,24 +2525,24 @@ function showApplicationDetailsModal(application) {
                     <h4><i class="fas fa-history"></i> Application Timeline</h4>
                     <div class="mini-timeline">
                         ${(() => {
-                            const blockchainTx = application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId || null;
-                            const submittedLabel = 'Submitted';
-                            const submittedDate = application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : 'N/A';
-                            const submittedDone = status !== 'rejected';
-                            const reviewDone = ['processing', 'approved', 'completed'].includes(status);
-                            const reviewAction = status === 'processing' ? 'PROCESSING' : 'PENDING';
-                            const finalLabel = status === 'rejected' ? 'Rejected' : 'Approved';
-                            const finalDate = (status === 'approved' || status === 'completed' || status === 'rejected') ? new Date().toLocaleDateString() : null;
-                            const finalDone = status === 'approved' || status === 'completed';
-                            const finalTx = finalDone ? blockchainTx : null;
-                            const finalAction = status === 'rejected' ? 'REJECTED' : 'APPROVED';
+            const blockchainTx = application.blockchain_tx_id || application.blockchainTxId || vehicle.blockchain_tx_id || vehicle.blockchainTxId || null;
+            const submittedLabel = 'Submitted';
+            const submittedDate = application.submittedDate ? new Date(application.submittedDate).toLocaleDateString() : 'N/A';
+            const submittedDone = status !== 'rejected';
+            const reviewDone = ['processing', 'approved', 'completed'].includes(status);
+            const reviewAction = status === 'processing' ? 'PROCESSING' : 'PENDING';
+            const finalLabel = status === 'rejected' ? 'Rejected' : 'Approved';
+            const finalDate = (status === 'approved' || status === 'completed' || status === 'rejected') ? new Date().toLocaleDateString() : null;
+            const finalDone = status === 'approved' || status === 'completed';
+            const finalTx = finalDone ? blockchainTx : null;
+            const finalAction = status === 'rejected' ? 'REJECTED' : 'APPROVED';
 
-                            return [
-                                renderTimelineItem(submittedLabel, submittedDate, submittedDone, blockchainTx, 'SUBMITTED'),
-                                renderTimelineItem('Under Review', null, reviewDone, null, reviewAction),
-                                renderTimelineItem(finalLabel, finalDate, finalDone, finalTx, finalAction)
-                            ].join('');
-                        })()}
+            return [
+                renderTimelineItem(submittedLabel, submittedDate, submittedDone, blockchainTx, 'SUBMITTED'),
+                renderTimelineItem('Under Review', null, reviewDone, null, reviewAction),
+                renderTimelineItem(finalLabel, finalDate, finalDone, finalTx, finalAction)
+            ].join('');
+        })()}
                     </div>
                     ${renderStatusHistorySection(application.history || [])}
                 </div>
@@ -2371,7 +2568,7 @@ function showApplicationDetailsModal(application) {
             </div>
         </div>
     `;
-    
+
     // Add document update modal HTML if not exists
     if (!document.getElementById('documentUpdateModal')) {
         const updateModal = document.createElement('div');
@@ -2426,7 +2623,7 @@ function showApplicationDetailsModal(application) {
         `;
         document.body.appendChild(updateModal);
     }
-    
+
     // Add styles
     if (!document.getElementById('owner-modal-styles')) {
         const styles = document.createElement('style');
@@ -2700,13 +2897,14 @@ function showApplicationDetailsModal(application) {
             }
             .owner-modal-footer {
                 display: flex;
-                gap: 1rem;
+                flex-wrap: wrap;
+                gap: 0.75rem;
                 padding: 1rem 1.5rem;
                 border-top: 2px solid #e9ecef;
                 justify-content: flex-end;
             }
             .owner-modal-footer button {
-                padding: 0.75rem 1.5rem;
+                padding: 0.65rem 1rem;
                 border-radius: 8px;
                 font-weight: 600;
                 cursor: pointer;
@@ -2715,6 +2913,8 @@ function showApplicationDetailsModal(application) {
                 display: inline-flex;
                 align-items: center;
                 gap: 0.5rem;
+                font-size: 0.875rem;
+                white-space: nowrap;
             }
             .owner-modal-footer .btn-primary {
                 background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
@@ -2739,21 +2939,249 @@ function showApplicationDetailsModal(application) {
             .owner-modal-footer .btn-secondary:hover {
                 background: #dee2e6;
             }
-            @media (max-width: 480px) {
-                .detail-grid {
-                    grid-template-columns: 1fr;
-                }
+            /* Document filename truncation */
+            .doc-select-subtitle {
+                font-size: 0.75rem;
+                color: #7f8c8d;
+                max-width: 200px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            /* Status banner for registered */
+            .status-banner-registered {
+                background: linear-gradient(135deg, #27ae60 0%, #229954 100%);
+                color: white;
+            }
+            /* Blockchain proof section styling */
+            .blockchain-proof-section {
+                background: #f8f9fa;
+                border: 1px solid #e9ecef;
+                border-radius: 12px;
+                padding: 1rem;
+                margin-bottom: 1.5rem;
+            }
+            .blockchain-proof-section.verified {
+                border-left: 4px solid #27ae60;
+            }
+            .proof-header {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                margin-bottom: 0.75rem;
+                font-weight: 600;
+                color: #2c3e50;
+            }
+            .proof-header i {
+                color: #3498db;
+            }
+            .proof-badge {
+                margin-left: auto;
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+                border-radius: 4px;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.25rem;
+            }
+            .proof-badge.verified {
+                background: #d4edda;
+                color: #155724;
+            }
+            .proof-details {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+                margin-bottom: 0.75rem;
+            }
+            .proof-item {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-size: 0.875rem;
+            }
+            .proof-label {
+                color: #7f8c8d;
+                min-width: 100px;
+            }
+            .proof-value {
+                color: #2c3e50;
+                font-weight: 500;
+            }
+            .proof-value code {
+                background: #e9ecef;
+                padding: 0.2rem 0.4rem;
+                border-radius: 4px;
+                font-family: monospace;
+                font-size: 0.8rem;
+            }
+            .proof-value.clickable {
+                cursor: pointer;
+            }
+            .proof-value.clickable:hover {
+                color: #3498db;
+            }
+            .btn-verify-blockchain {
+                width: 100%;
+                padding: 0.65rem 1rem;
+                background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-weight: 600;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 0.5rem;
+                transition: all 0.2s;
+            }
+            .btn-verify-blockchain:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+            }
+            /* History list styling */
+            .history-list {
+                max-height: 400px;
+                overflow-y: auto;
+            }
+            .history-item {
+                display: flex;
+                gap: 0.75rem;
+                padding: 0.75rem;
+                background: #f8f9fa;
+                border-radius: 8px;
+                border: 1px solid #e9ecef;
+            }
+            .history-item.blockchain-recorded {
+                border-left: 3px solid #27ae60;
+            }
+            .history-item.database-only {
+                border-left: 3px solid #7f8c8d;
+            }
+            .history-icon {
+                width: 32px;
+                height: 32px;
+                background: #e9ecef;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-shrink: 0;
+            }
+            .history-item.blockchain-recorded .history-icon {
+                background: #d4edda;
+                color: #155724;
+            }
+            .history-item.database-only .history-icon {
+                background: #e9ecef;
+                color: #6c757d;
+            }
+            .history-content {
+                flex: 1;
+                min-width: 0;
+            }
+            .history-header {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: space-between;
+                gap: 0.5rem;
+                margin-bottom: 0.25rem;
+            }
+            .history-action {
+                font-weight: 600;
+                color: #2c3e50;
+                font-size: 0.875rem;
+            }
+            .history-timestamp {
+                font-size: 0.75rem;
+                color: #7f8c8d;
+            }
+            .history-description {
+                font-size: 0.8rem;
+                color: #555;
+                margin: 0 0 0.5rem 0;
+                word-break: break-word;
+            }
+            .blockchain-tx-info {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-size: 0.75rem;
+                flex-wrap: wrap;
+            }
+            .blockchain-tx-info i {
+                color: #3498db;
+            }
+            .blockchain-tx-info code {
+                background: #e9ecef;
+                padding: 0.15rem 0.3rem;
+                border-radius: 3px;
+                font-size: 0.7rem;
+            }
+            .immutable-badge {
+                background: #d4edda;
+                color: #155724;
+                padding: 0.15rem 0.4rem;
+                border-radius: 3px;
+                font-size: 0.65rem;
+                font-weight: 600;
+                display: inline-flex;
+                align-items: center;
+                gap: 0.25rem;
+            }
+            /* Button icon styling */
+            .btn-icon {
+                width: 32px;
+                height: 32px;
+                border: none;
+                background: #e9ecef;
+                border-radius: 6px;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                color: #2c3e50;
+                transition: all 0.2s;
+                flex-shrink: 0;
+            }
+            .btn-icon:hover {
+                background: #3498db;
+                color: white;
+            }
+            @media (max-width: 600px) {
                 .owner-modal-footer {
                     flex-direction: column;
                 }
                 .owner-modal-footer button {
                     width: 100%;
+                    justify-content: center;
+                }
+                .doc-select-subtitle {
+                    max-width: 150px;
+                }
+                .history-header {
+                    flex-direction: column;
+                    gap: 0.25rem;
+                }
+            }
+            @media (max-width: 480px) {
+                .detail-grid {
+                    grid-template-columns: 1fr;
+                }
+                .owner-modal-content {
+                    width: 100%;
+                    max-height: 100vh;
+                    border-radius: 0;
+                }
+                .owner-modal-body {
+                    padding: 1rem;
                 }
             }
         `;
         document.head.appendChild(styles);
     }
-    
+
     document.body.appendChild(modal);
     document.body.style.overflow = 'hidden';
 }
@@ -2788,18 +3216,18 @@ function openDocumentByKey(docKey) {
         'deedOfSale': 'Deed of Sale',
         'validId': 'Valid ID'
     };
-    
+
     const docData = currentModalDocuments[docKey];
     const docLabel = docTypeLabels[docKey] || docKey;
-    
+
     if (!docData) {
         showNotification('Document not found', 'error');
         return;
     }
-    
+
     // Handle both string URL format and object format
     let docUrl, docId, docCid, filename;
-    
+
     if (typeof docData === 'string') {
         // Simple string URL (or data URL)
         docUrl = docData;
@@ -2811,14 +3239,14 @@ function openDocumentByKey(docKey) {
         docUrl = docData.url || (docId ? `/api/documents/${docId}/view` : null) || (docCid ? `/api/documents/ipfs/${docCid}` : null);
         filename = docData.filename || docData.original_name || docLabel;
     }
-    
+
     if (!docUrl && !docId && !docCid) {
         showNotification('Document URL not available', 'error');
         return;
     }
-    
+
     closeApplicationDetailsModal();
-    
+
     // Use the document modal if available
     if (typeof DocumentModal !== 'undefined') {
         DocumentModal.view({
@@ -2846,7 +3274,7 @@ function viewAllDocsInModal() {
         showNotification('No documents to view', 'error');
         return;
     }
-    
+
     const docTypeLabels = {
         'registrationCert': { label: 'Registration Certificate (OR/CR)', type: 'registration' },
         'insuranceCert': { label: 'Insurance Certificate', type: 'insurance' },
@@ -2855,13 +3283,13 @@ function viewAllDocsInModal() {
         'deedOfSale': { label: 'Deed of Sale', type: 'other' },
         'validId': { label: 'Valid ID', type: 'id' }
     };
-    
+
     // Build document array for DocumentModal
     const docs = [];
     Object.entries(currentModalDocuments).forEach(([key, docData]) => {
         if (docData) {
             const info = docTypeLabels[key] || { label: key, type: 'other' };
-            
+
             // Handle both string URL format and object format
             let docObj;
             if (typeof docData === 'string') {
@@ -2882,15 +3310,15 @@ function viewAllDocsInModal() {
                     document_type: key
                 };
             }
-            
+
             if (docObj) {
                 docs.push(docObj);
             }
         }
     });
-    
+
     closeApplicationDetailsModal();
-    
+
     if (docs.length > 0 && typeof DocumentModal !== 'undefined') {
         DocumentModal.viewMultiple(docs, 0);
     } else if (docs.length > 0) {
@@ -2902,7 +3330,7 @@ function viewAllDocsInModal() {
 // Legacy function for backward compatibility
 function openDocumentFromModal(docUrl, docLabel) {
     closeApplicationDetailsModal();
-    
+
     if (typeof DocumentModal !== 'undefined') {
         DocumentModal.view({
             url: docUrl,
@@ -2922,12 +3350,12 @@ function viewAllDocuments(applicationId, vin) {
 function viewUserApplication_OLD(applicationId) {
     const applications = JSON.parse(localStorage.getItem('userApplications') || '[]');
     const application = applications.find(app => app.id === applicationId);
-    
+
     if (!application) {
         showNotification('Application not found', 'error');
         return;
     }
-    
+
     showUserApplicationModal(application);
 }
 
@@ -2939,7 +3367,7 @@ function showUserApplicationModal(application) {
     const vehicleYear = vehicle.year || 'N/A';
     const vehicleColor = vehicle.color || 'N/A';
     const vehiclePlate = vehicle.plateNumber || vehicle.plate_number || 'N/A';
-    
+
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.innerHTML = `
@@ -3024,11 +3452,11 @@ function showUserApplicationModal(application) {
             </div>
         </div>
     `;
-    
+
     document.body.appendChild(modal);
-    
+
     // Close modal when clicking outside
-    modal.addEventListener('click', function(e) {
+    modal.addEventListener('click', function (e) {
         if (e.target === modal) {
             modal.remove();
         }
@@ -3057,7 +3485,7 @@ async function resubmitApplication(applicationId) {
         confirmColor: '#3498db',
         type: 'question'
     });
-    
+
     if (confirmed) {
         try {
             // Update application status back to submitted (try v2 first, fallback to v1)
@@ -3066,7 +3494,7 @@ async function resubmitApplication(applicationId) {
                 applications = JSON.parse(localStorage.getItem('userApplications') || '[]');
             }
             let application = applications.find(app => app.id === applicationId);
-            
+
             if (application) {
                 application.status = 'submitted';
                 application.lastUpdated = new Date().toISOString();
@@ -3077,14 +3505,14 @@ async function resubmitApplication(applicationId) {
                     localStorage.setItem('userApplications', JSON.stringify(applications));
                 }
             }
-            
+
             // Also update in submitted applications (try v2 first, fallback to v1)
             let submittedApplications = JSON.parse(localStorage.getItem('submittedApplications_v2') || '[]');
             if (submittedApplications.length === 0) {
                 submittedApplications = JSON.parse(localStorage.getItem('submittedApplications') || '[]');
             }
             let submittedApp = submittedApplications.find(app => app.id === applicationId);
-            
+
             if (submittedApp) {
                 submittedApp.status = 'submitted';
                 submittedApp.lastUpdated = new Date().toISOString();
@@ -3095,7 +3523,7 @@ async function resubmitApplication(applicationId) {
                     localStorage.setItem('submittedApplications', JSON.stringify(submittedApplications));
                 }
             }
-            
+
             ToastNotification.show('Application resubmitted successfully!', 'success');
             loadUserApplications(); // Refresh the table
         } catch (error) {
@@ -3122,7 +3550,7 @@ function checkUserWorkflowState() {
 
 function updateUserWorkflowUI() {
     const downloadBtn = document.getElementById('downloadPapersBtn');
-    
+
     if (userWorkflowState.registrationCompleted) {
         if (downloadBtn) {
             downloadBtn.disabled = false;
@@ -3147,7 +3575,7 @@ async function downloadVehicleCertificate(applicationId, orCrNumber) {
     console.log('=== downloadVehicleCertificate (Owner Dashboard) START ===');
     console.log('Application ID:', applicationId);
     console.log('OR/CR Number:', orCrNumber);
-    
+
     try {
         if (typeof ToastNotification !== 'undefined') {
             ToastNotification.show('Generating certificate...', 'info');
@@ -3206,7 +3634,7 @@ async function downloadVehicleCertificate(applicationId, orCrNumber) {
                 ToastNotification.show('Certificate opened! Use Print dialog to save as PDF.', 'success');
             }
         }
-        
+
         console.log('=== downloadVehicleCertificate (Owner Dashboard) SUCCESS ===');
     } catch (error) {
         console.error('=== downloadVehicleCertificate (Owner Dashboard) ERROR ===');
@@ -3236,15 +3664,15 @@ function handleDocumentUpload(event) {
     event.preventDefault();
     const fileInput = document.getElementById('documentFile');
     const documentType = document.getElementById('documentType').value;
-    
+
     if (!fileInput.files || fileInput.files.length === 0) {
         showNotification('Please select a file to upload', 'error');
         return;
     }
-    
+
     userWorkflowState.documentsUploaded = true;
     saveUserWorkflowState();
-    
+
     showNotification('Document uploaded successfully', 'success');
     event.target.closest('.modal').remove();
 }
@@ -3254,9 +3682,9 @@ function downloadFinalPapers() {
         showNotification('Registration is not yet completed', 'error');
         return;
     }
-    
+
     showNotification('Preparing final registration papers for download...', 'info');
-    
+
     // Simulate download
     setTimeout(() => {
         showNotification('Final registration papers downloaded successfully!', 'success');
@@ -3276,30 +3704,30 @@ function updateProgressTimeline() {
             updateRegistrationTimeline(vehicleId);
             return;
         }
-        
+
         // Fallback to localStorage-based update
         updateTimelineFromState();
         return;
     }
-    
+
     // Fallback to old timeline structure
     let timelineItems = document.querySelectorAll('.timeline-item-modern');
     if (!timelineItems || timelineItems.length === 0) {
         timelineItems = document.querySelectorAll('.timeline-item');
     }
     if (!timelineItems || timelineItems.length === 0) return;
-    
+
     // Update old timeline based on workflow state
     timelineItems.forEach((item, index) => {
         let icon = item.querySelector('.timeline-icon-modern') || item.querySelector('.timeline-icon');
         let content = item.querySelector('.timeline-content-modern h4') || item.querySelector('.timeline-content h4');
         if (!icon || !content) return;
-        
+
         item.classList.remove('completed', 'pending', 'active');
         item.classList.add('pending');
         icon.classList.remove('completed', 'pending', 'active');
         icon.classList.add('pending');
-        
+
         if (index === 0 && userWorkflowState.registrationRequested) {
             item.classList.add('completed');
             icon.classList.add('completed');
@@ -3313,7 +3741,7 @@ async function updateRegistrationTimeline(vehicleId) {
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get(`/api/vehicles/${vehicleId}/progress`);
-        
+
         if (response.success && response.progress) {
             renderTimeline(response.progress, response.vehicle);
         } else {
@@ -3337,19 +3765,19 @@ function renderTimeline(progress, vehicle) {
         blockchain: { key: 'blockchainRegistration', step: 'blockchain' },
         complete: { key: 'completed', step: 'complete' }
     };
-    
+
     Object.keys(steps).forEach(stepKey => {
         const stepElement = document.querySelector(`.timeline-step[data-step="${stepKey}"]`);
         if (!stepElement) return;
-        
+
         const progressData = progress[steps[stepKey].key];
         const statusIndicator = stepElement.querySelector('.status-indicator');
         const dateElement = stepElement.querySelector('.step-date');
-        
+
         // Reset classes
         stepElement.classList.remove('completed', 'active', 'rejected');
         statusIndicator.classList.remove('completed', 'active', 'rejected');
-        
+
         if (progressData) {
             if (progressData.status === 'completed') {
                 stepElement.classList.add('completed');
@@ -3368,7 +3796,7 @@ function renderTimeline(progress, vehicle) {
             }
         }
     });
-    
+
     // Special handling for blockchain step
     if (vehicle && vehicle.status === 'REGISTERED') {
         const blockchainStep = document.querySelector('.timeline-step[data-step="blockchain"]');
@@ -3387,9 +3815,9 @@ function renderTimeline(progress, vehicle) {
 function updateTimelineFromState() {
     const steps = document.querySelectorAll('.timeline-step');
     if (!steps || steps.length === 0) return;
-    
+
     const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
-    
+
     // Step 1: Application Submitted
     const submittedStep = document.querySelector('.timeline-step[data-step="submitted"]');
     if (submittedStep && userWorkflowState.registrationRequested) {
@@ -3397,7 +3825,7 @@ function updateTimelineFromState() {
         submittedStep.querySelector('.status-indicator').classList.add('completed');
         submittedStep.querySelector('.step-date').textContent = new Date().toLocaleDateString();
     }
-    
+
     // Step 2: HPG Clearance
     const hpgStep = document.querySelector('.timeline-step[data-step="hpg"]');
     if (hpgStep && ltoState.hpgReceived) {
@@ -3407,7 +3835,7 @@ function updateTimelineFromState() {
         hpgStep.classList.add('active');
         hpgStep.querySelector('.status-indicator').classList.add('active');
     }
-    
+
     // Step 3: Insurance Verification
     const insuranceStep = document.querySelector('.timeline-step[data-step="insurance"]');
     if (insuranceStep && ltoState.insuranceReceived) {
@@ -3417,7 +3845,7 @@ function updateTimelineFromState() {
         insuranceStep.classList.add('active');
         insuranceStep.querySelector('.status-indicator').classList.add('active');
     }
-    
+
     // Step 4: Emission Test
     const emissionStep = document.querySelector('.timeline-step[data-step="emission"]');
     if (emissionStep && ltoState.emissionReceived) {
@@ -3427,21 +3855,21 @@ function updateTimelineFromState() {
         emissionStep.classList.add('active');
         emissionStep.querySelector('.status-indicator').classList.add('active');
     }
-    
+
     // Step 5: LTO Inspection
     const inspectionStep = document.querySelector('.timeline-step[data-step="inspection"]');
     if (inspectionStep && ltoState.inspectionCompleted) {
         inspectionStep.classList.add('completed');
         inspectionStep.querySelector('.status-indicator').classList.add('completed');
     }
-    
+
     // Step 6: Blockchain Registration
     const blockchainStep = document.querySelector('.timeline-step[data-step="blockchain"]');
     if (blockchainStep && userWorkflowState.registrationCompleted) {
         blockchainStep.classList.add('completed');
         blockchainStep.querySelector('.status-indicator').classList.add('completed');
     }
-    
+
     // Step 7: Complete
     const completeStep = document.querySelector('.timeline-step[data-step="complete"]');
     if (completeStep && userWorkflowState.registrationCompleted) {
@@ -3452,9 +3880,9 @@ function updateTimelineFromState() {
 }
 
 // Initialize workflow state on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     checkUserWorkflowState();
-    
+
     // Check for registration completion periodically
     setInterval(() => {
         const ltoState = JSON.parse(localStorage.getItem('ltoWorkflowState') || '{}');
@@ -3489,13 +3917,13 @@ function formatExpiryDate(expiryDate) {
 // Helper function to generate expiry badge HTML
 function generateExpiryBadge(vehicle) {
     if (!vehicle.registration_expiry_date) return '';
-    
+
     const daysUntilExpiry = getDaysUntilExpiry(vehicle.registration_expiry_date);
     if (daysUntilExpiry === null || daysUntilExpiry < 0) return '';
-    
+
     let badgeClass = '';
     let urgencyText = '';
-    
+
     if (daysUntilExpiry <= 1) {
         badgeClass = 'urgent';
         urgencyText = 'URGENT';
@@ -3506,14 +3934,14 @@ function generateExpiryBadge(vehicle) {
         badgeClass = 'warning';
         urgencyText = 'Expiring Soon';
     }
-    
+
     return `
         <div class="expiry-info">
             <div class="expiry-badge ${badgeClass}">
                 <i class="fas fa-calendar-alt"></i>
                 <span>Expires: ${formatExpiryDate(vehicle.registration_expiry_date)}</span>
-                ${daysUntilExpiry <= 30 ? 
-                    `<span class="expiry-countdown">(${daysUntilExpiry} ${daysUntilExpiry === 1 ? 'day' : 'days'} left)</span>` : ''}
+                ${daysUntilExpiry <= 30 ?
+            `<span class="expiry-countdown">(${daysUntilExpiry} ${daysUntilExpiry === 1 ? 'day' : 'days'} left)</span>` : ''}
             </div>
         </div>
     `;
@@ -3550,14 +3978,14 @@ function showApplicationTab(tab, btn) {
     // Update tab buttons
     document.querySelectorAll('.app-tab').forEach(t => t.classList.remove('active'));
     if (btn) btn.classList.add('active');
-    
+
     // Show/hide content
     document.querySelectorAll('.application-tab-content').forEach(c => c.classList.remove('active'));
     const targetTab = document.getElementById(`${tab}-tab`);
     if (targetTab) {
         targetTab.classList.add('active');
         targetTab.style.display = 'block';
-        
+
         // Load data when switching tabs
         if (tab === 'transfers') {
             // Load transfer requests
@@ -3578,7 +4006,7 @@ function showApplicationTab(tab, btn) {
             }
         }
     }
-    
+
     // Hide other tabs
     document.querySelectorAll('.application-tab-content').forEach(c => {
         if (!c.classList.contains('active')) {
@@ -3598,6 +4026,8 @@ window.viewAllDocsInModal = viewAllDocsInModal;
 window.showApplicationTab = showApplicationTab;
 window.loadOwnerTransferRequests = loadOwnerTransferRequests;
 window.viewTransferRequest = viewTransferRequest;
+window.closeTransferDetailsModal = closeTransferDetailsModal;
+window.viewTransferDocument = viewTransferDocument;
 
 // Signal that the real showApplicationTab function is loaded
 window.showApplicationTabLoaded = true;
@@ -3616,45 +4046,45 @@ function showDocumentUpdateModal(docKey, docLabel, docId, applicationId, isTrans
         window.currentTransferRequestId = transferRequestId;
         window.currentTransferVehicleId = vehicleId;
     }
-    
+
     const modal = document.getElementById('documentUpdateModal');
     if (!modal) {
         console.error('Document update modal not found');
         return;
     }
-    
+
     // Update label
     const labelEl = document.getElementById('updateDocTypeLabel');
     if (labelEl) labelEl.textContent = docLabel;
-    
+
     // Reset form
     const fileInput = document.getElementById('updateDocumentFile');
     const fileNameDiv = document.getElementById('updateDocumentFileName');
     const errorDiv = document.getElementById('updateDocumentError');
-    
+
     if (fileInput) fileInput.value = '';
     if (fileNameDiv) fileNameDiv.textContent = '';
     if (errorDiv) {
         errorDiv.style.display = 'none';
         errorDiv.textContent = '';
     }
-    
+
     // Show modal
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
-    
+
     // Add file change listener and trigger label click
     if (fileInput) {
         // Make label clickable
         const label = document.getElementById('label-updateDocumentFile');
         if (label) {
-            label.onclick = function(e) {
+            label.onclick = function (e) {
                 e.preventDefault();
                 fileInput.click();
             };
         }
-        
-        fileInput.onchange = function() {
+
+        fileInput.onchange = function () {
             if (this.files && this.files.length > 0) {
                 const fileName = this.files[0].name;
                 if (fileNameDiv) {
@@ -3683,7 +4113,7 @@ async function submitDocumentUpdate() {
     const fileInput = document.getElementById('updateDocumentFile');
     const errorDiv = document.getElementById('updateDocumentError');
     const submitBtn = document.getElementById('submitDocumentUpdateBtn');
-    
+
     if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
         if (errorDiv) {
             errorDiv.style.display = 'block';
@@ -3691,9 +4121,9 @@ async function submitDocumentUpdate() {
         }
         return;
     }
-    
+
     const file = fileInput.files[0];
-    
+
     // Validate file size (10MB)
     if (file.size > 10 * 1024 * 1024) {
         if (errorDiv) {
@@ -3702,7 +4132,7 @@ async function submitDocumentUpdate() {
         }
         return;
     }
-    
+
     // Validate file type
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
     if (!allowedTypes.includes(file.type)) {
@@ -3712,14 +4142,14 @@ async function submitDocumentUpdate() {
         }
         return;
     }
-    
+
     try {
         // Disable submit button
         if (submitBtn) {
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
         }
-        
+
         // Get vehicle ID - check if this is a transfer request update
         let vehicleId = null;
         if (window.currentTransferRequestId && window.currentTransferVehicleId) {
@@ -3733,7 +4163,7 @@ async function submitDocumentUpdate() {
             }
             vehicleId = application.vehicle.id;
         }
-        
+
         // Map document key to logical type
         const docTypeMap = {
             'registrationCert': 'registrationCert',
@@ -3748,22 +4178,22 @@ async function submitDocumentUpdate() {
             'csr': 'csr',
             'salesInvoice': 'salesInvoice'
         };
-        
+
         const logicalDocType = docTypeMap[currentUpdateDocKey] || currentUpdateDocKey;
-        
+
         // Upload new document
         const formData = new FormData();
         formData.append('document', file);
         formData.append('type', logicalDocType);
         formData.append('vehicleId', vehicleId);
-        
+
         const apiClient = window.apiClient || new APIClient();
         const uploadResponse = await apiClient.post('/api/documents/upload', formData);
-        
+
         if (!uploadResponse.success) {
             throw new Error(uploadResponse.error || 'Upload failed');
         }
-        
+
         // If this is a transfer request, link the document to the transfer request
         if (window.currentTransferRequestId && uploadResponse.document && uploadResponse.document.id) {
             try {
@@ -3785,9 +4215,9 @@ async function submitDocumentUpdate() {
                     'orCr': 'orCr',
                     'hpgClearance': 'buyerHpgClearance'
                 };
-                
+
                 const transferDocRole = transferDocRoleMap[currentUpdateDocKey] || currentUpdateDocKey;
-                
+
                 // Link document to transfer request using the accept endpoint's document linking logic
                 // We'll use a direct API call that accepts documents object
                 const linkResponse = await apiClient.post(`/api/vehicles/transfer/requests/${window.currentTransferRequestId}/link-document`, {
@@ -3795,7 +4225,7 @@ async function submitDocumentUpdate() {
                         [transferDocRole]: uploadResponse.document.id
                     }
                 });
-                
+
                 if (!linkResponse.success) {
                     console.warn('Document uploaded but failed to link to transfer request:', linkResponse.error);
                     // Don't fail - document is uploaded, just not linked
@@ -3807,17 +4237,17 @@ async function submitDocumentUpdate() {
                 // Don't fail - document is uploaded, just not linked
             }
         }
-        
+
         // Show success message
         if (typeof ToastNotification !== 'undefined') {
             ToastNotification.show('Document updated successfully. The new document has been uploaded.', 'success');
         } else {
             alert('Document updated successfully!');
         }
-        
+
         // Close modal
         closeDocumentUpdateModal();
-        
+
         // Handle reload based on context
         if (window.currentTransferRequestId) {
             // Transfer request context - reload transfer requests
@@ -3831,12 +4261,12 @@ async function submitDocumentUpdate() {
         } else {
             // Regular application context
             closeApplicationDetailsModal();
-            
+
             // Reload applications list
             if (typeof loadUserApplications === 'function') {
                 loadUserApplications();
             }
-            
+
             // Optionally reopen the application details modal
             setTimeout(() => {
                 if (currentUpdateApplicationId && typeof showApplicationDetailsModal === 'function') {
@@ -3849,7 +4279,7 @@ async function submitDocumentUpdate() {
                 }
             }, 500);
         }
-        
+
     } catch (error) {
         console.error('Error updating document:', error);
         if (errorDiv) {

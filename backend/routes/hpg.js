@@ -677,8 +677,8 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
             }
         }
 
-        // Get vehicle for hash calculation
-        const vehicle = await db.getVehicleById(clearanceRequest.vehicle_id);
+        // Get vehicle for hash calculation (vehicle already fetched at line 550)
+        // const vehicle = await db.getVehicleById(clearanceRequest.vehicle_id); // REMOVED: duplicate declaration
         if (!vehicle) {
             return res.status(404).json({
                 success: false,

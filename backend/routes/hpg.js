@@ -20,7 +20,7 @@ router.get('/stats', authenticateToken, authorizeRole(['admin', 'hpg_admin']), a
     try {
         // Get all HPG requests
         const requests = await db.getClearanceRequestsByType('hpg');
-        
+
         // Count by status (using normalized status for consistent comparison)
         const stats = {
             pending: requests.filter(r => normalizeStatusLower(r.status) === 'pending').length,
@@ -48,16 +48,16 @@ router.get('/stats', authenticateToken, authorizeRole(['admin', 'hpg_admin']), a
 router.get('/requests', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
     try {
         const { status } = req.query;
-        
+
         console.log(`[HPG API] Getting requests, status filter: ${status || 'none'}`);
-        
+
         let requests;
         if (status) {
             // Normalize status to uppercase (database format) before querying
             // This fixes case sensitivity issues (e.g., 'pending' vs 'PENDING')
             const normalizedStatus = normalizeStatus(status);
             console.log(`[HPG API] Normalized status: ${status} -> ${normalizedStatus}`);
-            
+
             // Validate that the normalized status is a valid clearance status
             if (!normalizedStatus || !isValidClearanceStatus(normalizedStatus)) {
                 return res.status(400).json({
@@ -65,7 +65,7 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'hpg_admin'])
                     error: `Invalid status: "${status}". Valid statuses are: ${Object.values(CLEARANCE_STATUS).join(', ')}`
                 });
             }
-            
+
             const allRequests = await db.getClearanceRequestsByStatus(normalizedStatus);
             console.log(`[HPG API] Got ${allRequests.length} requests with status ${normalizedStatus}`);
             requests = allRequests.filter(r => r.request_type === 'hpg');
@@ -105,7 +105,7 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'hpg_admin'])
 router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         const request = await db.getClearanceRequestById(id);
         if (!request || request.request_type !== 'hpg') {
             return res.status(404).json({
@@ -116,18 +116,18 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'hpg_admi
 
         // Get vehicle details
         const vehicle = await db.getVehicleById(request.vehicle_id);
-        
+
         // Get owner information for auto-fill
         let owner = null;
         if (vehicle && vehicle.owner_id) {
             owner = await db.getUserById(vehicle.owner_id);
         }
-        
+
         // Extract documents from metadata (filtered by LTO)
         // HPG should ONLY see documents that were explicitly included in metadata.documents
         const metadata = request.metadata || {};
         const documents = metadata.documents || [];
-        
+
         // Extract Phase 1 automation data for auto-fill
         const extractedData = metadata.extractedData || {};
         const databaseCheck = metadata.hpgDatabaseCheck || null;
@@ -180,12 +180,12 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'hpg_admi
 router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
     try {
         const { requestId } = req.body;
-        
+
         console.log('🔍 [HPG Auto-Verify API] ==========================================');
         console.log('🔍 [HPG Auto-Verify API] Starting auto-verification request');
         console.log('🔍 [HPG Auto-Verify API] Request ID:', requestId);
         console.log('🔍 [HPG Auto-Verify API] User:', req.user?.userId, req.user?.email);
-        
+
         if (!requestId) {
             return res.status(400).json({
                 success: false,
@@ -229,8 +229,8 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
         });
 
         // Get documents from clearance request
-        const metadata = typeof clearanceRequest.metadata === 'string' 
-            ? JSON.parse(clearanceRequest.metadata) 
+        const metadata = typeof clearanceRequest.metadata === 'string'
+            ? JSON.parse(clearanceRequest.metadata)
             : (clearanceRequest.metadata || {});
 
         console.log('📄 [HPG Auto-Verify API] Metadata keys:', Object.keys(metadata));
@@ -255,16 +255,16 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                 const docIds = metadata.documents
                     .map(d => d.id)
                     .filter(Boolean);
-                
+
                 console.log(`📄 [HPG Auto-Verify API] Extracted ${docIds.length} document ID(s) from metadata.documents:`, docIds);
-                
+
                 if (docIds.length > 0) {
                     const docResult = await dbModule.query(
                         `SELECT * FROM documents WHERE id = ANY($1::uuid[])`,
                         [docIds]
                     );
                     documents = docResult.rows || [];
-                    
+
                     // CRITICAL FIX: Preserve the 'type' field from metadata.documents
                     // This is needed because documents loaded from DB have document_type (e.g., 'owner_id')
                     // but metadata.documents has type (e.g., 'buyer_hpg_clearance') which is the transfer role
@@ -279,7 +279,7 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                             }
                         }
                     });
-                    
+
                     // Add the type field from metadata to each loaded document
                     documents = documents.map(doc => {
                         const metadataType = typeMap.get(doc.id);
@@ -288,12 +288,12 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                         }
                         return doc;
                     });
-                    
+
                     console.log(`📄 [HPG Auto-Verify API] Loaded ${documents.length} document(s) from metadata.documents array`);
-                    console.log('📄 [HPG Auto-Verify API] Loaded document types:', documents.map(d => ({ 
-                        document_type: d.document_type, 
+                    console.log('📄 [HPG Auto-Verify API] Loaded document types:', documents.map(d => ({
+                        document_type: d.document_type,
                         type: d.type,
-                        id: d.id 
+                        id: d.id
                     })));
                 } else {
                     console.warn('📄 [HPG Auto-Verify API] metadata.documents array exists but no valid IDs found');
@@ -302,7 +302,7 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
 
             // 2) FALLBACK: Use explicit document IDs from metadata (for transfers: buyerHpgDocId, for legacy: hpgClearanceDocId)
             // Also check transfer_documents table to find buyer HPG clearance if buyerHpgDocId is not set
-            if (documents.length === 0 || !documents.some(d => 
+            if (documents.length === 0 || !documents.some(d =>
                 (d.document_type === 'hpg_clearance' || d.type === 'buyer_hpg_clearance' || d.type === 'hpg_clearance')
             )) {
                 // For transfer requests: buyerHpgDocId (buyer's HPG clearance)
@@ -328,10 +328,10 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
                         console.warn('[HPG Auto-Verify API] buyerHpgDocId set but document not found in documents table:', metadata.buyerHpgDocId);
                     }
                 }
-                
+
                 // ADDITIONAL FIX: If buyerHpgDocId is not set but we have a transfer request,
                 // check transfer_documents table to find the buyer HPG clearance document
-                if (metadata.transferRequestId && !documents.some(d => 
+                if (metadata.transferRequestId && !documents.some(d =>
                     d.type === 'buyer_hpg_clearance' || d.document_type === 'hpg_clearance'
                 )) {
                     console.log('📄 [HPG Auto-Verify API] Checking transfer_documents for buyer HPG clearance...');
@@ -446,7 +446,7 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
             documents,
             vehicle
         );
-        
+
         console.log('✅ [HPG Auto-Verify API] Auto-verification completed:', {
             status: autoVerifyResult.status,
             score: autoVerifyResult.score,
@@ -530,7 +530,7 @@ router.post('/verify/auto-verify', authenticateToken, authorizeRole(['admin', 'h
 router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
     try {
         const { requestId, engineNumber, chassisNumber, macroEtching, photos, stencil, remarks } = req.body;
-        
+
         if (!requestId) {
             return res.status(400).json({
                 success: false,
@@ -546,10 +546,23 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
             });
         }
 
+        // FIX: Get vehicle to validate chassisNumber matches VIN
+        const vehicle = await db.getVehicleById(clearanceRequest.vehicle_id);
+        let finalChassisNumber = chassisNumber;
+        if (vehicle && vehicle.vin) {
+            if (!finalChassisNumber) {
+                finalChassisNumber = vehicle.vin;
+                console.log(`[HPG Approve] chassisNumber not provided, defaulting to VIN: ${vehicle.vin}`);
+            } else if (finalChassisNumber !== vehicle.vin) {
+                console.warn(`[HPG Approve] chassisNumber (${finalChassisNumber}) differs from VIN (${vehicle.vin}). Using VIN for metadata consistency.`);
+                finalChassisNumber = vehicle.vin;
+            }
+        }
+
         // Update clearance request status
         const updatedRequest = await db.updateClearanceRequestStatus(requestId, 'APPROVED', {
             engineNumber,
-            chassisNumber,
+            chassisNumber: finalChassisNumber, // FIX: Use validated chassis number
             macroEtching: macroEtching || false,
             photos: photos || [],
             stencil: stencil || null,
@@ -560,7 +573,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
 
         // Update transfer request approval status if this clearance request is linked to a transfer request
         const dbModule = require('../database/db');
-        
+
         // Assign to current user if not already assigned (update directly to avoid overwriting status)
         if (!clearanceRequest.assigned_to) {
             await dbModule.query(
@@ -587,7 +600,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                     const hasApprovalStatus = colCheck.rows.some(r => r.column_name === 'hpg_approval_status');
                     const hasApprovedAt = colCheck.rows.some(r => r.column_name === 'hpg_approved_at');
                     const hasApprovedBy = colCheck.rows.some(r => r.column_name === 'hpg_approved_by');
-                    
+
                     if (hasApprovalStatus && hasApprovedAt && hasApprovedBy) {
                         // Update HPG approval status
                         await dbModule.query(
@@ -600,13 +613,13 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                             [req.user.userId, tr.id]
                         );
                         console.log(`✅ Updated transfer request ${tr.id} with HPG approval`);
-                        
+
                         // Get the updated transfer request to check all approvals
                         const transferRequest = await db.getTransferRequestById(tr.id);
                         if (transferRequest) {
                             // Check if all required organization approvals are complete
                             const pendingApprovals = [];
-                            
+
                             // Check HPG approval (just approved, so skip)
                             // Check Insurance approval if it was forwarded
                             if (transferRequest.insurance_clearance_request_id) {
@@ -614,12 +627,12 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                                     pendingApprovals.push('Insurance');
                                 }
                             }
-                            
+
                             // If all required approvals are complete, transition status back to UNDER_REVIEW
                             if (pendingApprovals.length === 0 && transferRequest.status === 'FORWARDED_TO_HPG') {
                                 const statusValidation = require('../middleware/statusValidation');
                                 const validation = statusValidation.validateTransferStatusTransition('FORWARDED_TO_HPG', 'UNDER_REVIEW');
-                                
+
                                 if (validation.valid) {
                                     await db.updateTransferRequestStatus(tr.id, 'UNDER_REVIEW', req.user.userId, null, {
                                         hpgApproved: true,
@@ -641,7 +654,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                     console.error(`[HPG Approve] Error updating transfer request ${tr.id}:`, transferError);
                     // Continue with other operations even if transfer update fails
                 }
-                
+
                 // Add to vehicle history for the transfer request (always try this)
                 try {
                     const transferRequest = await db.getTransferRequestById(tr.id);
@@ -651,10 +664,10 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                             action: 'TRANSFER_HPG_APPROVED',
                             description: `HPG approved transfer request ${tr.id} via clearance request ${requestId}`,
                             performedBy: req.user.userId,
-                            metadata: { 
-                                transferRequestId: tr.id, 
+                            metadata: {
+                                transferRequestId: tr.id,
                                 clearanceRequestId: requestId,
-                                notes: remarks || null 
+                                notes: remarks || null
                             }
                         });
                     }
@@ -674,13 +687,13 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
         }
 
         // Perform document hashing and duplicate detection (for both auto and manual verification)
-        const metadata = typeof clearanceRequest.metadata === 'string' 
-            ? JSON.parse(clearanceRequest.metadata) 
+        const metadata = typeof clearanceRequest.metadata === 'string'
+            ? JSON.parse(clearanceRequest.metadata)
             : (clearanceRequest.metadata || {});
-        
+
         const documents = metadata.documents || [];
-        const registrationCert = documents.find(d => 
-            d.document_type === 'registration_cert' || 
+        const registrationCert = documents.find(d =>
+            d.document_type === 'registration_cert' ||
             d.document_type === 'registrationCert' ||
             d.type === 'registration_cert' ||
             d.type === 'registrationCert' ||
@@ -689,35 +702,35 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
 
         let hashCheckResult = null;
         let compositeHash = null;
-        
+
         if (registrationCert) {
             try {
                 const filePath = registrationCert.file_path || registrationCert.filePath;
                 if (filePath) {
                     try {
                         await fs.access(filePath);
-                        
+
                         // Calculate file hash
-                        const fileHash = registrationCert.file_hash || 
+                        const fileHash = registrationCert.file_hash ||
                             crypto.createHash('sha256')
                                 .update(await fs.readFile(filePath))
                                 .digest('hex');
-                        
+
                         // Generate composite hash
                         const issueDateISO = new Date().toISOString();
                         const certificateNumberGenerator = require('../utils/certificateNumberGenerator');
                         const hpgCertificateNumber = certificateNumberGenerator.generateHpgNumber();
-                        
+
                         compositeHash = certificateBlockchain.generateCompositeHash(
                             hpgCertificateNumber,
                             vehicle.vin,
                             issueDateISO,
                             fileHash
                         );
-                        
+
                         // Check for duplicate hash
                         hashCheckResult = await certificateBlockchain.checkHashDuplicate(compositeHash);
-                        
+
                         if (hashCheckResult.exists) {
                             return res.status(409).json({
                                 success: false,
@@ -726,7 +739,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                                 hashCheck: hashCheckResult
                             });
                         }
-                        
+
                         // Store hash on blockchain
                         try {
                             await certificateBlockchain.storeCertificateHashOnBlockchain(
@@ -764,25 +777,25 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
         // PHASE 2: Update vehicle verification status and log to blockchain atomically
         let blockchainTxId = null;
         let blockchainError = null;
-        
+
         try {
             // PHASE 2: Log verification status to blockchain for full traceability
             // This ensures all verification events are recorded on-chain for audit purposes
             const fabricService = require('../services/optimizedFabricService');
-            
+
             // Initialize Fabric service with current user context for dynamic identity selection
             await fabricService.initialize({
                 role: req.user.role,
                 email: req.user.email
             });
-            
+
             // Prepare notes with officer information for blockchain traceability
             const currentUser = await db.getUserById(req.user.userId);
             const notesWithOfficer = JSON.stringify({
                 notes: remarks || '',
                 clearanceRequestId: requestId,
                 engineNumber: engineNumber || null,
-                chassisNumber: chassisNumber || null,
+                chassisNumber: finalChassisNumber || null, // FIX: Use validated chassis number
                 macroEtching: macroEtching || false,
                 officerInfo: {
                     userId: req.user.userId,
@@ -794,7 +807,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                 hashCheck: hashCheckResult || null,
                 compositeHash: compositeHash || null
             });
-            
+
             // PHASE 3 FIX: Check if vehicle exists on blockchain before updating verification status
             // HPG verification can only be logged to blockchain if vehicle is already registered
             let vehicleOnBlockchain = false;
@@ -807,7 +820,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                 // Vehicle not found on blockchain - this is expected if LTO hasn't registered it yet
                 vehicleOnBlockchain = false;
             }
-            
+
             if (!vehicleOnBlockchain) {
                 console.warn(`[HPG Approval] Vehicle ${vehicle.vin} not yet registered on blockchain. Skipping blockchain verification update. Database update will proceed.`);
                 // Skip blockchain update but continue with database operations
@@ -819,7 +832,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
                     'APPROVED',
                     notesWithOfficer
                 );
-                
+
                 if (blockchainResult && blockchainResult.transactionId) {
                     blockchainTxId = blockchainResult.transactionId;
                     console.log(`✅ [Phase 2] HPG verification logged to blockchain. TX ID: ${blockchainTxId}`);
@@ -862,7 +875,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
             metadata: {
                 clearanceRequestId: requestId,
                 engineNumber,
-                chassisNumber,
+                chassisNumber: finalChassisNumber, // FIX: Use validated chassis number
                 macroEtching,
                 blockchainTxId: blockchainTxId || null,
                 blockchainError: blockchainError ? blockchainError.message : null
@@ -872,18 +885,18 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
         // PHASE 2: Enhanced notifications - notify LTO admin and vehicle owner
         try {
             // Notify LTO admin
-        const ltoAdmins = await dbModule.query(
-            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
-        );
-        if (ltoAdmins.rows.length > 0) {
-            await db.createNotification({
-                userId: ltoAdmins.rows[0].id,
-                title: 'HPG Verification Approved',
+            const ltoAdmins = await dbModule.query(
+                "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+            );
+            if (ltoAdmins.rows.length > 0) {
+                await db.createNotification({
+                    userId: ltoAdmins.rows[0].id,
+                    title: 'HPG Verification Approved',
                     message: `HPG verification approved for vehicle ${vehicle.plate_number || vehicle.vin}${blockchainTxId ? `. Blockchain TX: ${blockchainTxId.substring(0, 16)}...` : ''}`,
-                type: 'success'
-            });
+                    type: 'success'
+                });
             }
-            
+
             // PHASE 2: Notify vehicle owner about verification approval
             if (vehicle.owner_id) {
                 try {
@@ -922,7 +935,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'hpg_a
 router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
     try {
         const { requestId, reason } = req.body;
-        
+
         if (!requestId || !reason) {
             return res.status(400).json({
                 success: false,
@@ -947,7 +960,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
 
         // Update transfer request approval status if this clearance request is linked to a transfer request
         const dbModule = require('../database/db');
-        
+
         // Check if hpg_clearance_request_id column exists before querying
         let transferRequests = { rows: [] };
         try {
@@ -956,7 +969,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
                 WHERE table_name = 'transfer_requests' 
                 AND column_name = 'hpg_clearance_request_id'
             `);
-            
+
             if (colCheck.rows.length > 0) {
                 // Column exists, safe to query
                 transferRequests = await dbModule.query(
@@ -980,7 +993,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
                         WHERE table_name = 'transfer_requests' 
                         AND column_name = 'hpg_approval_status'
                     `);
-                    
+
                     if (colCheck.rows.length > 0) {
                         await dbModule.query(
                             `UPDATE transfer_requests 
@@ -996,7 +1009,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
                 } catch (updateError) {
                     console.error(`[HPG Reject] Error updating transfer request ${tr.id}:`, updateError);
                 }
-                
+
                 // Add to vehicle history for the transfer request
                 const transferRequest = await db.getTransferRequestById(tr.id);
                 if (transferRequest) {
@@ -1005,10 +1018,10 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
                         action: 'TRANSFER_HPG_REJECTED',
                         description: `HPG rejected transfer request ${tr.id} via clearance request ${requestId}. Reason: ${reason}`,
                         performedBy: req.user.userId,
-                        metadata: { 
-                            transferRequestId: tr.id, 
+                        metadata: {
+                            transferRequestId: tr.id,
                             clearanceRequestId: requestId,
-                            reason: reason 
+                            reason: reason
                         }
                     });
                 }
@@ -1028,17 +1041,17 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
         // PHASE 2: Log rejection to blockchain for full traceability
         let blockchainTxId = null;
         let blockchainError = null;
-        
+
         try {
             // PHASE 2: Log verification rejection to blockchain for audit purposes
             const fabricService = require('../services/optimizedFabricService');
-            
+
             // Initialize Fabric service with current user context for dynamic identity selection
             await fabricService.initialize({
                 role: req.user.role,
                 email: req.user.email
             });
-            
+
             // Prepare notes with officer information and rejection reason
             const currentUser = await db.getUserById(req.user.userId);
             const notesWithOfficer = JSON.stringify({
@@ -1052,7 +1065,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
                     employeeId: currentUser?.employee_id || null
                 }
             });
-            
+
             // PHASE 3 FIX: Check if vehicle exists on blockchain before updating verification status
             // HPG verification can only be logged to blockchain if vehicle is already registered
             let vehicleOnBlockchain = false;
@@ -1065,7 +1078,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
                 // Vehicle not found on blockchain - this is expected if LTO hasn't registered it yet
                 vehicleOnBlockchain = false;
             }
-            
+
             if (!vehicleOnBlockchain) {
                 console.warn(`[HPG Rejection] Vehicle ${vehicle.vin} not yet registered on blockchain. Skipping blockchain verification update. Database update will proceed.`);
                 // Skip blockchain update but continue with database operations
@@ -1077,7 +1090,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
                     'REJECTED',
                     notesWithOfficer
                 );
-                
+
                 if (blockchainResult && blockchainResult.transactionId) {
                     blockchainTxId = blockchainResult.transactionId;
                     console.log(`✅ [Phase 2] HPG verification rejection logged to blockchain. TX ID: ${blockchainTxId}`);
@@ -1124,18 +1137,18 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
         // PHASE 2: Enhanced notifications - notify LTO admin and vehicle owner
         try {
             // Notify LTO admin
-        const ltoAdmins = await dbModule.query(
-            "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
-        );
-        if (ltoAdmins.rows.length > 0) {
-            await db.createNotification({
-                userId: ltoAdmins.rows[0].id,
-                title: 'HPG Verification Rejected',
+            const ltoAdmins = await dbModule.query(
+                "SELECT id FROM users WHERE role = 'admin' LIMIT 1"
+            );
+            if (ltoAdmins.rows.length > 0) {
+                await db.createNotification({
+                    userId: ltoAdmins.rows[0].id,
+                    title: 'HPG Verification Rejected',
                     message: `HPG verification rejected for vehicle ${vehicle.plate_number || vehicle.vin}. Reason: ${reason}${blockchainTxId ? ` Blockchain TX: ${blockchainTxId.substring(0, 16)}...` : ''}`,
-                type: 'warning'
-            });
+                    type: 'warning'
+                });
             }
-            
+
             // PHASE 2: Notify vehicle owner about verification rejection
             if (vehicle.owner_id) {
                 try {
@@ -1174,7 +1187,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'hpg_ad
 router.post('/certificate/release', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
     try {
         const { requestId, certificateNumber, certificateFile } = req.body;
-        
+
         if (!requestId || !certificateNumber) {
             return res.status(400).json({
                 success: false,
@@ -1200,14 +1213,14 @@ router.post('/certificate/release', authenticateToken, authorizeRole(['admin', '
         // Upload certificate file to storage (IPFS or local)
         let filePath = null;
         let ipfsCid = null;
-        
+
         if (certificateFile) {
             try {
                 // If it's a base64 file, decode and upload
                 if (certificateFile.startsWith('data:')) {
                     const fileBuffer = Buffer.from(certificateFile.split(',')[1], 'base64');
                     const fileName = `hpg_certificate_${certificateNumber}_${Date.now()}.pdf`;
-                    
+
                     // Upload to storage service
                     const uploadResult = await storageService.uploadFile(fileBuffer, fileName, 'application/pdf');
                     filePath = uploadResult.path || uploadResult.filePath;
@@ -1286,11 +1299,11 @@ router.post('/certificate/release', authenticateToken, authorizeRole(['admin', '
 // Create test HPG request (for testing purposes)
 router.post('/test-request', authenticateToken, authorizeRole(['admin', 'hpg_admin']), async (req, res) => {
     try {
-        const { 
-            ownerName, 
+        const {
+            ownerName,
             ownerEmail,
-            plateNumber, 
-            engineNumber, 
+            plateNumber,
+            engineNumber,
             chassisNumber,
             vehicleMake,
             vehicleModel,
@@ -1313,7 +1326,7 @@ router.post('/test-request', authenticateToken, authorizeRole(['admin', 'hpg_adm
         // Create a test vehicle
         const vehicleId = crypto.randomUUID();
         const vin = 'TEST' + Date.now().toString(36).toUpperCase();
-        
+
         await dbModule.query(`
             INSERT INTO vehicles (id, vin, plate_number, engine_number, chassis_number, make, model, year, vehicle_type, status, owner_id)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'SUBMITTED', $10)
@@ -1384,34 +1397,34 @@ async function checkAutoApprovalEligibility(clearanceRequest, vehicle) {
     // 1. Vehicle is brand new (registration, not transfer)
     // 2. Seller/dealer is a trusted partner
     // 3. Vehicle make is from trusted manufacturer
-    
+
     const TRUSTED_MANUFACTURERS = ['TOYOTA', 'HONDA', 'MITSUBISHI', 'NISSAN', 'FORD'];
-    
+
     // Check if new registration
     if (clearanceRequest.request_type !== 'hpg' || clearanceRequest.purpose?.includes('transfer')) {
         return { eligible: false, reason: 'Only new registrations qualify for auto-approval' };
     }
-    
+
     // Check if from trusted manufacturer
     if (!TRUSTED_MANUFACTURERS.includes(vehicle.make?.toUpperCase())) {
         return { eligible: false, reason: 'Manufacturer not in trusted list' };
     }
-    
+
     // Check if seller is trusted partner
     const dbModule = require('../database/db');
     const sellerResult = await dbModule.query(
         'SELECT is_trusted_partner, trusted_partner_type FROM users WHERE id = $1',
         [vehicle.owner_id]
     );
-    
+
     if (sellerResult.rows.length > 0 && sellerResult.rows[0].is_trusted_partner) {
-        return { 
-            eligible: true, 
+        return {
+            eligible: true,
             reason: 'Trusted dealer + known manufacturer',
             partnerType: sellerResult.rows[0].trusted_partner_type
         };
     }
-    
+
     return { eligible: false, reason: 'Owner is not a trusted partner' };
 }
 
@@ -1428,18 +1441,18 @@ router.post('/process-auto-clearances', authenticateToken, authorizeRole(['admin
                AND cr.verification_mode = 'AUTOMATIC'
                AND cr.request_type = 'hpg'`
         );
-        
+
         const results = {
             processed: 0,
             approved: 0,
             rejected: 0,
             errors: []
         };
-        
+
         for (const request of pendingRequests.rows) {
             try {
                 const eligibility = await checkAutoApprovalEligibility(request, request);
-                
+
                 if (eligibility.eligible) {
                     // Auto-approve
                     await dbModule.query(
@@ -1462,18 +1475,18 @@ router.post('/process-auto-clearances', authenticateToken, authorizeRole(['admin
                     );
                 }
                 results.processed++;
-                
+
             } catch (err) {
                 results.errors.push({ requestId: request.id, error: err.message });
             }
         }
-        
+
         res.json({
             success: true,
             message: 'Auto-clearance processing complete',
             results
         });
-        
+
     } catch (error) {
         console.error('Auto-clearance processing error:', error);
         res.status(500).json({

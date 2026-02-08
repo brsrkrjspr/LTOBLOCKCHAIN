@@ -20,7 +20,7 @@ const certificateNumberGenerator = require('../utils/certificateNumberGenerator'
 async function authenticateIssuer(req, res, next) {
     try {
         const apiKey = req.headers['x-issuer-api-key'] || req.body.api_key;
-        
+
         if (!apiKey) {
             return res.status(401).json({
                 success: false,
@@ -347,6 +347,18 @@ router.post('/hpg/issue-clearance',
                 });
             }
 
+            // FIX: Ensure chassisNumber consistency with VIN for modern vehicles
+            // If chassisNumber is not provided, default to vehicleVIN
+            // If provided but different, log warning and use vehicleVIN for consistency
+            let finalChassisNumber = chassisNumber;
+            if (!finalChassisNumber) {
+                finalChassisNumber = vehicleVIN;
+                console.log(`[HPG Issuance] chassisNumber not provided, defaulting to VIN: ${vehicleVIN}`);
+            } else if (finalChassisNumber !== vehicleVIN) {
+                console.warn(`[HPG Issuance] chassisNumber (${finalChassisNumber}) differs from VIN (${vehicleVIN}). Using VIN for metadata consistency.`);
+                finalChassisNumber = vehicleVIN;
+            }
+
             // Generate certificate number
             const certificateNumber = generateCertificateNumber('hpg');
 
@@ -384,7 +396,7 @@ router.post('/hpg/issue-clearance',
                     role: req.user.role,
                     email: req.user.email
                 } : null;
-                
+
                 const blockchainResult = await storeCertificateHashOnBlockchain(
                     compositeHash,
                     {
@@ -423,7 +435,7 @@ router.post('/hpg/issue-clearance',
                     blockchainTxId,
                     JSON.stringify({
                         engineNumber,
-                        chassisNumber,
+                        chassisNumber: finalChassisNumber, // FIX: Use validated chassis number
                         inspectionDetails,
                         issued_by: req.issuer.name,
                         issued_at: new Date().toISOString()

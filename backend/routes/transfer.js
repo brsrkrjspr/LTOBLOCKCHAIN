@@ -2633,9 +2633,22 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'lto_admin', 
         filters.limit = parseInt(limit);
 
         // If vehicle_owner, only show their requests
+        // Support 'role' query param to filter by seller-only or buyer-only
         if (req.user.role === 'vehicle_owner') {
-            filters.involvedUserId = req.user.userId;
-            filters.involvedUserEmail = req.user.email;
+            const roleFilter = req.query.role ? req.query.role.toLowerCase() : null;
+
+            if (roleFilter === 'seller') {
+                // Only show requests where user is the seller
+                filters.sellerId = req.user.userId;
+            } else if (roleFilter === 'buyer') {
+                // Only show requests where user is the buyer
+                filters.buyerId = req.user.userId;
+                filters.buyerEmail = req.user.email;
+            } else {
+                // Default: show all requests where user is involved (seller OR buyer)
+                filters.involvedUserId = req.user.userId;
+                filters.involvedUserEmail = req.user.email;
+            }
         }
 
         // Only apply status filter if user explicitly provided one

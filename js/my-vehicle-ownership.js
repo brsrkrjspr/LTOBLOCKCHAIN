@@ -872,8 +872,8 @@ async function loadMyTransferRequests() {
     try {
         const apiClient = window.apiClient || new APIClient();
 
-        // Get transfer requests where user is seller
-        const response = await apiClient.get('/api/vehicles/transfer/requests?status=REJECTED,UNDER_REVIEW,AWAITING_BUYER_DOCS,PENDING');
+        // Get transfer requests where user is seller (role=seller excludes buyer requests)
+        const response = await apiClient.get('/api/vehicles/transfer/requests?status=REJECTED,UNDER_REVIEW,AWAITING_BUYER_DOCS,PENDING&role=seller');
 
         if (!response.success) {
             console.warn('Failed to load transfer requests:', response.error);

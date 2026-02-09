@@ -153,6 +153,7 @@ class IntegrityService {
 
             // Compare each field
             for (const field of this.fieldMap) {
+                const dbValue = dbVehicle[field.dbKey];
                 const blockchainValue = this.getNestedValue(blockchainVehicle, field.blockchainKey);
                 const matches = this.compareValues(dbValue, blockchainValue, field.critical);
 

@@ -409,7 +409,7 @@ router.post('/login', async (req, res) => {
         // ============================================================
         // ORGANIZATION-LEVEL 2FA - Check if role requires 2FA
         // ============================================================
-        const TFA_REQUIRED_ROLES = ['admin', 'lto_admin', 'lto_officer', 'insurance_verifier', 'hpg_officer', 'hpg_admin'];
+        const TFA_REQUIRED_ROLES = ['admin', 'lto_admin', 'lto_officer', 'insurance_verifier', 'hpg_officer', 'hpg_admin', 'vehicle_owner'];
 
         if (TFA_REQUIRED_ROLES.includes(user.role)) {
             console.log('🔐 2FA required for organization account:', {

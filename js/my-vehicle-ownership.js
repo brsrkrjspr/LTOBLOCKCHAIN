@@ -931,13 +931,13 @@ function displayMyTransferRequests(requests) {
 
     // Create cards for each transfer request
     requests.forEach(request => {
-        const card = createTransferRequestCard(request);
+        const card = createSellerTransferRequestCard(request);
         contentEl.appendChild(card);
     });
 }
 
 // Create transfer request card with document update options
-function createTransferRequestCard(request) {
+function createSellerTransferRequestCard(request) {
     const card = document.createElement('div');
     card.className = 'vehicle-card';
     card.style.marginBottom = '1rem';

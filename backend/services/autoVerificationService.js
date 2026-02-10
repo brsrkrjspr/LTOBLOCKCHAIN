@@ -40,12 +40,12 @@ class AutoVerificationService {
             // Enhanced file path resolution with multiple fallback methods
             let filePath = insuranceDoc.file_path || insuranceDoc.filePath;
             let resolvedVia = null;
-            
+
             // Method 1: Check if file_path exists and is accessible
             if (filePath && await this.fileExists(filePath)) {
                 resolvedVia = 'file_path';
                 console.log(`[Auto-Verify] Using file_path: ${filePath}`);
-            } 
+            }
             // Method 2: Try storageService.getDocument if file_path doesn't exist
             else if (insuranceDoc.id) {
                 try {
@@ -58,11 +58,11 @@ class AutoVerificationService {
                         }
                         console.log(`[Auto-Verify] Resolved via storageService: ${filePath} (mode: ${doc.storageMode || 'local'})`);
                     }
-                } catch (e) { 
+                } catch (e) {
                     console.warn('[Auto-Verify] storageService.getDocument failed:', e.message);
                 }
             }
-            
+
             // Method 3: Try constructing path from document ID if still not found
             if (!filePath || !(await this.fileExists(filePath))) {
                 if (insuranceDoc.id) {
@@ -73,7 +73,7 @@ class AutoVerificationService {
                         path.join('./uploads', `${insuranceDoc.id}.pdf`),
                         path.join('./uploads', insuranceDoc.filename || insuranceDoc.original_name)
                     ];
-                    
+
                     for (const possiblePath of possiblePaths) {
                         if (await this.fileExists(possiblePath)) {
                             filePath = possiblePath;
@@ -84,15 +84,15 @@ class AutoVerificationService {
                     }
                 }
             }
-            
+
             // Final check: if still no file, return error
             if (!filePath || !(await this.fileExists(filePath))) {
                 const errorReason = `Insurance document file not found. Tried: ${resolvedVia || 'none'}. Document ID: ${insuranceDoc.id || 'N/A'}`;
                 console.error(`[Auto-Verify] ${errorReason}`);
-                return { 
-                    status: 'PENDING', 
-                    automated: false, 
-                    reason: errorReason, 
+                return {
+                    status: 'PENDING',
+                    automated: false,
+                    reason: errorReason,
                     confidence: 0,
                     filePathAttempts: {
                         file_path: insuranceDoc.file_path || insuranceDoc.filePath,
@@ -101,7 +101,7 @@ class AutoVerificationService {
                     }
                 };
             }
-            
+
             console.log(`[Auto-Verify] File resolved successfully via: ${resolvedVia}, path: ${filePath}`);
 
             // Extract data via OCR
@@ -224,10 +224,10 @@ class AutoVerificationService {
 
             // Check expiry date
             const expiryCheck = this.checkExpiry(ocrData.insuranceExpiry || ocrData.expiryDate);
-            
+
             // Calculate file hash
             const fileHash = insuranceDoc.file_hash || crypto.createHash('sha256').update(await fs.readFile(filePath)).digest('hex');
-            
+
             // ============================================
             // CERTIFICATE AUTHENTICITY CHECK (Blockchain Source of Truth)
             // Verify that the certificate was issued by the certificate generator
@@ -243,7 +243,7 @@ class AutoVerificationService {
                 originalFound: authenticityCheck.originalCertificateFound,
                 score: authenticityCheck.authenticityScore
             });
-            
+
             // Generate composite hash
             const expiryDateISO = expiryCheck.expiryDate || new Date().toISOString();
             const compositeHash = certificateBlockchain.generateCompositeHash(
@@ -262,7 +262,7 @@ class AutoVerificationService {
                 // Duplicate detected - set to PENDING with results stored
                 const reason = `Document already used for vehicle ${hashCheck.vehicleId}. Duplicate detected.`;
                 console.warn('[Auto-Verify] Insurance duplicate detected: ', reason);
-                
+
                 const systemUserId = 'system';
                 await db.updateVerificationStatus(
                     vehicleId,
@@ -528,7 +528,7 @@ class AutoVerificationService {
                 confidence: 0
             };
         } finally {
-            if (ipfsTempPath) { try { fsSync.unlinkSync(ipfsTempPath); } catch (_) {} }
+            if (ipfsTempPath) { try { fsSync.unlinkSync(ipfsTempPath); } catch (_) { } }
         }
     }
 
@@ -558,8 +558,8 @@ class AutoVerificationService {
             // Find HPG Clearance document (HPG receives hpg_clearance, not OR/CR)
             // For transfer requests, buyer uploads with type 'buyer_hpg_clearance' (transfer role)
             // but the actual document in DB has document_type = 'hpg_clearance'
-            const hpgClearanceDoc = documents.find(d => 
-                d.document_type === 'hpg_clearance' || 
+            const hpgClearanceDoc = documents.find(d =>
+                d.document_type === 'hpg_clearance' ||
                 d.document_type === 'hpgClearance' ||
                 d.document_type === 'pnp_hpg_clearance' ||
                 d.document_type === 'buyer_hpg_clearance' || // Transfer role (from transfer_documents)
@@ -577,14 +577,14 @@ class AutoVerificationService {
                     original_name: hpgClearanceDoc.original_name || hpgClearanceDoc.originalName
                 });
             } else {
-                console.warn(`[Auto-Verify] HPG clearance document not found. Available document types:`, 
+                console.warn(`[Auto-Verify] HPG clearance document not found. Available document types:`,
                     documents.map(d => ({ document_type: d.document_type, type: d.type }))
                 );
             }
 
             // Fallback: Also check for OR/CR (for transfer cases where OR/CR is submitted)
-            const clearanceDoc = hpgClearanceDoc || documents.find(d => 
-                d.document_type === 'registration_cert' || 
+            const clearanceDoc = hpgClearanceDoc || documents.find(d =>
+                d.document_type === 'registration_cert' ||
                 d.document_type === 'registrationCert' ||
                 d.type === 'registration_cert' ||
                 d.type === 'registrationCert' ||
@@ -592,7 +592,7 @@ class AutoVerificationService {
             );
 
             if (!clearanceDoc) {
-                console.error(`[Auto-Verify] No HPG clearance or OR/CR document found. Available documents:`, 
+                console.error(`[Auto-Verify] No HPG clearance or OR/CR document found. Available documents:`,
                     documents.map(d => ({
                         id: d.id,
                         document_type: d.document_type,
@@ -621,7 +621,7 @@ class AutoVerificationService {
             if (hasLocalFile) {
                 const docMimeType = clearanceDoc.mime_type || clearanceDoc.mimeType || 'application/pdf';
                 const docType = hpgClearanceDoc ? 'hpg_clearance' : 'registration_cert';
-                
+
                 try {
                     const extractedText = await ocrService.extractText(filePath, docMimeType);
                     ocrData = ocrService.parseVehicleInfo(extractedText, docType) || {};
@@ -633,8 +633,10 @@ class AutoVerificationService {
                 console.warn('[Auto-Verify] HPG document file not available locally. Skipping OCR and relying on hash-only authenticity.');
             }
 
-            const engineNumber = ocrData.engineNumber || vehicle.engine_number;
-            const chassisNumber = ocrData.chassisNumber || ocrData.vin || vehicle.chassis_number;
+            // REMOVED CIRCULAR FALLBACKS: Only use OCR data to prevent false positives
+            // If OCR fails, we want lower confidence, not a fake match with the target vehicle
+            const engineNumber = ocrData.engineNumber || null;
+            const chassisNumber = ocrData.chassisNumber || ocrData.vin || null;
 
             // Calculate / obtain file hash
             console.log('🔐 [Auto-Verify HPG] Preparing file hash for authenticity check...');
@@ -665,7 +667,7 @@ class AutoVerificationService {
 
             console.log('🔐 [Auto-Verify HPG] Final file_hash to use:', fileHash.substring(0, 32) + '...');
             console.log('🔐 [Auto-Verify HPG] File hash length:', fileHash.length);
-            
+
             // ============================================
             // CERTIFICATE AUTHENTICITY CHECK (Blockchain Source of Truth)
             // ============================================
@@ -677,13 +679,25 @@ class AutoVerificationService {
                 vehicleVIN: vehicle.vin,
                 certificateType: 'hpg_clearance'
             });
-            
+
             const authenticityCheck = await certificateBlockchain.checkCertificateAuthenticity(
                 fileHash,
                 vehicleId,
                 'hpg_clearance'
             );
-            
+
+            // MANDATORY VIN BINDING: If the certificate was found but issued for a different VIN,
+            // we must flag this as a critical mismatch.
+            const vinMismatch = authenticityCheck.originalVehicleVin &&
+                authenticityCheck.originalVehicleVin.toUpperCase().trim() !== vehicle.vin.toUpperCase().trim();
+
+            if (vinMismatch) {
+                console.error(`[Auto-Verify] 🚨 CRITICAL VIN MISMATCH: Certificate issued for ${authenticityCheck.originalVehicleVin} but submitted for ${vehicle.vin}`);
+                authenticityCheck.authentic = false;
+                authenticityCheck.reason = `VIN Mismatch: Certificate belongs to vehicle ${authenticityCheck.originalVehicleVin}, not ${vehicle.vin}`;
+                authenticityCheck.authenticityScore = 0;
+            }
+
             console.log('🔍 [Auto-Verify HPG] ==========================================');
             console.log('🔍 [Auto-Verify HPG] Certificate authenticity check RESULT:');
             console.log('🔍 [Auto-Verify HPG]', JSON.stringify({
@@ -789,8 +803,8 @@ class AutoVerificationService {
 
             // Document completeness (15 points) - Reduced from 20
             const hasHPGClearance = !!clearanceDoc;
-            const hasOwnerID = documents.some(d => 
-                d.document_type === 'owner_id' || 
+            const hasOwnerID = documents.some(d =>
+                d.document_type === 'owner_id' ||
                 d.document_type === 'ownerId' ||
                 d.type === 'owner_id' ||
                 d.type === 'ownerId'
@@ -811,22 +825,22 @@ class AutoVerificationService {
             let chassisMatchOriginal = false;
 
             // Match 1: Compare with vehicle record
-            engineMatch = engineNumber && vehicle.engine_number && 
-                         engineNumber.toUpperCase().trim() === vehicle.engine_number.toUpperCase().trim();
-            chassisMatch = chassisNumber && vehicle.chassis_number && 
-                          chassisNumber.toUpperCase().trim() === vehicle.chassis_number.toUpperCase().trim();
+            engineMatch = engineNumber && vehicle.engine_number &&
+                engineNumber.toUpperCase().trim() === vehicle.engine_number.toUpperCase().trim();
+            chassisMatch = chassisNumber && vehicle.chassis_number &&
+                chassisNumber.toUpperCase().trim() === vehicle.chassis_number.toUpperCase().trim();
 
             // Match 2: Compare with original certificate's stored data (if certificate is authentic)
             if (authenticityCheck.authentic && authenticityCheck.certificateData) {
                 try {
-                    const certData = typeof authenticityCheck.certificateData === 'string' 
-                        ? JSON.parse(authenticityCheck.certificateData) 
+                    const certData = typeof authenticityCheck.certificateData === 'string'
+                        ? JSON.parse(authenticityCheck.certificateData)
                         : authenticityCheck.certificateData;
-                    
+
                     // HPG certificates may store engine/chassis in certificate_data
                     const originalEngine = certData.engineNumber || certData.engine_number;
                     const originalChassis = certData.chassisNumber || certData.chassis_number;
-                    
+
                     if (originalEngine && engineNumber) {
                         engineMatchOriginal = engineNumber.toUpperCase().trim() === originalEngine.toUpperCase().trim();
                     }
@@ -864,11 +878,11 @@ class AutoVerificationService {
                 authenticityCheck: authenticityCheck.authentic
             });
 
-            confidenceScore = Math.min(100, 
+            confidenceScore = Math.min(100,
                 scoreBreakdown.certificateAuthenticity +
-                scoreBreakdown.dataExtraction + 
-                scoreBreakdown.hashUniqueness + 
-                scoreBreakdown.documentCompleteness + 
+                scoreBreakdown.dataExtraction +
+                scoreBreakdown.hashUniqueness +
+                scoreBreakdown.documentCompleteness +
                 scoreBreakdown.dataMatch
             );
             scoreBreakdown.total = confidenceScore;
@@ -886,7 +900,7 @@ class AutoVerificationService {
                 recommendationReason = 'Certificate authenticity check failed. File hash does not match original certificate on blockchain.';
             } else if (confidenceScore >= 80) {
                 recommendation = 'AUTO_APPROVE';
-                recommendationReason = authenticityCheck.authentic 
+                recommendationReason = authenticityCheck.authentic
                     ? 'High confidence score. Certificate authenticated via blockchain. All checks passed. Manual physical inspection still required.'
                     : 'High confidence score. All checks passed. Manual physical inspection still required.';
             } else if (confidenceScore >= 60) {
@@ -957,9 +971,9 @@ class AutoVerificationService {
                     chassisMatchVehicle: chassisMatch,
                     engineMatchOriginal: engineMatchOriginal,
                     chassisMatchOriginal: chassisMatchOriginal,
-                    originalCertificateData: authenticityCheck.authentic && authenticityCheck.certificateData 
-                        ? (typeof authenticityCheck.certificateData === 'string' 
-                            ? JSON.parse(authenticityCheck.certificateData) 
+                    originalCertificateData: authenticityCheck.authentic && authenticityCheck.certificateData
+                        ? (typeof authenticityCheck.certificateData === 'string'
+                            ? JSON.parse(authenticityCheck.certificateData)
                             : authenticityCheck.certificateData)
                         : null
                 },
@@ -969,7 +983,7 @@ class AutoVerificationService {
                     chassisNumber
                 }
             };
-            
+
             console.log('✅ [Auto-Verify HPG] ==========================================');
             console.log('✅ [Auto-Verify HPG] AUTO-VERIFICATION COMPLETE - SUMMARY');
             console.log('✅ [Auto-Verify HPG] Vehicle:', {
@@ -998,7 +1012,7 @@ class AutoVerificationService {
             console.log('✅ [Auto-Verify HPG] Recommendation:', recommendation);
             console.log('✅ [Auto-Verify HPG] Recommendation Reason:', recommendationReason);
             console.log('✅ [Auto-Verify HPG] ==========================================');
-            
+
             return result;
         } catch (error) {
             console.error('❌ [Auto-Verify HPG] ERROR:', error);
@@ -1028,10 +1042,10 @@ class AutoVerificationService {
             console.log(`[Auto-Verify] Starting HPG pre-verification for vehicle ${vehicleId}`);
 
             // Find registration cert and owner ID documents
-            const registrationCert = documents.find(d => 
+            const registrationCert = documents.find(d =>
                 d.document_type === 'registration_cert' || d.document_type === 'registrationCert'
             );
-            const ownerId = documents.find(d => 
+            const ownerId = documents.find(d =>
                 d.document_type === 'owner_id' || d.document_type === 'ownerId'
             );
 
@@ -1193,7 +1207,7 @@ class AutoVerificationService {
             }
 
             const isValid = expiry >= now;
-            
+
             return {
                 isValid,
                 expiryDate: expiry.toISOString(),
@@ -1217,8 +1231,8 @@ class AutoVerificationService {
         if (databaseCheck.found && databaseCheck.record) {
             // Check vehicle details match
             const plateMatch = !vehicle.plate_number || !databaseCheck.record.plateNumber ||
-                             vehicle.plate_number.toUpperCase().replace(/\s+/g, ' ') === 
-                             databaseCheck.record.plateNumber.toUpperCase().replace(/\s+/g, ' ');
+                vehicle.plate_number.toUpperCase().replace(/\s+/g, ' ') ===
+                databaseCheck.record.plateNumber.toUpperCase().replace(/\s+/g, ' ');
 
             // For insurance: check policy number matches
             if (ocrData.insurancePolicyNumber || ocrData.policyNumber) {
@@ -1242,36 +1256,36 @@ class AutoVerificationService {
      */
     parseDate(dateString) {
         if (!dateString) return null;
-        
+
         // Try common formats
         const formats = [
             /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/,
             /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})/
         ];
-        
+
         for (const format of formats) {
             const match = dateString.match(format);
             if (match) {
                 const month = parseInt(match[1]);
                 const day = parseInt(match[2]);
                 let year = parseInt(match[3]);
-                
+
                 if (year < 100) {
                     year += year < 50 ? 2000 : 1900;
                 }
-                
+
                 const date = new Date(year, month - 1, day);
                 if (date.getMonth() === month - 1 && date.getDate() === day) {
                     return date;
                 }
             }
         }
-        
+
         const isoDate = new Date(dateString);
         if (!isNaN(isoDate.getTime())) {
             return isoDate;
         }
-        
+
         return null;
     }
 
@@ -1413,7 +1427,7 @@ class AutoVerificationService {
             let extractedMvirNumber = null;
             try {
                 const mvirText = await ocrService.extractText(filePath, mvirDoc.mime_type || mvirDoc.mimeType || 'application/pdf');
-                
+
                 // Extract MVIR number using patterns (MVIR-YYYY-XXXXXX or similar)
                 // Pattern 1: MVIR-YYYY-XXXXXX (6 alphanumeric)
                 const mvirPattern1 = /MVIR[-\s]?(\d{4})[-\s]?([A-Z0-9]{6,})/i;
@@ -1484,7 +1498,7 @@ class AutoVerificationService {
                     if (issuedCert.rows.length > 0) {
                         originalCertificateFound = true;
                         const cert = issuedCert.rows[0];
-                        
+
                         // Compare file hash
                         if (cert.file_hash && cert.file_hash === fileHash) {
                             hashMatch = true;
@@ -1606,7 +1620,7 @@ class AutoVerificationService {
      */
     calculatePatternBasedScore(documentNumber, documentType, hashUnique, notExpired) {
         const patternCheck = this.validateDocumentNumberFormat(documentNumber, documentType);
-        
+
         let score = 0;
         let maxScore = 0;
         const checks = {};

@@ -9,22 +9,23 @@ const { authorizeRole } = require('../middleware/authorize');
 const { normalizeStatus, CLEARANCE_STATUS, isValidClearanceStatus } = require('../config/statusConstants');
 const { INSURANCE_ACTIONS, normalizeAction } = require('../config/actionConstants');
 const { validateClearanceStatusTransition } = require('../middleware/statusValidation');
+const { sendInsuranceIssueEmail } = require('../services/insuranceNotificationService');
 
 // Get insurance dashboard statistics
 router.get('/stats', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
     try {
         const dbModule = require('../database/db');
-        
+
         // Get start of current week (Monday)
         const now = new Date();
         const startOfWeek = new Date(now);
         startOfWeek.setDate(now.getDate() - now.getDay() + 1); // Monday
         startOfWeek.setHours(0, 0, 0, 0);
-        
+
         // Get start of today
         const startOfToday = new Date(now);
         startOfToday.setHours(0, 0, 0, 0);
-        
+
         // Query for assigned tasks (pending requests)
         const assignedTasksResult = await dbModule.query(
             `SELECT COUNT(*) as count 
@@ -32,7 +33,7 @@ router.get('/stats', authenticateToken, authorizeRole(['admin', 'insurance_verif
              WHERE request_type = 'insurance' 
              AND (status = 'PENDING' OR status = 'SENT' OR status = 'IN_PROGRESS')`
         );
-        
+
         // Query for completed today
         const completedTodayResult = await dbModule.query(
             `SELECT COUNT(*) as count 
@@ -42,7 +43,7 @@ router.get('/stats', authenticateToken, authorizeRole(['admin', 'insurance_verif
              AND completed_at >= $1`,
             [startOfToday]
         );
-        
+
         // Query for completed this week
         const completedThisWeekResult = await dbModule.query(
             `SELECT COUNT(*) as count 
@@ -52,7 +53,7 @@ router.get('/stats', authenticateToken, authorizeRole(['admin', 'insurance_verif
              AND completed_at >= $1`,
             [startOfWeek]
         );
-        
+
         const stats = {
             assignedTasks: parseInt(assignedTasksResult.rows[0].count) || 0,
             completedToday: parseInt(completedTodayResult.rows[0].count) || 0,
@@ -81,7 +82,7 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'insurance_ve
         let requests;
         if (status) {
             const normalizedStatus = normalizeStatus(status);
-            
+
             // Validate that the normalized status is a valid clearance status
             if (!normalizedStatus || !isValidClearanceStatus(normalizedStatus)) {
                 return res.status(400).json({
@@ -89,7 +90,7 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'insurance_ve
                     error: `Invalid status: "${status}". Valid statuses are: ${Object.values(CLEARANCE_STATUS).join(', ')}`
                 });
             }
-            
+
             const allRequests = await db.getClearanceRequestsByStatus(normalizedStatus);
             requests = allRequests.filter(r => r.request_type === 'insurance');
         } else {
@@ -114,7 +115,7 @@ router.get('/requests', authenticateToken, authorizeRole(['admin', 'insurance_ve
 router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
     try {
         const { id } = req.params;
-        
+
         const request = await db.getClearanceRequestById(id);
         if (!request || request.request_type !== 'insurance') {
             return res.status(404).json({
@@ -125,21 +126,21 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'insuranc
 
         // Get vehicle details
         const vehicle = await db.getVehicleById(request.vehicle_id);
-        
+
         // Get owner information for auto-fill
         let owner = null;
         if (vehicle && vehicle.owner_id) {
             owner = await db.getUserById(vehicle.owner_id);
         }
-        
+
         // Extract documents from metadata (filtered by LTO)
         // Insurance should ONLY see documents that were explicitly included in metadata.documents
         // Parse metadata if it's a string
-        const metadata = typeof request.metadata === 'string' 
-            ? JSON.parse(request.metadata) 
+        const metadata = typeof request.metadata === 'string'
+            ? JSON.parse(request.metadata)
             : (request.metadata || {});
         const documents = metadata.documents || [];
-        
+
         console.log(`[Insurance] Returning ${documents.length} document(s) from metadata (filtered by LTO)`);
         console.log(`[Insurance] Document types: ${documents.map(d => d.type).join(', ')}`);
 
@@ -175,7 +176,7 @@ router.get('/requests/:id', authenticateToken, authorizeRole(['admin', 'insuranc
 router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
     try {
         const { requestId, notes } = req.body;
-        
+
         if (!requestId) {
             return res.status(400).json({ success: false, error: 'Request ID is required' });
         }
@@ -193,7 +194,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
 
         // Update transfer request approval status if this clearance request is linked to a transfer request
         const dbModule = require('../database/db');
-        
+
         // Check if insurance_clearance_request_id column exists before querying
         let transferRequests = { rows: [] };
         try {
@@ -202,7 +203,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
                 WHERE table_name = 'transfer_requests' 
                 AND column_name = 'insurance_clearance_request_id'
             `);
-            
+
             if (colCheck.rows.length > 0) {
                 // Column exists, safe to query
                 transferRequests = await dbModule.query(
@@ -229,7 +230,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
                     const hasApprovalStatus = colCheck.rows.some(r => r.column_name === 'insurance_approval_status');
                     const hasApprovedAt = colCheck.rows.some(r => r.column_name === 'insurance_approved_at');
                     const hasApprovedBy = colCheck.rows.some(r => r.column_name === 'insurance_approved_by');
-                    
+
                     if (hasApprovalStatus && hasApprovedAt && hasApprovedBy) {
                         // Update Insurance approval status
                         await dbModule.query(
@@ -242,13 +243,13 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
                             [req.user.userId, tr.id]
                         );
                         console.log(`✅ Updated transfer request ${tr.id} with Insurance approval`);
-                        
+
                         // Get the updated transfer request to check all approvals
                         const transferRequest = await db.getTransferRequestById(tr.id);
                         if (transferRequest) {
                             // Check if all required organization approvals are complete
                             const pendingApprovals = [];
-                            
+
                             // Check HPG approval if it was forwarded
                             if (transferRequest.hpg_clearance_request_id) {
                                 if (!transferRequest.hpg_approval_status || transferRequest.hpg_approval_status === 'PENDING') {
@@ -256,16 +257,16 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
                                 }
                             }
                             // Insurance approval (just approved, so skip)
-                            
+
                             // If all required approvals are complete, transition status back to UNDER_REVIEW
                             // Check if status is FORWARDED_TO_HPG (HPG was forwarded first) or if it's in a forwarded state
-                            const isForwardedState = transferRequest.status === 'FORWARDED_TO_HPG' || 
-                                                     (transferRequest.hpg_clearance_request_id && transferRequest.status.includes('FORWARDED'));
-                            
+                            const isForwardedState = transferRequest.status === 'FORWARDED_TO_HPG' ||
+                                (transferRequest.hpg_clearance_request_id && transferRequest.status.includes('FORWARDED'));
+
                             if (pendingApprovals.length === 0 && isForwardedState) {
                                 const statusValidation = require('../middleware/statusValidation');
                                 const validation = statusValidation.validateTransferStatusTransition(transferRequest.status, 'UNDER_REVIEW');
-                                
+
                                 if (validation.valid) {
                                     await db.updateTransferRequestStatus(tr.id, 'UNDER_REVIEW', req.user.userId, null, {
                                         insuranceApproved: true,
@@ -287,7 +288,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
                     console.error(`[Insurance Approve] Error updating transfer request ${tr.id}:`, transferError);
                     // Continue with other operations even if transfer update fails
                 }
-                
+
                 // Add to vehicle history for the transfer request (always try this)
                 try {
                     const transferRequest = await db.getTransferRequestById(tr.id);
@@ -297,10 +298,10 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
                             action: 'TRANSFER_INSURANCE_APPROVED',
                             description: `Insurance approved transfer request ${tr.id} via clearance request ${requestId}`,
                             performedBy: req.user.userId,
-                            metadata: { 
-                                transferRequestId: tr.id, 
+                            metadata: {
+                                transferRequestId: tr.id,
                                 clearanceRequestId: requestId,
-                                notes: notes || null 
+                                notes: notes || null
                             }
                         });
                     }
@@ -315,23 +316,23 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
         // PHASE 2: Log approval to blockchain for full traceability
         let blockchainTxId = null;
         let blockchainError = null;
-        
+
         // Get vehicle for blockchain logging and notifications
         const vehicle = await db.getVehicleById(request.vehicle_id);
         if (!vehicle) {
             return res.status(404).json({ success: false, error: 'Vehicle not found' });
         }
-        
+
         try {
             // PHASE 2: Log verification approval to blockchain for audit purposes
             const fabricService = require('../services/optimizedFabricService');
-            
+
             // Initialize Fabric service with current user context for dynamic identity selection
             await fabricService.initialize({
                 role: req.user.role,
                 email: req.user.email
             });
-            
+
             // Prepare notes with officer information
             const currentUser = await db.getUserById(req.user.userId);
             const notesWithOfficer = JSON.stringify({
@@ -344,7 +345,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
                     employeeId: currentUser?.employee_id || null
                 }
             });
-            
+
             // Call chaincode to update verification status on blockchain
             const blockchainResult = await fabricService.updateVerificationStatus(
                 vehicle.vin,
@@ -352,7 +353,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
                 'APPROVED',
                 notesWithOfficer
             );
-            
+
             if (blockchainResult && blockchainResult.transactionId) {
                 blockchainTxId = blockchainResult.transactionId;
                 console.log(`✅ [Phase 2] Insurance verification logged to blockchain. TX ID: ${blockchainTxId}`);
@@ -395,7 +396,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
                     type: 'success'
                 });
             }
-            
+
             // PHASE 2: Notify vehicle owner about verification approval
             if (vehicle.owner_id) {
                 try {
@@ -426,7 +427,7 @@ router.post('/verify/approve', authenticateToken, authorizeRole(['admin', 'insur
 router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
     try {
         const { requestId, reason } = req.body;
-        
+
         if (!requestId || !reason) {
             return res.status(400).json({ success: false, error: 'Request ID and reason required' });
         }
@@ -436,11 +437,17 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
             return res.status(404).json({ success: false, error: 'Insurance request not found' });
         }
 
-        await db.updateClearanceRequestStatus(requestId, 'REJECTED', { reason });
-        
+        // Change REJECTED to PENDING as per user requirement: "marked as 'PENDING' instead of being immediately rejected"
+        const finalStatus = 'PENDING';
+        await db.updateClearanceRequestStatus(requestId, finalStatus, {
+            reason,
+            originallyRejectedBy: req.user.userId,
+            originallyRejectedAt: new Date().toISOString()
+        });
+
         // Update transfer request approval status if this clearance request is linked to a transfer request
         const dbModule = require('../database/db');
-        
+
         // Check if insurance_clearance_request_id column exists before querying
         let transferRequests = { rows: [] };
         try {
@@ -449,7 +456,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
                 WHERE table_name = 'transfer_requests' 
                 AND column_name = 'insurance_clearance_request_id'
             `);
-            
+
             if (colCheck.rows.length > 0) {
                 // Column exists, safe to query
                 transferRequests = await dbModule.query(
@@ -468,53 +475,54 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
             for (const tr of transferRequests.rows) {
                 await dbModule.query(
                     `UPDATE transfer_requests 
-                     SET insurance_approval_status = 'REJECTED',
+                     SET insurance_approval_status = 'PENDING',
+                         metadata = metadata || $2::jsonb,
                          updated_at = CURRENT_TIMESTAMP
                      WHERE id = $1`,
-                    [tr.id]
+                    [tr.id, JSON.stringify({ manualRejectionReason: reason, rejectedBy: req.user.userId })]
                 );
-                
+
                 // Add to vehicle history for the transfer request
                 const transferRequest = await db.getTransferRequestById(tr.id);
                 if (transferRequest) {
                     await db.addVehicleHistory({
                         vehicleId: transferRequest.vehicle_id,
-                        action: 'TRANSFER_INSURANCE_REJECTED',
-                        description: `Insurance rejected transfer request ${tr.id} via clearance request ${requestId}. Reason: ${reason}`,
+                        action: 'TRANSFER_INSURANCE_PENDING',
+                        description: `Insurance marked transfer request ${tr.id} as PENDING via clearance request ${requestId}. Reason: ${reason}`,
                         performedBy: req.user.userId,
-                        metadata: { 
-                            transferRequestId: tr.id, 
+                        metadata: {
+                            transferRequestId: tr.id,
                             clearanceRequestId: requestId,
-                            reason: reason 
+                            reason: reason
                         }
                     });
                 }
             }
             console.log(`✅ Updated ${transferRequests.rows.length} transfer request(s) with Insurance rejection`);
         }
-        
-        await db.updateVerificationStatus(request.vehicle_id, 'insurance', 'REJECTED', req.user.userId, reason);
+
+        await db.updateVerificationStatus(request.vehicle_id, 'insurance', 'PENDING', req.user.userId, reason);
 
         // PHASE 2: Log rejection to blockchain for full traceability
         let blockchainTxId = null;
         let blockchainError = null;
-        
+
         // Get vehicle for blockchain logging and notifications
         const vehicle = await db.getVehicleById(request.vehicle_id);
         if (!vehicle) {
             return res.status(404).json({ success: false, error: 'Vehicle not found' });
         }
-        
+
         try {
             // PHASE 2: Log verification rejection to blockchain for audit purposes
             const fabricService = require('../services/optimizedFabricService');
-            
+
             // Initialize Fabric service with current user context for dynamic identity selection
             await fabricService.initialize({
                 role: req.user.role,
                 email: req.user.email
             });
-            
+
             // Prepare notes with officer information and rejection reason
             const currentUser = await db.getUserById(req.user.userId);
             const notesWithOfficer = JSON.stringify({
@@ -528,15 +536,15 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
                     employeeId: currentUser?.employee_id || null
                 }
             });
-            
+
             // Call chaincode to update verification status on blockchain
             const blockchainResult = await fabricService.updateVerificationStatus(
                 vehicle.vin,
                 'insurance',
-                'REJECTED',
+                'PENDING',
                 notesWithOfficer
             );
-            
+
             if (blockchainResult && blockchainResult.transactionId) {
                 blockchainTxId = blockchainResult.transactionId;
                 console.log(`✅ [Phase 2] Insurance verification rejection logged to blockchain. TX ID: ${blockchainTxId}`);
@@ -553,8 +561,8 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
         // PHASE 3: Add to vehicle history with standardized action name
         await db.addVehicleHistory({
             vehicleId: request.vehicle_id,
-            action: INSURANCE_ACTIONS.REJECTED, // PHASE 3: Use standardized action constant
-            description: `Insurance verification rejected by ${req.user.email}. Reason: ${reason}${blockchainTxId ? ` Blockchain TX: ${blockchainTxId}` : ''}`,
+            action: INSURANCE_ACTIONS.AUTO_VERIFIED_PENDING, // Use PENDING instead of REJECTED
+            description: `Insurance verification marked as PENDING by ${req.user.email}. Reason: ${reason}${blockchainTxId ? ` Blockchain TX: ${blockchainTxId}` : ''}`,
             performedBy: req.user.userId,
             transactionId: blockchainTxId || null,  // PHASE 2: Include blockchain transaction ID
             metadata: {
@@ -574,24 +582,39 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
             if (ltoAdmins.rows.length > 0) {
                 await db.createNotification({
                     userId: ltoAdmins.rows[0].id,
-                    title: 'Insurance Verification Rejected',
-                    message: `Insurance verification rejected for vehicle ${vehicle.plate_number || vehicle.vin}. Reason: ${reason}${blockchainTxId ? ` Blockchain TX: ${blockchainTxId.substring(0, 16)}...` : ''}`,
+                    title: 'Insurance Verification - Issues Detected',
+                    message: `Insurance verification marked as PENDING for vehicle ${vehicle.plate_number || vehicle.vin}. Reason: ${reason}${blockchainTxId ? ` Blockchain TX: ${blockchainTxId.substring(0, 16)}...` : ''}`,
                     type: 'warning'
                 });
             }
-            
-            // PHASE 2: Notify vehicle owner about verification rejection
+
+            // PHASE 2: Notify vehicle owner about verification pending (was rejection)
             if (vehicle.owner_id) {
                 try {
+                    const owner = await db.getUserById(vehicle.owner_id);
                     await db.createNotification({
                         userId: vehicle.owner_id,
-                        title: 'Insurance Verification Rejected',
-                        message: `Your insurance verification request for vehicle ${vehicle.plate_number || vehicle.vin} has been rejected. Reason: ${reason}${blockchainTxId ? ` Transaction ID: ${blockchainTxId.substring(0, 16)}...` : ''}`,
+                        title: 'Insurance Verification Pending',
+                        message: `Your insurance verification request for vehicle ${vehicle.plate_number || vehicle.vin} has been marked as PENDING. Reason: ${reason}. Please review and re-upload if necessary.`,
                         type: 'warning'
                     });
+
+                    // Trigger Email Notification (PHASE 2 Requirement)
+                    if (owner && owner.email) {
+                        try {
+                            await sendInsuranceIssueEmail({
+                                to: owner.email,
+                                recipientName: `${owner.first_name || ''} ${owner.last_name || ''}`.trim() || owner.email,
+                                vehicleLabel: vehicle.plate_number || vehicle.vin,
+                                reasons: [reason],
+                                applicationType: 'insurance verification'
+                            });
+                        } catch (emailError) {
+                            console.error('[Insurance Reject→Pending] Failed to send email:', emailError.message);
+                        }
+                    }
                 } catch (ownerNotifyError) {
                     console.warn('[Phase 2] Failed to notify vehicle owner:', ownerNotifyError.message);
-                    // Continue - owner notification failure shouldn't block rejection
                 }
             }
         } catch (notificationError) {
@@ -599,7 +622,7 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
             // Continue - notification failures shouldn't block the rejection
         }
 
-        res.json({ success: true, message: 'Insurance verification rejected' });
+        res.json({ success: true, message: 'Insurance verification marked as PENDING' });
     } catch (error) {
         console.error('Error rejecting insurance:', error);
         res.status(500).json({ success: false, error: error.message });
@@ -609,9 +632,9 @@ router.post('/verify/reject', authenticateToken, authorizeRole(['admin', 'insura
 // Create test insurance request (for testing purposes)
 router.post('/test-request', authenticateToken, authorizeRole(['admin', 'insurance_verifier']), async (req, res) => {
     try {
-        const { 
-            ownerName, 
-            plateNumber, 
+        const {
+            ownerName,
+            plateNumber,
             engineNumber,
             policyNumber,
             vehicleMake,
@@ -631,7 +654,7 @@ router.post('/test-request', authenticateToken, authorizeRole(['admin', 'insuran
         // Create a test vehicle
         const vehicleId = crypto.randomUUID();
         const vin = 'INSTEST' + Date.now().toString(36).toUpperCase();
-        
+
         await dbModule.query(`
             INSERT INTO vehicles (id, vin, plate_number, engine_number, make, model, year, vehicle_type, status, owner_id)
             VALUES ($1, $2, $3, $4, $5, $6, 2023, 'Sedan', 'SUBMITTED', $7)

@@ -12,6 +12,7 @@ const transferValidationService = require('../services/transferAutoValidationSer
 const transferDocumentGenerator = require('../services/transferDocumentGeneratorService');
 const jwt = require('jsonwebtoken');
 const { sendMail } = require('../services/gmailApiService');
+const { sendInsuranceIssueEmail } = require('../services/insuranceNotificationService');
 const dbModule = require('../database/db');
 const { TRANSFER_STATUS, VEHICLE_STATUS } = require('../config/statusConstants');
 const { TRANSFER_ACTIONS, REGISTRATION_ACTIONS, normalizeAction } = require('../config/actionConstants');
@@ -1626,6 +1627,21 @@ async function forwardTransferToInsurance({ request, requestedBy, purpose, notes
                             console.log(`✅ Notification sent to buyer ${buyerId} for Insurance auto-verification failure`);
                         } catch (notifError) {
                             console.error('[Transfer→Insurance Auto-Verify] Failed to create buyer notification:', notifError);
+                        }
+                    }
+
+                    // Trigger Email Notification (PHASE 2 Requirement)
+                    if (buyerEmail) {
+                        try {
+                            await sendInsuranceIssueEmail({
+                                to: buyerEmail,
+                                recipientName: request.buyer_info?.firstName ? `${request.buyer_info.firstName} ${request.buyer_info.lastName || ''}`.trim() : buyerEmail,
+                                vehicleLabel: request.vehicle?.plate_number || request.vehicle?.vin,
+                                reasons: autoVerificationResult.flagReasons || [autoVerificationResult.reason],
+                                applicationType: 'transfer'
+                            });
+                        } catch (emailError) {
+                            console.error('[Transfer→Insurance Auto-Verify] Failed to send email notification:', emailError.message);
                         }
                     }
                 }
@@ -3688,7 +3704,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 },
                 deadline: request.expires_at
             });
-
+ 
             const documentRecord = await db.createDocument({
                 vehicleId: request.vehicle_id,
                 documentType: docTypes.DB_TYPES.TRANSFER_PACKAGE,
@@ -3700,7 +3716,7 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 fileHash: generatedPackage.fileHash,
                 uploadedBy: req.user.userId
             });
-
+ 
             await dbModule.query(
                 `INSERT INTO transfer_documents (transfer_request_id, document_type, document_id, uploaded_by)
                  VALUES ($1, $2, $3, $4)

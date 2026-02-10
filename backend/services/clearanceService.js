@@ -5,6 +5,7 @@ const db = require('../database/services');
 const dbModule = require('../database/db');
 const docTypes = require('../config/documentTypes');
 const hpgDatabaseService = require('./hpgDatabaseService');
+const { sendInsuranceIssueEmail } = require('./insuranceNotificationService');
 
 // Emission feature removed (no emission clearance workflow).
 /**
@@ -21,32 +22,32 @@ async function waitForDocuments(vehicleId, maxRetries = 5, initialDelay = 100) {
         console.log(`[Auto-Send] Documents found immediately: ${documents.length}`);
         return documents;
     }
-    
+
     // Retry with exponential backoff
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         const delay = initialDelay * Math.pow(2, attempt); // Exponential: 100ms, 200ms, 400ms, 800ms, 1600ms
         console.log(`[Auto-Send] Attempt ${attempt + 1}/${maxRetries}: No documents found, waiting ${delay}ms...`);
-        
+
         await new Promise(resolve => setTimeout(resolve, delay));
-        
+
         documents = await db.getDocumentsByVehicle(vehicleId);
         if (documents && documents.length > 0) {
             console.log(`[Auto-Send] Documents found after ${attempt + 1} retry(ies): ${documents.length}`);
             return documents;
         }
     }
-    
+
     // Last attempt - query by uploaded_at window instead of vehicle_id
     // This catches documents that were uploaded but not yet linked
     console.log(`[Auto-Send] All retries exhausted. Trying time-window fallback...`);
-    
+
     try {
         const vehicle = await db.getVehicleById(vehicleId);
         if (vehicle && vehicle.created_at) {
             // Query documents uploaded within 2 minutes of vehicle creation
             const windowStart = new Date(vehicle.created_at.getTime() - 120000); // 2 minutes before
             const windowEnd = new Date(vehicle.created_at.getTime() + 120000); // 2 minutes after
-            
+
             const windowResult = await dbModule.query(`
                 SELECT d.* 
                 FROM documents d
@@ -54,7 +55,7 @@ async function waitForDocuments(vehicleId, maxRetries = 5, initialDelay = 100) {
                 AND (d.vehicle_id = $3 OR d.vehicle_id IS NULL)
                 ORDER BY d.uploaded_at DESC
             `, [windowStart, windowEnd, vehicleId]);
-            
+
             if (windowResult.rows && windowResult.rows.length > 0) {
                 console.log(`[Auto-Send] Found ${windowResult.rows.length} document(s) via time-window fallback`);
                 return windowResult.rows;
@@ -63,7 +64,7 @@ async function waitForDocuments(vehicleId, maxRetries = 5, initialDelay = 100) {
     } catch (windowError) {
         console.error(`[Auto-Send] Time-window fallback failed:`, windowError);
     }
-    
+
     console.warn(`[Auto-Send] No documents found after all methods. Vehicle may not have documents yet.`);
     return [];
 }
@@ -102,29 +103,29 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy, opti
 
         // Wait for documents with improved retry logic
         let allDocuments = await waitForDocuments(vehicleId);
-        
+
         if (allDocuments.length === 0) {
             console.warn(`[Auto-Send] ⚠️ Still no documents found after retry. Documents may not be linked yet.`);
         }
-        
+
         // Add detailed logging for debugging
         console.log(`[Auto-Send] Vehicle ${vehicleId}:`);
         console.log(`  - Registration Type: ${vehicle.registration_type || 'NOT SET'}`);
         console.log(`  - Origin Type: ${vehicle.origin_type || 'NOT SET'}`);
         console.log(`  - Total Documents: ${allDocuments.length}`);
         console.log(`  - Document Types:`, allDocuments.map(d => `${d.document_type} (${d.original_name || d.filename})`));
-        
+
         // 1. Send to HPG
         // For NEW REGISTRATION: requires owner_id and hpg_clearance (HPG Clearance Cert)
         // For TRANSFER: handled separately in transfer route
-        const isNewRegistration = vehicle.registration_type === 'NEW' || 
-                                  vehicle.origin_type === 'NEW' ||
-                                  !vehicle.registration_type; // Default to NEW if not set
-        
+        const isNewRegistration = vehicle.registration_type === 'NEW' ||
+            vehicle.origin_type === 'NEW' ||
+            !vehicle.registration_type; // Default to NEW if not set
+
         // Improved detection: check both database type directly AND mapped logical type
         const hasHPGDocs = allDocuments.some(d => {
             const dbType = d.document_type;
-            
+
             // Direct database type check (most reliable)
             if (isNewRegistration) {
                 // New registration: needs owner_id OR hpg_clearance (either one is enough)
@@ -137,7 +138,7 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy, opti
                     return true;
                 }
             }
-            
+
             // Fallback: check mapped logical type
             // Wrap in try-catch to prevent crashes from unrecognized document types
             try {
@@ -184,12 +185,12 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy, opti
         // Improved detection: check both database type directly AND mapped logical type
         const hasInsuranceDoc = allDocuments.some(d => {
             const dbType = d.document_type;
-            
+
             // Direct database type check (most reliable)
             if (dbType === 'insurance_cert' || dbType === 'insurance') {
                 return true;
             }
-            
+
             // Fallback: check mapped logical type
             // Wrap in try-catch to prevent crashes from unrecognized document types
             try {
@@ -221,7 +222,7 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy, opti
                 detectionMethod: 'database_query'
             });
             // Enhanced logging
-            console.log(`[Auto-Send→Insurance] Available document types:`, 
+            console.log(`[Auto-Send→Insurance] Available document types:`,
                 allDocuments.map(d => ({
                     id: d.id,
                     type: d.document_type,
@@ -229,11 +230,11 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy, opti
                     filename: d.original_name || d.filename
                 }))
             );
-            
+
             // Check if 'other' documents exist that might be insurance
             const otherDocs = allDocuments.filter(d => d.document_type === 'other');
             if (otherDocs.length > 0) {
-                console.warn(`[Auto-Send→Insurance] Found ${otherDocs.length} document(s) with type 'other' that may need correction:`, 
+                console.warn(`[Auto-Send→Insurance] Found ${otherDocs.length} document(s) with type 'other' that may need correction:`,
                     otherDocs.map(d => ({ id: d.id, filename: d.original_name || d.filename }))
                 );
             }
@@ -245,7 +246,7 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy, opti
             // NOTE: vehicle_status is an enum. Valid values: SUBMITTED, REGISTERED, APPROVED, REJECTED, SUSPENDED
             // Use SUBMITTED for vehicles awaiting clearance verification
             await db.updateVehicle(vehicleId, { status: 'SUBMITTED' });
-            
+
             // Log to history with auto-verification results
             const autoVerifySummary = [];
             if (results.insurance.autoVerification) {
@@ -254,7 +255,7 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy, opti
             if (results.hpg.autoVerification) {
                 autoVerifySummary.push(`HPG: Pre-verified (${results.hpg.autoVerification.canPreFill ? 'Data extracted' : 'No data'})`);
             }
-            
+
             await db.addVehicleHistory({
                 vehicleId,
                 action: 'CLEARANCE_REQUESTS_AUTO_SENT',
@@ -285,15 +286,15 @@ async function autoSendClearanceRequests(vehicleId, documents, requestedBy, opti
  */
 async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
     console.log(`[sendToHPG] Starting for vehicle ${vehicleId}`);
-    
+
     // Check if HPG request already exists
     const existingRequests = await db.getClearanceRequestsByVehicle(vehicleId);
-    const existingHPGRequest = existingRequests.find(r => 
-        r.request_type === 'hpg' && 
-        r.status !== 'REJECTED' && 
+    const existingHPGRequest = existingRequests.find(r =>
+        r.request_type === 'hpg' &&
+        r.status !== 'REJECTED' &&
         r.status !== 'COMPLETED'
     );
-    
+
     if (existingHPGRequest) {
         console.log(`[sendToHPG] Request already exists: ${existingHPGRequest.id}`);
         return {
@@ -313,25 +314,25 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
     // Filter HPG-relevant documents using document type mapping
     // For NEW REGISTRATION: HPG needs owner_id and hpg_clearance (HPG Clearance Cert)
     // For TRANSFER: Will be handled separately in transfer route
-    const isTransfer = vehicle.registration_type === 'TRANSFER' || 
-                       vehicle.origin_type === 'TRANSFER' ||
-                       (vehicle.purpose && vehicle.purpose.toLowerCase().includes('transfer'));
-    
+    const isTransfer = vehicle.registration_type === 'TRANSFER' ||
+        vehicle.origin_type === 'TRANSFER' ||
+        (vehicle.purpose && vehicle.purpose.toLowerCase().includes('transfer'));
+
     console.log(`[sendToHPG] Is Transfer: ${isTransfer}`);
     console.log(`[sendToHPG] All documents before filtering:`, allDocuments.map(d => ({
         type: d.document_type,
         name: d.original_name || d.filename
     })));
-    
+
     const hpgDocuments = allDocuments.filter(d => {
         const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
         // For new registration: only owner ID and HPG clearance cert
         if (!isTransfer) {
             const matches = logicalType === 'ownerId' ||
-                   logicalType === 'hpgClearance' ||
-                   d.document_type === 'owner_id' ||
-                   d.document_type === 'hpg_clearance' ||
-                   d.document_type === 'pnpHpgClearance';
+                logicalType === 'hpgClearance' ||
+                d.document_type === 'owner_id' ||
+                d.document_type === 'hpg_clearance' ||
+                d.document_type === 'pnpHpgClearance';
             if (matches) {
                 console.log(`[sendToHPG] Document matched (NEW): ${d.document_type} -> ${logicalType}`);
             }
@@ -339,17 +340,17 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
         } else {
             // For transfer: include OR/CR and owner ID (transfer route will handle this)
             const matches = logicalType === 'ownerId' ||
-                   logicalType === 'registrationCert' ||
-                   d.document_type === 'owner_id' ||
-                   d.document_type === 'or_cr' ||
-                   d.document_type === 'registration_cert';
+                logicalType === 'registrationCert' ||
+                d.document_type === 'owner_id' ||
+                d.document_type === 'or_cr' ||
+                d.document_type === 'registration_cert';
             if (matches) {
                 console.log(`[sendToHPG] Document matched (TRANSFER): ${d.document_type} -> ${logicalType}`);
             }
             return matches;
         }
     });
-    
+
     console.log(`[sendToHPG] Filtered HPG documents: ${hpgDocuments.length}`, hpgDocuments.map(d => ({
         type: d.document_type,
         name: d.original_name || d.filename
@@ -362,18 +363,18 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
         const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
         return logicalType === 'ownerId' || d.document_type === 'owner_id';
     });
-    
+
     let orCrDoc = null;
     let registrationCertDoc = null;
     let hpgClearanceDoc = null;
-    
+
     if (!isTransfer) {
         // New registration: get HPG Clearance Cert
         hpgClearanceDoc = hpgDocuments.find(d => {
             const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
-            return logicalType === 'hpgClearance' || 
-                   d.document_type === 'hpg_clearance' ||
-                   d.document_type === 'pnpHpgClearance';
+            return logicalType === 'hpgClearance' ||
+                d.document_type === 'hpg_clearance' ||
+                d.document_type === 'pnpHpgClearance';
         });
         console.log(`[sendToHPG] Owner ID Doc: ${ownerIdDoc ? ownerIdDoc.id : 'NOT FOUND'}`);
         console.log(`[sendToHPG] HPG Clearance Doc: ${hpgClearanceDoc ? hpgClearanceDoc.id : 'NOT FOUND'}`);
@@ -381,9 +382,9 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
         // Transfer: get OR/CR
         orCrDoc = hpgDocuments.find(d => {
             const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
-            return logicalType === 'registrationCert' || 
-                   d.document_type === 'or_cr' || 
-                   d.document_type === 'registration_cert';
+            return logicalType === 'registrationCert' ||
+                d.document_type === 'or_cr' ||
+                d.document_type === 'registration_cert';
         });
         registrationCertDoc = orCrDoc;
         console.log(`[sendToHPG] Owner ID Doc: ${ownerIdDoc ? ownerIdDoc.id : 'NOT FOUND'}`);
@@ -393,7 +394,7 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
     // Create clearance request
     console.log(`[sendToHPG] Creating clearance request with ${hpgDocuments.length} document(s)`);
     console.log(`[sendToHPG] Vehicle ID: ${vehicleId}, Requested By: ${requestedBy}, Assigned To: ${assignedTo}`);
-    
+
     const clearanceRequest = await db.createClearanceRequest({
         vehicleId,
         requestType: 'hpg',
@@ -470,9 +471,9 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
 
     // Note: isTransfer is already determined above (line 227) based on vehicle registration_type
     // Re-check for transfer based on clearance request metadata (for transfer-specific requests)
-    const isTransferRequest = clearanceRequest.metadata?.transferRequestId || 
-                              clearanceRequest.purpose?.toLowerCase().includes('transfer');
-    
+    const isTransferRequest = clearanceRequest.metadata?.transferRequestId ||
+        clearanceRequest.purpose?.toLowerCase().includes('transfer');
+
     console.log(`[Auto-Send→HPG] Request type: ${isTransfer ? 'TRANSFER' : 'NEW_REGISTRATION'}`);
     console.log(`[Auto-Send→HPG] Transfer request flag: ${isTransferRequest}`);
 
@@ -486,17 +487,17 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
         try {
             const ocrService = require('./ocrService');
             const fs = require('fs').promises;
-            
+
             // Check if file exists
             const orCrPath = orCrDoc.file_path || orCrDoc.filePath;
             if (orCrPath) {
                 try {
                     await fs.access(orCrPath);
-                    
+
                     const orCrMimeType = orCrDoc.mime_type || orCrDoc.mimeType || 'application/pdf';
                     const ownerIdPath = ownerIdDoc?.file_path || ownerIdDoc?.filePath;
                     const ownerIdMimeType = ownerIdDoc?.mime_type || ownerIdDoc?.mimeType;
-                    
+
                     // Extract HPG info from OR/CR document
                     extractedData = await ocrService.extractHPGInfo(
                         orCrPath,
@@ -504,30 +505,30 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
                         orCrMimeType,
                         ownerIdMimeType || null
                     );
-                    
+
                     console.log(`[Auto-Send→HPG] OCR extracted data:`, {
                         engineNumber: extractedData.engineNumber,
                         chassisNumber: extractedData.chassisNumber,
                         plateNumber: extractedData.plateNumber
                     });
-                    
+
                     // Compare extracted data with vehicle record
                     const dataMatch = {
-                        engineNumber: extractedData.engineNumber && vehicle.engine_number ? 
-                                     extractedData.engineNumber.toUpperCase().trim() === vehicle.engine_number.toUpperCase().trim() : null,
-                        chassisNumber: extractedData.chassisNumber && vehicle.chassis_number ? 
-                                      extractedData.chassisNumber.toUpperCase().trim() === vehicle.chassis_number.toUpperCase().trim() : null,
-                        plateNumber: extractedData.plateNumber && vehicle.plate_number ? 
-                                    extractedData.plateNumber.toUpperCase().replace(/\s+/g, ' ').trim() === vehicle.plate_number.toUpperCase().replace(/\s+/g, ' ').trim() : null
+                        engineNumber: extractedData.engineNumber && vehicle.engine_number ?
+                            extractedData.engineNumber.toUpperCase().trim() === vehicle.engine_number.toUpperCase().trim() : null,
+                        chassisNumber: extractedData.chassisNumber && vehicle.chassis_number ?
+                            extractedData.chassisNumber.toUpperCase().trim() === vehicle.chassis_number.toUpperCase().trim() : null,
+                        plateNumber: extractedData.plateNumber && vehicle.plate_number ?
+                            extractedData.plateNumber.toUpperCase().replace(/\s+/g, ' ').trim() === vehicle.plate_number.toUpperCase().replace(/\s+/g, ' ').trim() : null
                     };
-                    
+
                     console.log(`[Auto-Send→HPG] Data match results:`, dataMatch);
-                    
+
                     // Add data matching results to extracted data
                     extractedData.dataMatch = dataMatch;
                     extractedData.ocrExtracted = true;
                     extractedData.ocrExtractedAt = new Date().toISOString();
-                    
+
                 } catch (fileError) {
                     console.warn(`[Auto-Send→HPG] OR/CR file not accessible: ${fileError.message}`);
                 }
@@ -557,12 +558,12 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
             chassisNumber: vehicle.chassis_number,
             vin: vehicle.vin
         });
-        
+
         // Store database check result
         await hpgDatabaseService.storeCheckResult(clearanceRequest.id, databaseCheckResult);
-        
+
         console.log(`[Auto-Send→HPG] Database check result:`, databaseCheckResult.status);
-        
+
         // If vehicle is flagged, add warning to notes
         if (databaseCheckResult.status === 'FLAGGED') {
             const flaggedNote = `⚠️ WARNING: Vehicle found in HPG hot list. ${databaseCheckResult.details}`;
@@ -570,7 +571,7 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
                 `UPDATE clearance_requests SET notes = COALESCE(notes || E'\n', '') || $1 WHERE id = $2`,
                 [flaggedNote, clearanceRequest.id]
             );
-            
+
             // Create urgent notification for HPG admin
             if (assignedTo) {
                 await db.createNotification({
@@ -599,7 +600,7 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
             databaseChecked: !!databaseCheckResult
         }
     };
-    
+
     await dbModule.query(
         `UPDATE clearance_requests SET metadata = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
         [JSON.stringify(updatedMetadata), clearanceRequest.id]
@@ -641,12 +642,12 @@ async function sendToHPG(vehicleId, vehicle, allDocuments, requestedBy) {
 async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, existingVerificationResult = null) {
     // Check if insurance request already exists
     const existingRequests = await db.getClearanceRequestsByVehicle(vehicleId);
-    const existingInsuranceRequest = existingRequests.find(r => 
-        r.request_type === 'insurance' && 
-        r.status !== 'REJECTED' && 
+    const existingInsuranceRequest = existingRequests.find(r =>
+        r.request_type === 'insurance' &&
+        r.status !== 'REJECTED' &&
         r.status !== 'COMPLETED'
     );
-    
+
     if (existingInsuranceRequest) {
         return {
             sent: false,
@@ -665,9 +666,9 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
     const insuranceDoc = allDocuments.find(d => {
         const logicalType = docTypes.mapToLogicalType(d.document_type) || docTypes.mapLegacyType(d.document_type);
         return logicalType === 'insuranceCert' ||
-               d.document_type === 'insurance_cert' ||
-               d.document_type === 'insurance' ||
-               (d.original_name && d.original_name.toLowerCase().includes('insurance'));
+            d.document_type === 'insurance_cert' ||
+            d.document_type === 'insurance' ||
+            (d.original_name && d.original_name.toLowerCase().includes('insurance'));
     });
 
     const insuranceDocuments = insuranceDoc ? [{
@@ -680,7 +681,7 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
 
     // Step 1: Run auto-verification FIRST (independent of request creation)
     let verificationResult = existingVerificationResult;
-    
+
     if (!verificationResult && insuranceDoc) {
         try {
             console.log(`[Auto-Send→Insurance] Running auto-verification before request creation...`);
@@ -691,34 +692,34 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
                 vehicle
             );
             console.log(`[Auto-Send→Insurance] Auto-verification completed: ${verificationResult.status}, Automated: ${verificationResult.automated}`);
-            
+
             // Verification results are automatically saved to vehicle_verifications table by autoVerifyInsurance
             // No need to save separately here
-            
+
         } catch (verifError) {
             console.error(`[Auto-Send→Insurance] Auto-verification failed:`, verifError);
             console.error(`[Auto-Send→Insurance] Error stack:`, verifError.stack);
-            
+
             // Save error to vehicle_verifications for admin review
             try {
-                await db.updateVerificationStatus(vehicleId, 'insurance', 'PENDING', 'system', 
+                await db.updateVerificationStatus(vehicleId, 'insurance', 'PENDING', 'system',
                     `Auto-verification failed: ${verifError.message}`, {
-                        automated: false,
-                        verificationScore: 0,
-                        verificationMetadata: {
-                            autoVerified: false,
-                            verificationResult: 'ERROR',
-                            error: verifError.message,
-                            errorStack: verifError.stack,
-                            verifiedAt: new Date().toISOString()
-                        }
+                    automated: false,
+                    verificationScore: 0,
+                    verificationMetadata: {
+                        autoVerified: false,
+                        verificationResult: 'ERROR',
+                        error: verifError.message,
+                        errorStack: verifError.stack,
+                        verifiedAt: new Date().toISOString()
                     }
+                }
                 );
                 console.log(`[Auto-Send→Insurance] Saved verification error to database for admin review`);
             } catch (saveError) {
                 console.error(`[Auto-Send→Insurance] Failed to save error to database:`, saveError);
             }
-            
+
             // Continue - create request anyway, verification can be done manually
             verificationResult = {
                 status: 'PENDING',
@@ -751,7 +752,7 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
             verifiedAt: verificationResult?.verifiedAt || null,
             verifiedBy: verificationResult?.verifiedBy || 'system'
         };
-        
+
         const clearanceRequest = await db.createClearanceRequest({
             vehicleId,
             requestType: 'insurance',
@@ -774,25 +775,50 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
                 autoVerificationResult: verificationResult
             });
             console.log(`[Auto-Verify→Insurance] Updated clearance request ${clearanceRequest.id} status to APPROVED`);
-        } else if (verificationResult && verificationResult.automated && verificationResult.status === 'REJECTED') {
-            await db.updateClearanceRequestStatus(clearanceRequest.id, 'REJECTED', {
+        } else if (verificationResult && verificationResult.automated && (verificationResult.status === 'REJECTED' || verificationResult.status === 'PENDING')) {
+            const hasIssues = verificationResult.status === 'REJECTED' || (verificationResult.flagReasons && verificationResult.flagReasons.length > 0);
+
+            // For Insurance, we never want to automatically REJECT. 
+            // If it was REJECTED, change to PENDING.
+            const statusToSet = 'PENDING';
+
+            await db.updateClearanceRequestStatus(clearanceRequest.id, statusToSet, {
                 verifiedBy: 'system',
                 verifiedAt: verificationResult.verifiedAt || new Date().toISOString(),
-                notes: `Auto-verified and rejected. Reason: ${verificationResult.reason || 'Verification failed'}`,
+                notes: `Auto-verified with issues. Status: ${statusToSet}. Reason: ${verificationResult.reason || 'Verification failed'}`,
                 autoVerified: true,
-                autoVerificationResult: verificationResult
+                autoVerificationResult: verificationResult,
+                originallyRejected: verificationResult.status === 'REJECTED'
             });
-            console.log(`[Auto-Verify→Insurance] Updated clearance request ${clearanceRequest.id} status to REJECTED`);
+            console.log(`[Auto-Verify→Insurance] Updated clearance request ${clearanceRequest.id} status to ${statusToSet} (Auto-verification issues detected)`);
+
+            // Trigger Email Notification if issues are found
+            if (hasIssues) {
+                try {
+                    const recipientEmail = vehicle.owner_email || vehicle.ownerEmail;
+                    if (recipientEmail) {
+                        await sendInsuranceIssueEmail({
+                            to: recipientEmail,
+                            recipientName: vehicle.owner_name || vehicle.ownerName || 'Vehicle Owner',
+                            vehicleLabel: vehicle.plate_number || vehicle.vin,
+                            reasons: verificationResult.flagReasons || [verificationResult.reason],
+                            applicationType: 'registration'
+                        });
+                    }
+                } catch (emailError) {
+                    console.error(`[Auto-Verify→Insurance] Failed to send issue notification:`, emailError.message);
+                }
+            }
         }
 
         // Update vehicle verification status (if not already updated by autoVerifyInsurance)
         if (verificationResult && verificationResult.status) {
             try {
                 await db.updateVerificationStatus(
-                    vehicleId, 
-                    'insurance', 
-                    verificationResult.status, 
-                    verificationResult.verifiedBy || 'system', 
+                    vehicleId,
+                    'insurance',
+                    verificationResult.status,
+                    verificationResult.verifiedBy || 'system',
                     verificationResult.reason || null,
                     {
                         automated: verificationResult.automated || false,
@@ -814,28 +840,26 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
         }
 
         // Add to history
-        const insuranceAction = verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
-            ? 'INSURANCE_AUTO_VERIFIED_APPROVED'
-            : verificationResult && verificationResult.automated && verificationResult.status === 'REJECTED'
-            ? 'INSURANCE_AUTO_VERIFIED_REJECTED'
-            : verificationResult && verificationResult.automated
+            : verificationResult && verificationResult.automated && (verificationResult.status === 'REJECTED' || verificationResult.status === 'PENDING')
             ? 'INSURANCE_AUTO_VERIFIED_PENDING'
-            : 'INSURANCE_VERIFICATION_REQUESTED';
+            : verificationResult && verificationResult.automated
+                ? 'INSURANCE_AUTO_VERIFIED_PENDING'
+                : 'INSURANCE_VERIFICATION_REQUESTED';
         const insuranceDesc = verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
             ? `Insurance auto-verified and approved. Score: ${verificationResult.score || 0}%`
-            : verificationResult && verificationResult.automated && verificationResult.status === 'REJECTED'
-            ? `Insurance auto-verified and rejected. Reason: ${verificationResult.reason || 'Verification failed'}`
-            : verificationResult && verificationResult.automated
-            ? `Insurance auto-verified but flagged for manual review. Score: ${verificationResult.score || 0}%, Reason: ${verificationResult.reason || 'Unknown'}`
-            : `Insurance verification automatically requested`;
+            : verificationResult && verificationResult.automated && (verificationResult.status === 'REJECTED' || verificationResult.status === 'PENDING')
+                ? `Insurance auto-verified with issues. Status: PENDING. Reason: ${verificationResult.reason || 'Verification failed'}`
+                : verificationResult && verificationResult.automated
+                    ? `Insurance auto-verified but flagged for manual review. Score: ${verificationResult.score || 0}%, Reason: ${verificationResult.reason || 'Unknown'}`
+                    : `Insurance verification automatically requested`;
         await db.addVehicleHistory({
             vehicleId,
             action: insuranceAction,
             description: insuranceDesc,
             performedBy: requestedBy,
             transactionId: null,
-            metadata: { 
-                clearanceRequestId: clearanceRequest.id, 
+            metadata: {
+                clearanceRequestId: clearanceRequest.id,
                 documentId: insuranceDoc?.id,
                 autoVerificationResult: verificationResult
             }
@@ -846,13 +870,13 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
             const notifTitle = verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
                 ? 'Insurance Auto-Verified and Approved'
                 : verificationResult && verificationResult.automated && verificationResult.status === 'REJECTED'
-                ? 'Insurance Auto-Verified and Rejected'
-                : 'New Insurance Verification Request';
+                    ? 'Insurance Auto-Verified and Rejected'
+                    : 'New Insurance Verification Request';
             const notifMessage = verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
                 ? `Insurance for vehicle ${vehicle.plate_number || vehicle.vin} was auto-verified and approved. Score: ${verificationResult.score || 0}%`
                 : verificationResult && verificationResult.automated && verificationResult.status === 'REJECTED'
-                ? `Insurance for vehicle ${vehicle.plate_number || vehicle.vin} was auto-verified and rejected. Reason: ${verificationResult.reason || 'Verification failed'}`
-                : `New insurance verification request for vehicle ${vehicle.plate_number || vehicle.vin}`;
+                    ? `Insurance for vehicle ${vehicle.plate_number || vehicle.vin} was auto-verified and rejected. Reason: ${verificationResult.reason || 'Verification failed'}`
+                    : `New insurance verification request for vehicle ${vehicle.plate_number || vehicle.vin}`;
             const notifType = verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED' ? 'success' : verificationResult && verificationResult.automated && verificationResult.status === 'REJECTED' ? 'warning' : 'info';
             await db.createNotification({
                 userId: assignedTo,
@@ -867,15 +891,15 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
             requestId: clearanceRequest.id,
             autoVerification: verificationResult
         };
-        
+
     } catch (requestError) {
         console.error(`[Auto-Send→Insurance] Request creation failed:`, requestError);
         console.error(`[Auto-Send→Insurance] Error stack:`, requestError.stack);
-        
+
         // Verification results are still saved in vehicle_verifications table
         // Admin can manually create request later and it will use existing verification
         console.log(`[Auto-Send→Insurance] Verification results saved. Admin can create request manually.`);
-        
+
         // Re-throw to be caught by caller
         throw requestError;
     }

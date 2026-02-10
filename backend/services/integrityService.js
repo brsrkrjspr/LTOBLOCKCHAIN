@@ -281,6 +281,124 @@ class IntegrityService {
         }
     }
 
+    // New: Batch check for all registered vehicles (The "Watchdog" Logic)
+    async runForensicAudit(autoHeal = false) {
+        console.log(`🕵️ Integrity Watchdog: Starting global forensic audit (Auto-Heal: ${autoHeal})...`);
+        const startTime = Date.now();
+
+        try {
+            // 1. Get all registered vehicles from DB
+            const vehicles = await db.getAllVehicles();
+            const registeredVehicles = vehicles.filter(v => v.status === 'REGISTERED');
+
+            console.log(`🕵️ Auditing ${registeredVehicles.length} vehicles...`);
+
+            const results = {
+                totalChecked: registeredVehicles.length,
+                verified: 0,
+                tampered: [],
+                restored: 0,
+                errors: 0,
+                duration: 0
+            };
+
+            for (const vehicle of registeredVehicles) {
+                const audit = await this.checkIntegrityByVin(vehicle.vin);
+
+                if (audit.status === 'VERIFIED') {
+                    results.verified++;
+                } else if (audit.status === 'TAMPERED') {
+                    console.error(`🚨 ALERT: Tampering detected for VIN: ${vehicle.vin}`);
+
+                    if (autoHeal) {
+                        console.log(`🛠️ Watchdog: Attempting auto-healing for ${vehicle.vin}...`);
+                        const restored = await this.restoreVehicleFromBlockchain(vehicle.vin, audit.blockchainVehicle);
+                        if (restored) {
+                            results.restored++;
+                            console.log(`✅ Watchdog: SUCCESSFULLY restored ${vehicle.vin} to on-chain truth.`);
+                        }
+                    }
+
+                    results.tampered.push({
+                        vin: vehicle.vin,
+                        owner: vehicle.owner_email,
+                        mismatches: audit.comparisons.filter(c => !c.matches).map(c => c.label),
+                        restored: autoHeal && results.restored > 0
+                    });
+                } else if (audit.status === 'ERROR') {
+                    results.errors++;
+                }
+            }
+
+            results.duration = (Date.now() - startTime) / 1000;
+            console.log(`🕵️ Global audit complete in ${results.duration}s. [Verified: ${results.verified}, Tampered: ${results.tampered.length}, Restored: ${results.restored}]`);
+
+            return results;
+        } catch (error) {
+            console.error('❌ Global forensic audit failed:', error);
+            throw error;
+        }
+    }
+
+    // New: Restore Database record from Blockchain Truth
+    async restoreVehicleFromBlockchain(vin, blockchainVehicle) {
+        try {
+            const dbModule = require('../database/db');
+
+            // 1. Get owner ID from email (since blockchain stores email)
+            const userResult = await dbModule.query(
+                'SELECT id FROM users WHERE email = $1',
+                [blockchainVehicle.ownerEmail]
+            );
+
+            if (userResult.rows.length === 0) {
+                console.error(`❌ Restoration failed: Owner ${blockchainVehicle.ownerEmail} not found in DB.`);
+                return false;
+            }
+
+            const ownerId = userResult.rows[0].id;
+
+            // 2. Perform the restoration (Update DB to match Blockchain)
+            await dbModule.query(
+                `UPDATE vehicles 
+                 SET owner_id = $1, 
+                     plate_number = $2, 
+                     engine_number = $3, 
+                     chassis_number = $4,
+                     make = $5,
+                     model = $6,
+                     year = $7,
+                     updated_at = NOW()
+                 WHERE vin = $8`,
+                [
+                    ownerId,
+                    blockchainVehicle.plateNumber,
+                    blockchainVehicle.engineNumber,
+                    blockchainVehicle.chassisNumber,
+                    blockchainVehicle.make,
+                    blockchainVehicle.model,
+                    blockchainVehicle.year,
+                    vin
+                ]
+            );
+
+            // 3. Log the restoration event in history
+            await dbModule.query(
+                `INSERT INTO vehicle_history (vehicle_id, action, performed_by, notes, performed_at)
+                 SELECT id, 'SELF_HEAL_RESTORED', 'SYSTEM', 'Automated watchdog restored record from blockchain truth.', NOW()
+                 FROM vehicles WHERE vin = $1`,
+                [vin]
+            );
+
+            return true;
+        } catch (error) {
+            console.error(`❌ Failed to restore vehicle ${vin}:`, error);
+            return false;
+        }
+    }
+
+    // Get status message
+
     // Get status message
     getStatusMessage(status) {
         const messages = {

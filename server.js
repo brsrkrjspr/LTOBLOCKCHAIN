@@ -55,8 +55,8 @@ app.get('/api/test-csp', (req, res) => {
     });
 });
 app.use(cors({
-    origin: process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
-        ? 'https://ltoblockchain.duckdns.org' 
+    origin: process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production'
+        ? 'https://ltoblockchain.duckdns.org'
         : 'http://localhost:3001'),
     credentials: true
 }));
@@ -191,17 +191,17 @@ app.get('/insurance-verifier-dashboard', (req, res) => {
 app.get('/verify/:transactionId', (req, res) => {
     // Validate transaction ID is not empty and doesn't contain path traversal
     const transactionId = req.params.transactionId;
-    
+
     // Reject common invalid transaction IDs (like login-signup.html when redirected)
     const invalidIds = ['login-signup', 'login', 'signup', 'verify'];
     if (invalidIds.includes(transactionId)) {
         return res.status(400).send('Invalid transaction ID');
     }
-    
+
     if (!transactionId || transactionId.includes('..') || transactionId.includes('/')) {
         return res.status(400).send('Invalid transaction ID');
     }
-    
+
     res.sendFile(path.join(__dirname, 'verify.html'));
 });
 
@@ -263,19 +263,19 @@ async function validateDatabaseSchema() {
     const fs = require('fs');
     const path = require('path');
     const schemaValidation = require('./backend/services/schemaValidationService');
-    
+
     // Critical tables - server won't start without these
     const criticalTables = [
         'users',
         'refresh_tokens',
         'sessions'
     ];
-    
+
     // Required tables that can be auto-created
     const autoMigrateTables = {
         'email_verification_tokens': 'backend/migrations/add_email_verification.sql'
     };
-    
+
     // Phase 1: Critical schema fixes (auto-migrate if needed)
     const phase1Migrations = {
         'documents.ipfs_cid': {
@@ -306,10 +306,10 @@ async function validateDatabaseSchema() {
             description: 'Add missing enum values (hpg_clearance, csr, sales_invoice)'
         }
     };
-    
+
     try {
         console.log('🔍 Validating database schema...');
-        
+
         // Check critical tables
         for (const tableName of criticalTables) {
             const result = await db.query(
@@ -320,14 +320,14 @@ async function validateDatabaseSchema() {
                 )`,
                 [tableName]
             );
-            
+
             if (!result.rows[0].exists) {
                 console.error(`❌ CRITICAL: Required table '${tableName}' does not exist in database`);
                 console.error('Please run database migrations before starting the server');
                 process.exit(1);
             }
         }
-        
+
         // Check and auto-create tables if missing
         for (const [tableName, migrationPath] of Object.entries(autoMigrateTables)) {
             const result = await db.query(
@@ -338,32 +338,32 @@ async function validateDatabaseSchema() {
                 )`,
                 [tableName]
             );
-            
+
             if (!result.rows[0].exists) {
                 console.warn(`⚠️ Table '${tableName}' does not exist - attempting auto-migration...`);
-                
+
                 try {
                     // Read migration SQL file
                     const migrationFilePath = path.join(__dirname, migrationPath);
-                    
+
                     // Check if migration file exists before attempting to read
                     if (!fs.existsSync(migrationFilePath)) {
                         throw new Error(`Migration file not found: ${migrationFilePath}`);
                     }
-                    
+
                     const migrationSQL = fs.readFileSync(migrationFilePath, 'utf8');
-                    
+
                     // Log database connection info (without password) for debugging
                     console.log(`   Database: ${process.env.DB_NAME || 'lto_blockchain'}@${process.env.DB_HOST || 'localhost'}`);
                     console.log(`   Migration file: ${migrationFilePath}`);
                     console.log(`   File exists: ${fs.existsSync(migrationFilePath)}`);
                     console.log(`   File size: ${fs.statSync(migrationFilePath).size} bytes`);
-                    
+
                     // Execute migration
                     await db.query(migrationSQL);
-                    
+
                     console.log(`✅ Auto-migration successful: ${tableName} table created`);
-                    
+
                     // Enable feature flag
                     if (tableName === 'email_verification_tokens') {
                         global.EMAIL_VERIFICATION_ENABLED = true;
@@ -393,28 +393,28 @@ async function validateDatabaseSchema() {
                 }
             }
         }
-        
+
         // Phase 1: Check and auto-apply critical schema fixes
         console.log('🔍 Checking Phase 1 critical schema fixes...');
         for (const [migrationName, migrationConfig] of Object.entries(phase1Migrations)) {
             try {
                 const exists = await migrationConfig.check();
-                
+
                 if (!exists) {
                     console.warn(`⚠️ Phase 1 migration needed: ${migrationConfig.description}`);
                     console.warn(`   Attempting auto-migration: ${migrationConfig.migration}`);
-                    
+
                     const migrationFilePath = path.join(__dirname, migrationConfig.migration);
-                    
+
                     if (!fs.existsSync(migrationFilePath)) {
                         console.error(`❌ Migration file not found: ${migrationFilePath}`);
                         console.error(`   Please run manually: psql -U ${process.env.DB_USER || 'lto_user'} -d ${process.env.DB_NAME || 'lto_blockchain'} -f ${migrationConfig.migration}`);
                         throw new Error(`Migration file not found: ${migrationConfig.migration}`);
                     }
-                    
+
                     const migrationSQL = fs.readFileSync(migrationFilePath, 'utf8');
                     await db.query(migrationSQL);
-                    
+
                     console.log(`✅ Phase 1 auto-migration successful: ${migrationConfig.description}`);
                 } else {
                     console.log(`✅ Phase 1 check passed: ${migrationConfig.description}`);
@@ -432,10 +432,10 @@ async function validateDatabaseSchema() {
                 // Continue - schema validation will catch this and fail if critical
             }
         }
-        
+
         // Run comprehensive schema validation using schemaValidationService
         await schemaValidation.validateSchema();
-        
+
         console.log('✅ Database schema validation passed - all critical tables and schema elements exist');
         console.log(`📧 Email verification: ${global.EMAIL_VERIFICATION_ENABLED ? 'Enabled ✓' : 'Disabled (migration failed)'}`);
         return true;
@@ -451,16 +451,16 @@ async function validateDatabaseSchema() {
 validateDatabaseSchema().then(() => {
     // Start server
     app.listen(PORT, () => {
-        const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' 
-            ? 'https://ltoblockchain.duckdns.org' 
+        const frontendUrl = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production'
+            ? 'https://ltoblockchain.duckdns.org'
             : `http://localhost:${PORT}`);
-        
-        const apiUrl = process.env.FRONTEND_URL 
+
+        const apiUrl = process.env.FRONTEND_URL
             ? `${process.env.FRONTEND_URL}/api`
-            : (process.env.NODE_ENV === 'production' 
+            : (process.env.NODE_ENV === 'production'
                 ? 'https://ltoblockchain.duckdns.org/api'
                 : `http://localhost:${PORT}/api`);
-        
+
         console.log(`🚀 TrustChain LTO Server running on port ${PORT}`);
         console.log(`📱 Frontend URL: ${frontendUrl}`);
         console.log(`🔗 API Base URL: ${apiUrl}`);
@@ -470,7 +470,7 @@ validateDatabaseSchema().then(() => {
         console.log(`⛓️  Blockchain Mode: ${process.env.BLOCKCHAIN_MODE || 'fabric'} (Fabric-only, no fallbacks)`);
         console.log(`🔐 JWT Secret configured: ${process.env.JWT_SECRET ? 'Yes ✓' : 'No ✗'}`);
         console.log(`📧 Email service configured: ${process.env.GMAIL_USER ? 'Yes ✓' : 'No ✗'}`);
-        
+
         // Initialize scheduled tasks after server starts
         initializeScheduledTasks();
     });
@@ -484,11 +484,12 @@ function initializeScheduledTasks() {
     // Only run scheduled tasks in production or if explicitly enabled
     if (process.env.NODE_ENV === 'production' || process.env.ENABLE_SCHEDULED_TASKS === 'true') {
         console.log('⏰ Initializing scheduled tasks...');
-        
+
         // Load expiry service
         const expiryService = require('./backend/services/expiryService');
+        const integrityService = require('./backend/services/integrityService');
         const db = require('./backend/database/db');
-        
+
         // Run expiry check immediately on startup (after 30 seconds to let DB connect)
         setTimeout(() => {
             console.log('🔔 Running initial expiry notification check...');
@@ -510,8 +511,15 @@ function initializeScheduledTasks() {
                 .catch(error => {
                     console.warn('⚠️ Email verification token cleanup skipped (table may not exist yet):', error.message);
                 });
+
+            // Run initial integrity watchdog audit (with auto-healing enabled)
+            console.log('🕵️ Running initial integrity watchdog audit (Self-Repair Enabled)...');
+            integrityService.runForensicAudit(true)
+                .catch(error => {
+                    console.error('❌ Error in initial integrity audit:', error);
+                });
         }, 30000); // 30 seconds delay
-        
+
         // Schedule daily expiry check (runs at 9:00 AM every day)
         // Calculate milliseconds until next 9:00 AM
         const now = new Date();
@@ -521,14 +529,14 @@ function initializeScheduledTasks() {
             nextCheck.setDate(nextCheck.getDate() + 1); // Move to tomorrow if already past 9 AM
         }
         const msUntilNextCheck = nextCheck - now;
-        
+
         console.log(`⏰ Next expiry check scheduled for: ${nextCheck.toLocaleString()}`);
-        
+
         // Set up interval to run daily at 9:00 AM
         setInterval(() => {
             const checkTime = new Date();
             const currentHour = checkTime.getHours();
-            
+
             // Only run if it's around 9 AM (between 9:00 and 9:59)
             if (currentHour === 9) {
                 console.log('🔔 Running scheduled expiry notification check...');
@@ -550,9 +558,16 @@ function initializeScheduledTasks() {
                     .catch(error => {
                         console.warn('⚠️ Email verification token cleanup error:', error.message);
                     });
+
+                // Also run hourly integrity watchdog audit (with auto-healing enabled)
+                console.log('🕵️ Running scheduled integrity watchdog audit (Self-Repair Enabled)...');
+                integrityService.runForensicAudit(true)
+                    .catch(error => {
+                        console.error('❌ Error in scheduled integrity audit:', error);
+                    });
             }
         }, 60 * 60 * 1000); // Check every hour to catch 9 AM
-        
+
         console.log('✅ Scheduled tasks initialized');
     } else {
         console.log('⏰ Scheduled tasks disabled (set ENABLE_SCHEDULED_TASKS=true to enable)');

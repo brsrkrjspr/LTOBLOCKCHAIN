@@ -15,6 +15,8 @@ const { authorizeRole } = require('../middleware/authorize');
 const fs = require('fs');
 const path = require('path');
 const certificateNumberGenerator = require('../utils/certificateNumberGenerator');
+const fabricService = require('../services/fabricService');
+
 
 /**
  * Helper function to lookup and validate owner from database
@@ -2088,8 +2090,10 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
         const results = {
             sellerDocuments: {},
             buyerDocuments: {},
+            certificates: {}, // Added for frontend success display normalization
             errors: []
         };
+
 
         const docTypes = require('../config/documentTypes');
         const dbModule = require('../database/db');
@@ -2208,18 +2212,44 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 if (issuerQuery.rows.length > 0) {
                     const issuerId = issuerQuery.rows[0].id;
 
+                    // ============================================
+                    // BLOCKCHAIN ANCHORING (NEW)
+                    // ============================================
+                    let blockchainTxId = null;
+                    try {
+                        console.log(`[Transfer Certificates] 🔗 Anchoring ${certificateType} to blockchain...`);
+
+                        // Use optimizedFabricService to update certificate hash
+                        // This anchors the PDF hash and IPFS CID (if available) to the ledger
+                        const anchorResult = await fabricService.updateCertificateHash(
+                            vehicleVIN,
+                            certificateType,
+                            fileHash,
+                            metadata?.ipfsCid || null
+                        );
+
+                        if (anchorResult && anchorResult.success) {
+                            blockchainTxId = anchorResult.txId;
+                            console.log(`[Transfer Certificates] ✅ Anchored to blockchain! TxID: ${blockchainTxId}`);
+                        }
+                    } catch (anchorError) {
+                        console.error(`[Transfer Certificates] ⚠️ Blockchain anchoring failed for ${certificateType}:`, anchorError.message);
+                        // We continue even if anchoring fails, as the cert is already in DB
+                    }
+
                     // Include original certificate type in metadata for traceability
                     const enrichedMetadata = {
                         ...(metadata || {}),
                         originalCertificateType: certificateType, // Store original type in metadata
-                        transferRequestId: transferRequestId
+                        transferRequestId: transferRequestId,
+                        blockchainTxId: blockchainTxId
                     };
 
                     await dbModule.query(
                         `INSERT INTO issued_certificates 
                         (issuer_id, certificate_type, certificate_number, vehicle_vin, owner_name, 
-                         file_hash, composite_hash, issued_at, expires_at, metadata)
-                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                         file_hash, composite_hash, issued_at, expires_at, metadata, blockchain_tx_id)
+                        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
                         [
                             issuerId,
                             dbCertificateType, // Use mapped type that's allowed in DB
@@ -2230,7 +2260,8 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                             compositeHash,
                             issuedAt,
                             expiresAt,
-                            JSON.stringify(enrichedMetadata)
+                            JSON.stringify(enrichedMetadata),
+                            blockchainTxId
                         ]
                     );
                     console.log(`[Transfer Certificates] ✅ Written to issued_certificates: ${dbCertificateType} (original: ${certificateType}) - ${certificateNumber}`);
@@ -2239,6 +2270,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                     console.warn(`[Transfer Certificates] ⚠️ No active issuer found for type: ${issuerType}, skipping issued_certificates write`);
                     return false;
                 }
+
             } catch (error) {
                 console.error(`[Transfer Certificates] ❌ Error writing to issued_certificates:`, error);
                 // Don't throw - allow document generation to continue even if issued_certificates write fails
@@ -2313,6 +2345,8 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 );
 
                 results.sellerDocuments.deedOfSale = { documentId: docId, fileHash: deedResult.fileHash };
+                results.certificates.deedOfSale = { certificateNumber: deedCertNum, fileHash: deedResult.fileHash };
+
             }
 
             // Seller ID - REMOVED: IDs should not be generated as certificates
@@ -2394,6 +2428,8 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 );
 
                 results.buyerDocuments.hpgClearance = { documentId: docId, fileHash: hpgResult.fileHash, clearanceNumber };
+                results.certificates.hpg = { clearanceNumber, fileHash: hpgResult.fileHash };
+
             }
 
             // CTPL Insurance
@@ -2455,14 +2491,17 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 );
 
                 results.buyerDocuments.ctplInsurance = { documentId: docId, fileHash: ctplResult.fileHash, policyNumber };
+                results.certificates.ctpl = { policyNumber, fileHash: ctplResult.fileHash };
+
             }
 
             // MVIR
             // NOTE: MVIR certificates are now issued exclusively via the LTO inspection flow (/api/lto/inspect).
             // The transfer certificate generator no longer creates MVIR documents/certificates to avoid duplicates.
             if (buyerDocuments?.mvir) {
-                console.log('[Transfer Certificates] Skipping MVIR generation - MVIR is issued via LTO inspection');
+                console.log('[Transfer Certificates] Skipping MVIR generation - MVIR is issued via LTO inspection (Administrative Flow)');
             }
+
         } catch (error) {
             console.error('[Buyer Documents] Error:', error);
             results.errors.push({ type: 'buyerDocuments', error: error.message });
@@ -2565,6 +2604,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 }
             }
             if (results.buyerDocuments.mvir) {
+                // This block should technically be unreachable now as we skip MVIR generation above
                 const mvirPdfBuffer = await getPdfBufferFromDocument(results.buyerDocuments.mvir.documentId);
                 if (mvirPdfBuffer) {
                     buyerEmailDocs.push({
@@ -2573,6 +2613,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                     });
                 }
             }
+
 
             if (buyerEmailDocs.length > 0 && buyer.email) {
                 try {
@@ -2639,8 +2680,10 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                     ? 'Documents generated with some errors'
                     : 'All compliance documents generated successfully',
             results,
+            certificates: results.certificates, // Explicitly include certificates at top level for frontend
             transferRequestId
         });
+
 
     } catch (error) {
         console.error('[Transfer Compliance Documents] CRITICAL ERROR:', error);

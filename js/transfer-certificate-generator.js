@@ -4,7 +4,7 @@
 let transferContext = null;
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     if (typeof window.authManager !== 'undefined') {
         window.authManager.init().catch(error => {
             console.error('AuthManager init error:', error);
@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeForm();
     loadVehicles();
     loadTransferRequests(); // Optional - for linking to transfer requests
-    
+
     // Set default sale date to today
     const today = new Date().toISOString().split('T')[0];
     const saleDateInput = document.getElementById('saleDate');
@@ -37,12 +37,12 @@ async function loadVehicles() {
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get('/api/certificate-generation/transfer/vehicles');
-        
+
         if (response.success && response.vehicles) {
             const select = document.getElementById('vehicleSelect');
             if (select) {
                 select.innerHTML = '<option value="">-- Select a registered vehicle --</option>';
-                
+
                 response.vehicles.forEach(vehicle => {
                     const option = document.createElement('option');
                     option.value = vehicle.id;
@@ -62,12 +62,12 @@ async function loadTransferRequests() {
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get('/api/certificate-generation/transfer/requests');
-        
+
         if (response.success && response.requests) {
             const select = document.getElementById('transferRequestSelect');
             if (select) {
                 select.innerHTML = '<option value="">-- None (standalone certificate generation) --</option>';
-                
+
                 response.requests.forEach(req => {
                     const option = document.createElement('option');
                     option.value = req.id;
@@ -87,10 +87,10 @@ function initializeForm() {
     const form = document.getElementById('transferCertificateForm');
     const vehicleSelect = document.getElementById('vehicleSelect');
     const transferSelect = document.getElementById('transferRequestSelect');
-    
+
     // Handle vehicle selection change
     if (vehicleSelect) {
-        vehicleSelect.addEventListener('change', async function() {
+        vehicleSelect.addEventListener('change', async function () {
             const vehicleId = this.value;
             if (vehicleId) {
                 await loadVehicleContext(vehicleId);
@@ -99,10 +99,10 @@ function initializeForm() {
             }
         });
     }
-    
+
     // Handle transfer request selection change (optional - for autofill buyer/seller)
     if (transferSelect) {
-        transferSelect.addEventListener('change', async function() {
+        transferSelect.addEventListener('change', async function () {
             const transferRequestId = this.value;
             if (transferRequestId) {
                 await loadTransferContext(transferRequestId);
@@ -116,10 +116,10 @@ function initializeForm() {
             }
         });
     }
-    
+
     // Handle vehicle selection change - show buyer email section if no transfer request
     if (vehicleSelect) {
-        vehicleSelect.addEventListener('change', function() {
+        vehicleSelect.addEventListener('change', function () {
             const transferRequestId = document.getElementById('transferRequestSelect')?.value;
             const buyerInfoSection = document.getElementById('buyerInfoSection');
             if (buyerInfoSection) {
@@ -128,18 +128,18 @@ function initializeForm() {
             }
         });
     }
-    
+
     // Buyer email lookup on blur
     const buyerEmailInput = document.getElementById('buyerEmail');
     if (buyerEmailInput) {
-        buyerEmailInput.addEventListener('blur', async function() {
+        buyerEmailInput.addEventListener('blur', async function () {
             await lookupBuyer(this.value.trim());
         });
     }
-    
+
     // Handle form submission
     if (form) {
-        form.addEventListener('submit', async function(e) {
+        form.addEventListener('submit', async function (e) {
             e.preventDefault();
             await generateCertificates();
         });
@@ -151,7 +151,7 @@ async function loadVehicleContext(vehicleId) {
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get(`/api/certificate-generation/transfer/vehicle/${vehicleId}`);
-        
+
         if (response.success && response.vehicle) {
             transferContext = {
                 vehicle: response.vehicle,
@@ -159,7 +159,7 @@ async function loadVehicleContext(vehicleId) {
                 buyer: null // Buyer info must be provided manually
             };
             displayAutofillPreview(transferContext);
-            
+
             // Show buyer email section if no transfer request is selected
             const transferRequestId = document.getElementById('transferRequestSelect')?.value;
             const buyerInfoSection = document.getElementById('buyerInfoSection');
@@ -183,15 +183,15 @@ async function lookupBuyer(email) {
         document.getElementById('buyerError').style.display = 'none';
         return;
     }
-    
+
     const previewDiv = document.getElementById('buyerPreview');
     const detailsDiv = document.getElementById('buyerDetails');
     const errorDiv = document.getElementById('buyerError');
-    
+
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get(`/api/auth/users/lookup?email=${encodeURIComponent(email)}`);
-        
+
         if (response.success && response.user) {
             // Show buyer details
             const user = response.user;
@@ -204,7 +204,7 @@ async function lookupBuyer(email) {
             `;
             previewDiv.style.display = 'block';
             errorDiv.style.display = 'none';
-            
+
             // Update transfer context with buyer info
             if (!transferContext) transferContext = {};
             transferContext.buyer = {
@@ -222,7 +222,7 @@ async function lookupBuyer(email) {
         }
     } catch (error) {
         console.error('Buyer lookup error:', error);
-        
+
         // Check if error is due to HTML response (API returning error page instead of JSON)
         let errorMessage = error.message || 'Buyer not found. User must be registered in the system.';
         if (error.message && (error.message.includes('Unexpected token') || error.message.includes('<!DOCTYPE'))) {
@@ -234,7 +234,7 @@ async function lookupBuyer(email) {
         } else if (error.message && (error.message.includes('401') || error.message.includes('403'))) {
             errorMessage = 'You do not have permission to lookup users. Please contact an administrator.';
         }
-        
+
         errorDiv.textContent = errorMessage;
         errorDiv.style.display = 'block';
         previewDiv.style.display = 'none';
@@ -246,7 +246,7 @@ async function loadTransferContext(transferRequestId) {
     try {
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.get(`/api/certificate-generation/transfer/context/${transferRequestId}`);
-        
+
         if (response.success && response.context) {
             // Hide buyer email section when transfer request is selected
             const buyerInfoSection = document.getElementById('buyerInfoSection');
@@ -258,7 +258,7 @@ async function loadTransferContext(transferRequestId) {
         }
     } catch (error) {
         console.error('Error loading transfer context:', error);
-        
+
         // Check if error is due to HTML response (API returning error page instead of JSON)
         let errorMessage = error.message || 'Failed to load transfer context';
         if (error.message && error.message.includes('Unexpected token') && error.message.includes('<!DOCTYPE')) {
@@ -266,7 +266,7 @@ async function loadTransferContext(transferRequestId) {
         } else if (error.message && error.message.includes('JSON')) {
             errorMessage = 'Invalid response from server. Please check your connection and try again.';
         }
-        
+
         showError('Failed to load transfer context: ' + errorMessage);
     }
 }
@@ -275,11 +275,11 @@ async function loadTransferContext(transferRequestId) {
 function displayAutofillPreview(context) {
     const previewDiv = document.getElementById('autofillPreview');
     const previewContent = document.getElementById('previewContent');
-    
+
     const vehicle = context.vehicle;
     const seller = context.seller || (context.vehicle && context.vehicle.owner);
     const buyer = context.buyer;
-    
+
     let previewHtml = `
         <div class="preview-row">
             <span class="preview-label">Vehicle:</span>
@@ -306,7 +306,7 @@ function displayAutofillPreview(context) {
             <span class="preview-value">${vehicle.crNumber || 'N/A'}</span>
         </div>
     `;
-    
+
     if (seller) {
         previewHtml += `
         <div class="preview-row">
@@ -315,7 +315,7 @@ function displayAutofillPreview(context) {
         </div>
         `;
     }
-    
+
     if (buyer) {
         previewHtml += `
         <div class="preview-row">
@@ -331,7 +331,7 @@ function displayAutofillPreview(context) {
         </div>
         `;
     }
-    
+
     previewContent.innerHTML = previewHtml;
     previewDiv.style.display = 'block';
 }
@@ -346,7 +346,7 @@ function hideAutofillPreview() {
 async function generateCertificates() {
     const loadingOverlay = document.getElementById('loadingOverlay');
     const statusDiv = document.getElementById('certificateStatus');
-    
+
     try {
         // Validate vehicle selection (required)
         const vehicleId = document.getElementById('vehicleSelect')?.value;
@@ -354,31 +354,31 @@ async function generateCertificates() {
             showError('Please select a registered vehicle');
             return;
         }
-        
+
         // Transfer request is optional
         const transferRequestId = document.getElementById('transferRequestSelect')?.value || null;
-        
+
         if (!transferContext || !transferContext.vehicle) {
             showError('Please wait for vehicle context to load');
             return;
         }
-        
+
         // Show loading
         if (loadingOverlay) loadingOverlay.classList.add('show');
         if (statusDiv) {
             statusDiv.classList.remove('show');
             statusDiv.innerHTML = '';
         }
-        
+
         // Collect form data
         const buyerEmail = document.getElementById('buyerEmail')?.value.trim();
-        
+
         // Validate buyer email if no transfer request is selected (standalone mode)
         if (!transferRequestId && !buyerEmail) {
             showError('Buyer email is required when no transfer request is selected');
             return;
         }
-        
+
         // Check if buyer was validated (preview should be visible) when in standalone mode
         if (!transferRequestId) {
             const buyerPreview = document.getElementById('buyerPreview');
@@ -387,7 +387,7 @@ async function generateCertificates() {
                 return;
             }
         }
-        
+
         const formData = {
             vehicleId: vehicleId,  // Required
             transferRequestId: transferRequestId || null,  // Optional
@@ -413,7 +413,7 @@ async function generateCertificates() {
                 // buyerTin: { ... } // REMOVED - TIN is not generated as a certificate
                 hpgClearance: {
                     clearanceNumber: document.getElementById('hpgClearanceNumber').value || null,
-                    verificationDetails: document.getElementById('hpgOfficerName').value 
+                    verificationDetails: document.getElementById('hpgOfficerName').value
                         ? `Verified by ${document.getElementById('hpgOfficerName').value}. No adverse record found. Vehicle cleared for registration.`
                         : 'No adverse record found. Vehicle cleared for registration.'
                 },
@@ -421,42 +421,40 @@ async function generateCertificates() {
                     policyNumber: document.getElementById('ctplPolicyNumber').value || null,
                     coverageAmount: document.getElementById('ctplCoverageAmount').value,
                     insurerName: document.getElementById('ctplInsurerName').value || null
-                },
-                mvir: {
-                    mvirNumber: document.getElementById('mvirNumber').value || null,
-                    inspectionResult: document.getElementById('mvirResult').value,
-                    inspectorName: document.getElementById('mvirInspectorName').value || null
                 }
             }
         };
-        
+
+
+
+
         // Call API
         const apiClient = window.apiClient || new APIClient();
         const response = await apiClient.post('/api/certificate-generation/transfer/generate-compliance-documents', formData);
-        
+
         // Hide loading
         loadingOverlay.classList.remove('show');
-        
+
         if (response.success) {
             showSuccess('All compliance documents generated successfully!', response);
         } else {
             showError(response.error || 'Failed to generate certificates', response);
         }
-        
+
     } catch (error) {
         console.error('Error generating certificates:', error);
         loadingOverlay.classList.remove('show');
-        
+
         // Check if error is due to HTML response (API returning error page instead of JSON)
         let errorMessage = error.message || 'Failed to generate certificates';
         let errorDetails = null;
-        
+
         if (error.message && error.message.includes('Unexpected token') && error.message.includes('<!DOCTYPE')) {
             errorMessage = 'API endpoint returned an error page. Please check your authentication and try again. If the problem persists, contact support.';
         } else if (error.message && error.message.includes('JSON')) {
             errorMessage = 'Invalid response from server. Please check your connection and try again.';
         }
-        
+
         // If we have a structured error response, extract details
         if (error.details) {
             errorDetails = error.details;
@@ -467,7 +465,7 @@ async function generateCertificates() {
         if (error.stack && console) {
             console.error('Server error stack:', error.stack);
         }
-        
+
         showError('Failed to generate certificates: ' + errorMessage + (errorDetails ? '\n\nDetails: ' + errorDetails : ''));
     }
 }
@@ -476,12 +474,12 @@ async function generateCertificates() {
 function showSuccess(message, response) {
     const statusDiv = document.getElementById('certificateStatus');
     statusDiv.className = 'certificate-status show success';
-    
+
     let html = `<h4><i class="fas fa-check-circle"></i> ${message}</h4>`;
-    
+
     if (response.results) {
         html += '<div style="margin-top: 1rem;">';
-        
+
         if (response.results.sellerDocuments) {
             html += '<h5>Seller Documents:</h5><ul>';
             if (response.results.sellerDocuments.deedOfSale) {
@@ -490,7 +488,7 @@ function showSuccess(message, response) {
             // Seller ID removed: IDs are upload-only, not generated
             html += '</ul>';
         }
-        
+
         if (response.results.buyerDocuments) {
             html += '<h5>Buyer Documents:</h5><ul>';
             // Buyer ID removed: IDs are upload-only, not generated
@@ -498,13 +496,13 @@ function showSuccess(message, response) {
             // if (response.results.buyerDocuments.buyerTin) html += '<li>TIN Document ✓</li>'; // REMOVED
             if (response.results.buyerDocuments.hpgClearance) html += '<li>HPG Clearance ✓</li>';
             if (response.results.buyerDocuments.ctplInsurance) html += '<li>CTPL Insurance ✓</li>';
-            if (response.results.buyerDocuments.mvir) html += '<li>MVIR ✓</li>';
             html += '</ul>';
+
         }
-        
+
         html += '</div>';
     }
-    
+
     statusDiv.innerHTML = html;
 }
 
@@ -512,16 +510,16 @@ function showSuccess(message, response) {
 function showError(message, response) {
     const statusDiv = document.getElementById('certificateStatus');
     statusDiv.className = 'certificate-status show error';
-    
+
     // Escape HTML to prevent XSS while preserving line breaks
     const escapeHtml = (text) => {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML.replace(/\n/g, '<br>');
     };
-    
+
     let html = `<h4><i class="fas fa-exclamation-circle"></i> ${escapeHtml(message)}</h4>`;
-    
+
     // Display structured errors from response.errors array (207 Multi-Status)
     if (response && response.errors && response.errors.length > 0) {
         html += '<div style="margin-top: 1rem;"><strong>Detailed Errors:</strong></div>';
@@ -531,17 +529,17 @@ function showError(message, response) {
         });
         html += '</ul>';
     }
-    
+
     // Display additional error details (500 errors with details field)
     if (response && response.details) {
         html += `<div style="margin-top: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.1); border-radius: 4px; font-family: monospace; font-size: 0.85em; white-space: pre-wrap;">${escapeHtml(response.details)}</div>`;
     }
-    
+
     // Display error type for debugging
     if (response && response.errorType) {
         html += `<div style="margin-top: 0.5rem; font-size: 0.85em; opacity: 0.8;">Error Type: ${escapeHtml(response.errorType)}</div>`;
     }
-    
+
     statusDiv.innerHTML = html;
 }
 
@@ -549,7 +547,7 @@ function showError(message, response) {
 function toggleSection(sectionId) {
     const section = document.getElementById(sectionId);
     section.classList.toggle('show');
-    
+
     const header = event.target.closest('.collapsible');
     const icon = header.querySelector('i');
     if (section.classList.contains('show')) {

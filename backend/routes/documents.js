@@ -7,6 +7,7 @@ const fsPromises = require('fs').promises;
 const crypto = require('crypto');
 const router = express.Router();
 const db = require('../database/services');
+const dbModule = require('../database/db');
 const storageService = require('../services/storageService');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
@@ -98,6 +99,80 @@ async function authenticateTokenOrTemp(req, res, next) {
     }
 }
 
+const ADMIN_ROLES = ['admin', 'lto_admin', 'lto_officer'];
+const VERIFIER_ROLES = ['insurance_verifier', 'hpg_admin', 'hpg_officer'];
+
+async function getTransferContextByDocumentId(documentId) {
+    const result = await dbModule.query(
+        `SELECT tr.id AS transfer_request_id,
+                tr.vehicle_id,
+                tr.seller_id,
+                tr.buyer_id,
+                tr.buyer_info
+         FROM transfer_documents td
+         JOIN transfer_requests tr ON td.transfer_request_id = tr.id
+         WHERE td.document_id = $1
+         LIMIT 1`,
+        [documentId]
+    );
+    return result.rows[0] || null;
+}
+
+function isPrivilegedRole(role) {
+    return ADMIN_ROLES.includes(role) || VERIFIER_ROLES.includes(role);
+}
+
+async function authorizeDocumentAccess(document, user) {
+    if (!user) {
+        return { allowed: false, status: 401, error: 'Unauthorized' };
+    }
+
+    if (isPrivilegedRole(user.role)) {
+        return { allowed: true, vehicle: null, transfer: null };
+    }
+
+    if (document.vehicle_id) {
+        const vehicle = await db.getVehicleById(document.vehicle_id);
+        if (!vehicle) {
+            return { allowed: false, status: 404, error: 'Vehicle not found' };
+        }
+
+        const isOwner = String(vehicle.owner_id) === String(user.userId);
+        if (isOwner) {
+            return { allowed: true, vehicle, transfer: null };
+        }
+
+        return { allowed: false, status: 403, error: 'Access denied' };
+    }
+
+    const transfer = await getTransferContextByDocumentId(document.id);
+    if (!transfer) {
+        return { allowed: false, status: 404, error: 'Transfer request not found for document' };
+    }
+
+    const isSeller = transfer.seller_id && String(transfer.seller_id) === String(user.userId);
+    const isBuyer = transfer.buyer_id && String(transfer.buyer_id) === String(user.userId);
+    let isBuyerEmailMatch = false;
+    if (!isBuyer && transfer.buyer_info && user.email) {
+        try {
+            const buyerInfo = typeof transfer.buyer_info === 'string'
+                ? JSON.parse(transfer.buyer_info)
+                : transfer.buyer_info;
+            if (buyerInfo?.email) {
+                isBuyerEmailMatch = String(buyerInfo.email).toLowerCase() === String(user.email).toLowerCase();
+            }
+        } catch (parseError) {
+            console.warn('[Documents] Failed to parse buyer_info for access check:', parseError.message);
+        }
+    }
+
+    if (isSeller || isBuyer || isBuyerEmailMatch) {
+        return { allowed: true, vehicle: null, transfer };
+    }
+
+    return { allowed: false, status: 403, error: 'Access denied' };
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -184,36 +259,21 @@ router.get('/ipfs/:cid', authenticateToken, async (req, res) => {
             has_file_path: !!document.file_path
         });
 
-        // Get vehicle to check permissions (same rules as /:documentId/view)
-        const vehicle = await db.getVehicleById(document.vehicle_id);
-        if (!vehicle) {
-            return res.status(404).json({
+        const access = await authorizeDocumentAccess(document, req.user);
+        if (!access.allowed) {
+            return res.status(access.status || 403).json({
                 success: false,
-                error: 'Vehicle not found'
+                error: access.error || 'Access denied'
             });
         }
 
-        const isAdmin = req.user.role === 'admin';
-        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier =
-            req.user.role === 'insurance_verifier' ||
-            req.user.role === 'hpg_admin';
-        
         console.log(`[Documents/IPFS] Permission check for CID ${cid}:`, {
             userId: req.user.userId,
             role: req.user.role,
-            isAdmin,
-            isOwner,
-            isVerifier,
-            vehicleOwnerId: vehicle.owner_id
+            allowed: access.allowed,
+            vehicleOwnerId: access.vehicle?.owner_id || null,
+            transferRequestId: access.transfer?.transfer_request_id || null
         });
-
-        if (!isAdmin && !isOwner && !isVerifier) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied'
-            });
-        }
 
         // Get document from storage service (IPFS or local)
         let filePath = null;
@@ -980,24 +1040,11 @@ router.get('/:documentId/download', authenticateToken, async (req, res) => {
             });
         }
 
-        // Get vehicle to check permissions
-        const vehicle = await db.getVehicleById(document.vehicle_id);
-        if (!vehicle) {
-            return res.status(404).json({
+        const access = await authorizeDocumentAccess(document, req.user);
+        if (!access.allowed) {
+            return res.status(access.status || 403).json({
                 success: false,
-                error: 'Vehicle not found'
-            });
-        }
-
-        // Check permission - Allow: admins (read-only), vehicle owners, and verifiers
-        const isAdmin = req.user.role === 'admin';
-        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'hpg_admin';
-        
-        if (!isAdmin && !isOwner && !isVerifier) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied'
+                error: access.error || 'Access denied'
             });
         }
 
@@ -1071,23 +1118,11 @@ router.post('/:documentId/temp-view-token', authenticateToken, async (req, res) 
             });
         }
 
-        // Check permissions (reuse existing logic from view endpoint)
-        const vehicle = await db.getVehicleById(document.vehicle_id);
-        if (!vehicle) {
-            return res.status(404).json({
+        const access = await authorizeDocumentAccess(document, req.user);
+        if (!access.allowed) {
+            return res.status(access.status || 403).json({
                 success: false,
-                error: 'Vehicle not found'
-            });
-        }
-
-        const isAdmin = req.user.role === 'admin';
-        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'hpg_admin';
-        
-        if (!isAdmin && !isOwner && !isVerifier) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied'
+                error: access.error || 'Access denied'
             });
         }
 
@@ -1131,24 +1166,11 @@ router.get('/:documentId/view', authenticateTokenOrTemp, async (req, res) => {
             });
         }
 
-        // Get vehicle to check permissions
-        const vehicle = await db.getVehicleById(document.vehicle_id);
-        if (!vehicle) {
-            return res.status(404).json({
+        const access = await authorizeDocumentAccess(document, req.user);
+        if (!access.allowed) {
+            return res.status(access.status || 403).json({
                 success: false,
-                error: 'Vehicle not found'
-            });
-        }
-
-        // Check permission - Allow: admins, vehicle owners, and verifiers
-        const isAdmin = req.user.role === 'admin';
-        const isOwner = String(vehicle.owner_id) === String(req.user.userId);
-        const isVerifier = req.user.role === 'insurance_verifier' || req.user.role === 'hpg_admin';
-        
-        if (!isAdmin && !isOwner && !isVerifier) {
-            return res.status(403).json({
-                success: false,
-                error: 'Access denied'
+                error: access.error || 'Access denied'
             });
         }
 

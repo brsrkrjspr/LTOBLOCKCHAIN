@@ -110,6 +110,50 @@ router.post('/inspect', authenticateToken, authorizeRole(['admin', 'lto_admin', 
             });
         }
 
+        // ============================================================
+        // PREVENTIVE OWNER INTEGRITY GATE (pre-approval)
+        // ============================================================
+        try {
+            const history = await db.getVehicleHistory(vehicleId, 50);
+            const registrationEntry = history.find(h => h.action === 'REGISTERED' && h.metadata);
+            const metadata = registrationEntry
+                ? (typeof registrationEntry.metadata === 'string'
+                    ? JSON.parse(registrationEntry.metadata)
+                    : registrationEntry.metadata)
+                : null;
+            const snapshot = metadata?.ownerSnapshot || null;
+
+            if (!snapshot?.email) {
+                return res.status(409).json({
+                    success: false,
+                    error: 'Owner snapshot missing',
+                    message: 'Registration snapshot is missing. Approval blocked to prevent off-chain owner substitution.',
+                    vehicleId,
+                    vin: vehicle.vin
+                });
+            }
+
+            const dbOwnerEmail = vehicle.owner_email || null;
+            if (!dbOwnerEmail || dbOwnerEmail.toLowerCase() !== String(snapshot.email).toLowerCase()) {
+                return res.status(409).json({
+                    success: false,
+                    error: 'Owner mismatch before approval',
+                    message: 'Owner in database does not match registration submission snapshot. Approval blocked to prevent technical carnapping.',
+                    vehicleId,
+                    vin: vehicle.vin,
+                    ownerSnapshot: snapshot,
+                    currentOwnerEmail: dbOwnerEmail
+                });
+            }
+        } catch (ownerCheckError) {
+            console.error('[LTO Approval] Owner snapshot validation failed:', ownerCheckError.message);
+            return res.status(500).json({
+                success: false,
+                error: 'Owner snapshot validation failed',
+                message: ownerCheckError.message
+            });
+        }
+
         // Check if inspection already exists
         if (vehicle.mvir_number) {
             return res.status(409).json({

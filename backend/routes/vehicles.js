@@ -23,6 +23,11 @@ function createSafeRegistrationMetadata(registrationData, vehicle, owner) {
             vehicleModel: vehicle?.model || null,
             ownerEmail: owner?.email || null,
             ownerName: owner ? `${owner.firstName || ''} ${owner.lastName || ''}`.trim() : null,
+            ownerSnapshot: {
+                email: owner?.email || null,
+                firstName: owner?.firstName || null,
+                lastName: owner?.lastName || null
+            },
             hasDocuments: !!(registrationData?.documents && Object.keys(registrationData.documents).length > 0),
             documentCount: registrationData?.documents ? Object.keys(registrationData.documents).length : 0,
             documentTypes: registrationData?.documents ? Object.keys(registrationData.documents) : []

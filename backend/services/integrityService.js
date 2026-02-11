@@ -389,7 +389,7 @@ class IntegrityService {
                          make = $5,
                          model = $6,
                          year = $7,
-                         updated_at = NOW()
+                         last_updated = NOW()
                      WHERE vin = $8`,
                     [
                         ownerId,

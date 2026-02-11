@@ -28,15 +28,21 @@ class APIClient {
             return 'dev-token-bypass';
         }
         
-        // Check AuthManager first (memory), then localStorage (backward compatibility)
+        // Check AuthManager first (memory), then storage (backward compatibility)
         if (typeof window !== 'undefined' && window.authManager) {
             const token = window.authManager.getAccessToken();
             if (token) {
                 return token;
             }
         }
-        
-        const token = localStorage.getItem('authToken');
+
+        const token =
+            localStorage.getItem('authToken') ||
+            localStorage.getItem('token') ||
+            localStorage.getItem('accessToken') ||
+            sessionStorage.getItem('authToken') ||
+            sessionStorage.getItem('token') ||
+            sessionStorage.getItem('accessToken');
         if (!token) {
             return null;
         }

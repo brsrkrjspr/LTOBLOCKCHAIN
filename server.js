@@ -242,6 +242,7 @@ blacklistConfig.startCleanupJob();
 
 // Initialize storage service on startup (non-blocking)
 const storageService = require('./backend/services/storageService');
+const watchdogService = require('./backend/services/watchdogService');
 storageService.initialize().then(result => {
     console.log(`📦 Storage service initialized: ${result.mode} mode`);
     if (process.env.STORAGE_MODE === 'ipfs' && result.mode !== 'ipfs') {
@@ -253,6 +254,9 @@ storageService.initialize().then(result => {
         console.error('❌ CRITICAL: IPFS mode required but initialization failed. Documents will fail to upload.');
     }
 });
+
+// Integrity watchdog (optional, disabled by default)
+watchdogService.start();
 
 // Global feature flags
 global.EMAIL_VERIFICATION_ENABLED = false;

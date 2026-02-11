@@ -18,6 +18,30 @@ class OptimizedFabricService {
         this.currentIdentity = null; // Track current identity being used
     }
 
+    // Stable JSON stringification for hashing/consensus
+    _stableStringify(value) {
+        if (value === null || value === undefined) return 'null';
+        if (typeof value !== 'object') return JSON.stringify(value);
+        if (Array.isArray(value)) {
+            return '[' + value.map(v => this._stableStringify(v)).join(',') + ']';
+        }
+        const keys = Object.keys(value).sort();
+        const entries = keys.map(k => `${JSON.stringify(k)}:${this._stableStringify(value[k])}`);
+        return '{' + entries.join(',') + '}';
+    }
+
+    _hashPayload(payload) {
+        return crypto.createHash('sha256').update(payload).digest('hex');
+    }
+
+    _getPeerId(peer) {
+        if (!peer) return 'unknown-peer';
+        if (typeof peer.getName === 'function') return peer.getName();
+        if (peer.name) return peer.name;
+        if (peer.endpoint && peer.endpoint.url) return peer.endpoint.url;
+        return 'unknown-peer';
+    }
+
     // Map application role to Fabric identity
     getFabricIdentityForUser(userRole, userEmail) {
         // Map application role to Fabric identity
@@ -375,6 +399,114 @@ class OptimizedFabricService {
             console.error('❌ Failed to get vehicle from Fabric:', error);
             throw new Error(`Vehicle query failed: ${errorMessage}`);
         }
+    }
+
+    // Get vehicle by querying all peers and deriving consensus
+    async getVehicleFromAllPeers(vin, userContext = null) {
+        // CRITICAL: Enforce real Fabric service - no mock fallbacks
+        if (this.mode !== 'fabric') {
+            throw new Error('CRITICAL: Mock blockchain service is not allowed. Real Hyperledger Fabric connection required.');
+        }
+
+        if (!this.isConnected || !this.channel) {
+            throw new Error('Not connected to Fabric network. Cannot query vehicle.');
+        }
+
+        // Use filtered query for HPG/Insurance if user context is provided
+        let useFilteredQuery = false;
+        if (userContext) {
+            const userRole = userContext.role;
+            const userEmail = userContext.email;
+            if (['hpg_admin', 'hpg_officer'].includes(userRole) ||
+                (userRole === 'admin' && userEmail && userEmail.toLowerCase().includes('hpg'))) {
+                useFilteredQuery = true;
+            }
+            if (['insurance_verifier', 'insurance_admin'].includes(userRole)) {
+                useFilteredQuery = true;
+            }
+        }
+
+        const queryFunction = useFilteredQuery ? 'GetVehicleForVerification' : 'GetVehicle';
+        const peers = this.channel.getEndorsers();
+        const peerResults = [];
+
+        for (const peer of peers) {
+            const peerId = this._getPeerId(peer);
+            try {
+                const response = await this.channel.queryByChaincode(
+                    {
+                        chaincodeId: 'vehicle-registration',
+                        fcn: queryFunction,
+                        args: [vin]
+                    },
+                    [peer]
+                );
+
+                if (!response || response.length === 0) {
+                    throw new Error('Empty response from peer');
+                }
+
+                const payload = response[0].toString();
+                const vehicle = JSON.parse(payload);
+                const stable = this._stableStringify(vehicle);
+                const hash = this._hashPayload(stable);
+
+                peerResults.push({
+                    peer: peerId,
+                    success: true,
+                    hash,
+                    vehicle
+                });
+            } catch (error) {
+                const message = error.message || error.toString();
+                peerResults.push({
+                    peer: peerId,
+                    success: false,
+                    error: message
+                });
+            }
+        }
+
+        const successful = peerResults.filter(r => r.success);
+        if (successful.length === 0) {
+            const combinedErrors = peerResults.map(r => `${r.peer}: ${r.error || 'unknown error'}`).join('; ');
+            throw new Error(`Vehicle query failed on all peers: ${combinedErrors}`);
+        }
+
+        // Compute consensus by hash majority
+        const counts = new Map();
+        for (const r of successful) {
+            const count = counts.get(r.hash) || { count: 0, vehicle: r.vehicle };
+            count.count += 1;
+            counts.set(r.hash, count);
+        }
+
+        let consensusHash = null;
+        let consensusVehicle = null;
+        let consensusCount = 0;
+        for (const [hash, info] of counts.entries()) {
+            if (info.count > consensusCount) {
+                consensusCount = info.count;
+                consensusHash = hash;
+                consensusVehicle = info.vehicle;
+            }
+        }
+
+        const discrepancies = successful
+            .filter(r => r.hash !== consensusHash)
+            .map(r => ({ peer: r.peer, hash: r.hash }));
+
+        return {
+            success: true,
+            vehicle: consensusVehicle,
+            consensus: {
+                hash: consensusHash,
+                count: consensusCount,
+                total: successful.length
+            },
+            peers: peerResults,
+            discrepancies
+        };
     }
 
     // Update verification status - Fabric only

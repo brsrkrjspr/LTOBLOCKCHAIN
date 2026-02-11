@@ -1578,13 +1578,29 @@ function initializeOcrUserEditTracking() {
  * Get auth token for API calls (used by OCR extraction).
  */
 function getAuthToken() {
-    const token = (typeof window !== 'undefined' && window.authManager)
-        ? window.authManager.getAccessToken()
-        : (localStorage.getItem('authToken') || sessionStorage.getItem('authToken'));
+    // Prefer centralized API client / AuthManager handling
+    const apiClient = (typeof window !== 'undefined' && window.apiClient) ? window.apiClient : null;
+    let token = apiClient && typeof apiClient.getAuthToken === 'function'
+        ? apiClient.getAuthToken()
+        : (typeof window !== 'undefined' && window.authManager)
+            ? window.authManager.getAccessToken()
+            : null;
+
+    if (!token) {
+        token =
+            localStorage.getItem('authToken') ||
+            localStorage.getItem('token') ||
+            localStorage.getItem('accessToken') ||
+            sessionStorage.getItem('authToken') ||
+            sessionStorage.getItem('token') ||
+            sessionStorage.getItem('accessToken');
+    }
+
     if (!token) {
         window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);
         return null;
     }
+
     if (typeof AuthUtils !== 'undefined' && !AuthUtils.isAuthenticated()) {
         return null;
     }
@@ -2524,11 +2540,24 @@ function updateReviewData() {
         }
 
         function getAuthToken() {
-            // Get token from localStorage or sessionStorage
-            // Get token and check authentication
-            const token = (typeof window !== 'undefined' && window.authManager)
-                ? window.authManager.getAccessToken()
-                : (localStorage.getItem('authToken') || sessionStorage.getItem('authToken'));
+            // Prefer centralized API client / AuthManager handling
+            const apiClient = (typeof window !== 'undefined' && window.apiClient) ? window.apiClient : null;
+            let token = apiClient && typeof apiClient.getAuthToken === 'function'
+                ? apiClient.getAuthToken()
+                : (typeof window !== 'undefined' && window.authManager)
+                    ? window.authManager.getAccessToken()
+                    : null;
+
+            if (!token) {
+                token =
+                    localStorage.getItem('authToken') ||
+                    localStorage.getItem('token') ||
+                    localStorage.getItem('accessToken') ||
+                    sessionStorage.getItem('authToken') ||
+                    sessionStorage.getItem('token') ||
+                    sessionStorage.getItem('accessToken');
+            }
+
             if (!token) {
                 // Not authenticated, redirect to login
                 window.location.href = 'login-signup.html?redirect=' + encodeURIComponent(window.location.pathname);

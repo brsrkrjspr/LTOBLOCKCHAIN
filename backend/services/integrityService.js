@@ -107,11 +107,24 @@ class IntegrityService {
             let blockchainVehicle = null;
             let blockchainError = null;
 
+            let peerConsensus = null;
+            let peerDiscrepancies = [];
+
             if (dbVehicle.status === 'REGISTERED') {
                 try {
-                    const blockchainResult = await fabricService.getVehicle(vin);
-                    if (blockchainResult.success && blockchainResult.vehicle) {
-                        blockchainVehicle = blockchainResult.vehicle;
+                    const multiPeerEnabled = String(process.env.INTEGRITY_MULTI_PEER || 'false').toLowerCase() === 'true';
+                    if (multiPeerEnabled) {
+                        const blockchainResult = await fabricService.getVehicleFromAllPeers(vin);
+                        if (blockchainResult.success && blockchainResult.vehicle) {
+                            blockchainVehicle = blockchainResult.vehicle;
+                            peerConsensus = blockchainResult.consensus;
+                            peerDiscrepancies = blockchainResult.discrepancies;
+                        }
+                    } else {
+                        const blockchainResult = await fabricService.getVehicle(vin);
+                        if (blockchainResult.success && blockchainResult.vehicle) {
+                            blockchainVehicle = blockchainResult.vehicle;
+                        }
                     }
                 } catch (error) {
                     blockchainError = error.message;
@@ -233,6 +246,8 @@ class IntegrityService {
                     year: blockchainVehicle.year,
                     ownerEmail: blockchainVehicle.owner ? blockchainVehicle.owner.email : null
                 },
+                peerConsensus: peerConsensus,
+                peerDiscrepancies: peerDiscrepancies,
                 checkedAt: new Date().toISOString()
             };
 
@@ -345,52 +360,54 @@ class IntegrityService {
         try {
             const dbModule = require('../database/db');
 
-            // 1. Get owner ID from email (since blockchain stores email)
-            const userResult = await dbModule.query(
-                'SELECT id FROM users WHERE email = $1',
-                [blockchainVehicle.ownerEmail]
-            );
+            return await dbModule.transaction(async (client) => {
+                // 1. Get owner ID from email (since blockchain stores email)
+                const userResult = await client.query(
+                    'SELECT id FROM users WHERE email = $1',
+                    [blockchainVehicle.ownerEmail]
+                );
 
-            if (userResult.rows.length === 0) {
-                console.error(`❌ Restoration failed: Owner ${blockchainVehicle.ownerEmail} not found in DB.`);
-                return false;
-            }
+                if (userResult.rows.length === 0) {
+                    console.error(`❌ Restoration failed: Owner ${blockchainVehicle.ownerEmail} not found in DB.`);
+                    return false;
+                }
 
-            const ownerId = userResult.rows[0].id;
+                const ownerId = userResult.rows[0].id;
 
-            // 2. Perform the restoration (Update DB to match Blockchain)
-            await dbModule.query(
-                `UPDATE vehicles 
-                 SET owner_id = $1, 
-                     plate_number = $2, 
-                     engine_number = $3, 
-                     chassis_number = $4,
-                     make = $5,
-                     model = $6,
-                     year = $7,
-                     updated_at = NOW()
-                 WHERE vin = $8`,
-                [
-                    ownerId,
-                    blockchainVehicle.plateNumber,
-                    blockchainVehicle.engineNumber,
-                    blockchainVehicle.chassisNumber,
-                    blockchainVehicle.make,
-                    blockchainVehicle.model,
-                    blockchainVehicle.year,
-                    vin
-                ]
-            );
+                // 2. Perform the restoration (Update DB to match Blockchain)
+                await client.query(
+                    `UPDATE vehicles 
+                     SET owner_id = $1, 
+                         plate_number = $2, 
+                         engine_number = $3, 
+                         chassis_number = $4,
+                         make = $5,
+                         model = $6,
+                         year = $7,
+                         updated_at = NOW()
+                     WHERE vin = $8`,
+                    [
+                        ownerId,
+                        blockchainVehicle.plateNumber,
+                        blockchainVehicle.engineNumber,
+                        blockchainVehicle.chassisNumber,
+                        blockchainVehicle.make,
+                        blockchainVehicle.model,
+                        blockchainVehicle.year,
+                        vin
+                    ]
+                );
 
-            // 3. Log the restoration event in history
-            await dbModule.query(
-                `INSERT INTO vehicle_history (vehicle_id, action, performed_by, notes, performed_at)
-                 SELECT id, 'SELF_HEAL_RESTORED', 'SYSTEM', 'Automated watchdog restored record from blockchain truth.', NOW()
-                 FROM vehicles WHERE vin = $1`,
-                [vin]
-            );
+                // 3. Log the restoration event in history
+                await client.query(
+                    `INSERT INTO vehicle_history (vehicle_id, action, performed_by, notes, performed_at)
+                     SELECT id, 'SELF_HEAL_RESTORED', 'SYSTEM', 'Automated watchdog restored record from blockchain truth.', NOW()
+                     FROM vehicles WHERE vin = $1`,
+                    [vin]
+                );
 
-            return true;
+                return true;
+            });
         } catch (error) {
             console.error(`❌ Failed to restore vehicle ${vin}:`, error);
             return false;

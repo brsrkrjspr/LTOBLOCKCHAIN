@@ -2550,7 +2550,7 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 const deedPdfBuffer = await getPdfBufferFromDocument(results.sellerDocuments.deedOfSale.documentId);
                 if (deedPdfBuffer) {
                     sellerEmailDocs.push({
-                        filename: `Deed_of_Sale_${results.sellerDocuments.deedOfSale.deedCertNum || deedCertNum}.pdf`,
+                        filename: `Deed_of_Sale_${results.certificates.deedOfSale?.certificateNumber || 'unknown'}.pdf`,
                         buffer: deedPdfBuffer
                     });
                 }

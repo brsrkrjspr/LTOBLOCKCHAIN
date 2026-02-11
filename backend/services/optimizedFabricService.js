@@ -1752,7 +1752,7 @@ class OptimizedFabricService {
                 transaction.setEndorsingPeers(endorsers);
             }
 
-            const result = await transaction.submit(vin, certificateType, pdfHash, ipfsCid);
+            const result = await transaction.submit(vin, certificateType, pdfHash, ipfsCid || '');
             const transactionId = transaction.getTransactionId();
 
             return {

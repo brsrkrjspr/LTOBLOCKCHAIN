@@ -2446,21 +2446,28 @@ function updateReviewData() {
                         formData.append('document', input.files[0]);
                         formData.append('type', docType);
 
-                        // Use apiClient upload method for FormData
-                        const result = await apiClient.upload('/api/documents/upload', formData);
+                        // Use unified upload utility when available (matches transfer flow)
+                        let result;
+                        if (typeof window !== 'undefined' && window.DocumentUploadUtils && typeof DocumentUploadUtils.uploadDocument === 'function') {
+                            result = await DocumentUploadUtils.uploadDocument(docType, input.files[0]);
+                        } else {
+                            // Fallback to apiClient upload method for FormData
+                            result = await apiClient.upload('/api/documents/upload', formData);
+                        }
 
                         if (result && result.success) {
+                            const documentPayload = result.document || result;
                             // Verify storage mode - should be 'ipfs' when STORAGE_MODE=ipfs
-                            const actualStorageMode = result.storageMode || result.document?.storageMode;
+                            const actualStorageMode = documentPayload.storageMode || result.storageMode;
                             if (!actualStorageMode || actualStorageMode === 'local') {
                                 console.warn(`⚠️ Document uploaded but storage mode is 'local' instead of 'ipfs'. Check STORAGE_MODE environment variable.`);
                             }
 
                             uploadResults[docType] = {
-                                id: result.document?.id || result.id || null, // Include document ID for linking
-                                cid: result.cid || result.document?.cid || null,
-                                filename: result.filename || result.document?.filename || input.files[0].name,
-                                url: result.url || result.document?.url || `/uploads/${result.filename || result.document?.filename}`,
+                                id: documentPayload.id || result.id || null, // Include document ID for linking
+                                cid: documentPayload.cid || result.cid || null,
+                                filename: documentPayload.filename || input.files[0].name,
+                                url: documentPayload.url || `/uploads/${documentPayload.filename || input.files[0].name}`,
                                 storageMode: actualStorageMode || 'unknown'
                             };
 

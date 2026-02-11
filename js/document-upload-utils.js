@@ -8,6 +8,9 @@
 const DOCUMENT_TYPES = {
     REGISTRATION_CERT: 'registrationCert',
     INSURANCE_CERT: 'insuranceCert',
+    CTPL: 'ctpl',
+    MVIR: 'mvir',
+    TIN_ID: 'tinId',
     OWNER_ID: 'ownerId',
     DEED_OF_SALE: 'deedOfSale',
     SELLER_ID: 'sellerId',
@@ -15,9 +18,36 @@ const DOCUMENT_TYPES = {
     BUYER_TIN: 'buyerTin',
     BUYER_CTPL: 'buyerCtpl',
     BUYER_HPG_CLEARANCE: 'buyerHpgClearance',
+    CSR: 'csr',
     HPG_CLEARANCE: 'hpgClearance', // HPG Clearance certificate
+    SALES_INVOICE: 'salesInvoice',
     OTHER: 'other'
 };
+
+const LEGACY_TYPE_MAP = {
+    ownervalidid: DOCUMENT_TYPES.OWNER_ID,
+    owner_id: DOCUMENT_TYPES.OWNER_ID,
+    ownerid: DOCUMENT_TYPES.OWNER_ID,
+    registration_cert: DOCUMENT_TYPES.REGISTRATION_CERT,
+    registrationcert: DOCUMENT_TYPES.REGISTRATION_CERT,
+    insurance_cert: DOCUMENT_TYPES.INSURANCE_CERT,
+    insurancecert: DOCUMENT_TYPES.INSURANCE_CERT,
+    hpg_clearance: DOCUMENT_TYPES.HPG_CLEARANCE,
+    hpgclearance: DOCUMENT_TYPES.HPG_CLEARANCE,
+    sales_invoice: DOCUMENT_TYPES.SALES_INVOICE,
+    salesinvoice: DOCUMENT_TYPES.SALES_INVOICE,
+    csr: DOCUMENT_TYPES.CSR,
+    tin_id: DOCUMENT_TYPES.TIN_ID,
+    ctpl: DOCUMENT_TYPES.CTPL,
+    mvir: DOCUMENT_TYPES.MVIR
+};
+
+function normalizeDocumentType(type) {
+    if (!type) return type;
+    const normalized = String(type).trim();
+    const normalizedKey = normalized.toLowerCase().replace(/\s+/g, '');
+    return LEGACY_TYPE_MAP[normalizedKey] || normalized;
+}
 
 /**
  * Transfer document roles (for transfer of ownership)
@@ -91,6 +121,7 @@ function validateFile(file) {
  */
 async function uploadDocument(docType, file, options = {}) {
     const { vehicleId, onProgress } = options;
+    const normalizedType = normalizeDocumentType(docType);
     
     // Validate file first (client-side validation)
     const validation = validateFile(file);
@@ -103,7 +134,7 @@ async function uploadDocument(docType, file, options = {}) {
     
     // Validate document type
     const validTypes = Object.values(DOCUMENT_TYPES);
-    if (!validTypes.includes(docType)) {
+    if (!validTypes.includes(normalizedType)) {
         return {
             success: false,
             error: `Invalid document type: ${docType}. Valid types: ${validTypes.join(', ')}`
@@ -111,7 +142,7 @@ async function uploadDocument(docType, file, options = {}) {
     }
     
     // Reject 'other' type - it should never be used for uploads
-    if (docType === DOCUMENT_TYPES.OTHER) {
+    if (normalizedType === DOCUMENT_TYPES.OTHER) {
         return {
             success: false,
             error: 'Document type "other" is not allowed. Please specify the correct document type.'
@@ -121,7 +152,7 @@ async function uploadDocument(docType, file, options = {}) {
     // Create form data
     const formData = new FormData();
     formData.append('document', file);
-    formData.append('type', docType); // Use 'type' for consistency
+    formData.append('type', normalizedType); // Use 'type' for consistency
     
     if (vehicleId) {
         formData.append('vehicleId', vehicleId);
@@ -148,7 +179,8 @@ async function uploadDocument(docType, file, options = {}) {
         
         return {
             success: true,
-            document: response.document || response
+            document: response.document || response,
+            normalizedType
         };
         
     } catch (error) {
@@ -224,6 +256,7 @@ if (typeof window !== 'undefined') {
         uploadDocument,
         uploadDocuments,
         validateFile,
+        normalizeDocumentType,
         DOCUMENT_TYPES,
         TRANSFER_ROLES,
         FILE_CONFIG

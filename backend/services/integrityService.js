@@ -405,7 +405,7 @@ class IntegrityService {
 
                 // 3. Log the restoration event in history
                 await client.query(
-                    `INSERT INTO vehicle_history (vehicle_id, action, performed_by, notes, performed_at)
+                    `INSERT INTO vehicle_history (vehicle_id, action, performed_by, description, performed_at)
                      SELECT id, 'SELF_HEAL_RESTORED', 'SYSTEM', 'Automated watchdog restored record from blockchain truth.', NOW()
                      FROM vehicles WHERE vin = $1`,
                     [vin]

@@ -48,7 +48,7 @@ const LEGACY_TYPE_MAP = {
 function normalizeDocumentType(type) {
     if (!type) return type;
     const normalized = String(type).trim();
-    const normalizedKey = normalized.toLowerCase().replace(/\s+/g, '');
+    const normalizedKey = normalized.toLowerCase().replace(/[\s_-]+/g, '');
     return LEGACY_TYPE_MAP[normalizedKey] || normalized;
 }
 

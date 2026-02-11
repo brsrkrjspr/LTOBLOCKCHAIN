@@ -260,6 +260,13 @@ function mapTransferRoleToDbType(transferRole) {
  * @returns {string} Logical document type
  */
 function mapLegacyType(oldType) {
+    if (!oldType) return oldType;
+
+    const normalizedKey = String(oldType)
+        .trim()
+        .toLowerCase()
+        .replace(/[\s_-]+/g, '');
+
     const legacyMapping = {
         'general': LOGICAL_TYPES.REGISTRATION_CERT,
         'registration': LOGICAL_TYPES.REGISTRATION_CERT,
@@ -288,8 +295,8 @@ function mapLegacyType(oldType) {
         'sales_invoice': LOGICAL_TYPES.SALES_INVOICE,
         'salesInvoice': LOGICAL_TYPES.SALES_INVOICE
     };
-    
-    return legacyMapping[oldType] || oldType;
+
+    return legacyMapping[normalizedKey] || legacyMapping[oldType] || oldType;
 }
 
 module.exports = {

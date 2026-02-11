@@ -88,6 +88,18 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
                 } else {
                     if (!existingResubmitVehicle) existingResubmitVehicle = existingByPlate;
                     console.log(`⚠️ Plate ${normalizedPlate} exists with status ${existingByPlate.status} - will create new record (resubmission)`);
+
+                    // Free unique plate constraint for resubmission by clearing plate on rejected/closed record
+                    try {
+                        await client.query(
+                            `UPDATE vehicles SET plate_number = NULL
+                             WHERE id = $1 AND status = $2`,
+                            [existingByPlate.id, existingByPlate.status]
+                        );
+                        console.log(`✅ Cleared plate_number on prior ${existingByPlate.status} record ${existingByPlate.id} to allow resubmission`);
+                    } catch (plateClearError) {
+                        console.warn(`⚠️ Failed to clear plate_number on previous record ${existingByPlate.id}: ${plateClearError.message}`);
+                    }
                 }
             }
         }

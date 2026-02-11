@@ -3472,9 +3472,15 @@ router.post('/requests/:id/approve', authenticateToken, authorizeRole(['admin', 
                 }
 
                 console.error(
-                    `[Transfer Approval] Failed to fetch Fabric vehicle (${vehicle.vin}) owner email; falling back to database owner email (investigate blockchain connectivity).`,
+                    `[Transfer Approval] Failed to fetch Fabric vehicle (${vehicle.vin}) owner email; blocking transfer approval until blockchain connectivity is restored.`,
                     errorMessage
                 );
+                return res.status(503).json({
+                    success: false,
+                    error: 'Blockchain verification unavailable',
+                    message: 'Cannot approve transfer: failed to verify current owner on Hyperledger Fabric. Please retry when blockchain connectivity is restored.',
+                    vin: vehicle.vin
+                });
             }
 
             const transferData = {

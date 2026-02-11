@@ -1215,10 +1215,23 @@ router.post('/register', optionalAuth, async (req, res) => {
         if (req.user && req.user.userId) {
             ownerUser = await db.getUserById(req.user.userId);
 
-            // Verify email matches (for security)
-            if (ownerUser && ownerUser.email.toLowerCase() !== owner.email.toLowerCase()) {
-                // Email mismatch - log warning but allow if user is logged in
-                console.warn(`⚠️ Email mismatch: logged-in user (${ownerUser.email}) vs registration email (${owner.email}). Using logged-in user account.`);
+            // Enforce email match for authenticated vehicle owners (prevents off-chain owner substitution)
+            if (ownerUser && ownerUser.email && owner?.email) {
+                const ownerEmail = String(owner.email).toLowerCase();
+                const userEmail = String(ownerUser.email).toLowerCase();
+                const canOverride = ['admin', 'lto_admin', 'lto_officer'].includes(req.user.role);
+
+                if (!canOverride && ownerEmail !== userEmail) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Owner email mismatch',
+                        message: 'Logged-in user email must match the owner email for registration. Please use your own email address.'
+                    });
+                }
+
+                if (canOverride && ownerEmail !== userEmail) {
+                    console.warn(`⚠️ Admin override: logged-in user (${ownerUser.email}) vs registration email (${owner.email}). Using logged-in user account.`);
+                }
             }
 
             // Update user info if provided and different

@@ -9,6 +9,7 @@ const db = require('../database/services');
 const dbRaw = require('../database/db'); // Raw DB module for direct SQL queries
 const certificatePdfGenerator = require('../services/certificatePdfGenerator');
 const certificateEmailService = require('../services/certificateEmailService');
+const integrityService = require('../services/integrityService');
 const storageService = require('../services/storageService');
 const { authenticateToken } = require('../middleware/auth');
 const { authorizeRole } = require('../middleware/authorize');
@@ -1999,6 +2000,22 @@ router.post('/transfer/generate-compliance-documents', authenticateToken, author
                 return res.status(400).json({
                     success: false,
                     error: 'Buyer information is required. Please provide buyer details in the form.'
+                });
+            }
+        }
+
+        // ============================================
+        // PREVENTIVE INTEGRITY GATE (DB vs Fabric)
+        // ============================================
+        if (vehicle?.vin) {
+            const integrityResult = await integrityService.checkIntegrityByVin(vehicle.vin);
+            if (integrityResult.status !== 'VERIFIED') {
+                return res.status(409).json({
+                    success: false,
+                    error: 'Integrity check failed',
+                    message: `Cannot generate transfer documents: integrity status is ${integrityResult.status}`,
+                    vin: vehicle.vin,
+                    integrity: integrityResult
                 });
             }
         }

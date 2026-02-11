@@ -342,6 +342,115 @@ router.post('/vehicles/:vin/attach-owner-from-db', authenticateToken, async (req
     }
 });
 
+// Admin repair: Backfill missing owner on REGISTERED Fabric vehicle using DB data
+// This fixes cases where on-chain owner is null but DB has an owner.
+router.post('/vehicles/:vin/backfill-owner-from-db', authenticateToken, async (req, res) => {
+    try {
+        // Only LTO admin can run repair operations
+        if (!['admin', 'lto_admin'].includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                error: 'Unauthorized: Only LTO admin can backfill owners from DB'
+            });
+        }
+
+        const { vin } = req.params;
+
+        // Initialize Fabric service with user context
+        await fabricService.initialize({ role: req.user.role, email: req.user.email });
+
+        // Load vehicle + owner info from Postgres
+        const dbVehicle = await dbServices.getVehicleByVin(vin);
+        if (!dbVehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found in database',
+                vin
+            });
+        }
+
+        if (!dbVehicle.owner_email) {
+            return res.status(400).json({
+                success: false,
+                error: 'Vehicle owner missing in database',
+                message: 'Cannot backfill owner on-chain because DB vehicle has no owner_email.',
+                vin,
+                vehicleId: dbVehicle.id,
+                ownerId: dbVehicle.owner_id || null
+            });
+        }
+
+        // Fetch current Fabric vehicle state
+        const fabricResult = await fabricService.getVehicle(vin);
+        const fabricVehicle = fabricResult?.vehicle || null;
+
+        if (!fabricVehicle) {
+            return res.status(404).json({
+                success: false,
+                error: 'Vehicle not found on blockchain',
+                vin
+            });
+        }
+
+        const hasOwnerEmail = !!(fabricVehicle.owner && fabricVehicle.owner.email);
+        if (hasOwnerEmail) {
+            return res.status(409).json({
+                success: false,
+                error: 'Vehicle already has an on-chain owner',
+                vin,
+                status: fabricVehicle.status || null,
+                ownerEmail: fabricVehicle.owner.email
+            });
+        }
+
+        if (fabricVehicle.status === 'MINTED') {
+            return res.status(409).json({
+                success: false,
+                error: 'Vehicle is MINTED (ownerless by design)',
+                message: 'Use attach-owner-from-db endpoint for MINTED vehicles.',
+                vin,
+                status: fabricVehicle.status
+            });
+        }
+
+        const ownerData = {
+            email: dbVehicle.owner_email,
+            firstName: dbVehicle.owner_first_name || null,
+            lastName: dbVehicle.owner_last_name || null,
+            name: dbVehicle.owner_name || `${dbVehicle.owner_first_name || ''} ${dbVehicle.owner_last_name || ''}`.trim() || dbVehicle.owner_email,
+            id: dbVehicle.owner_id || null
+        };
+
+        const updatePayload = {
+            vin: vin,
+            owner: ownerData,
+            officerInfo: {
+                userId: req.user.userId || null,
+                email: req.user.email || null,
+                name: req.user.name || null,
+                mspId: 'LTOMSP'
+            }
+        };
+
+        const updateResult = await fabricService.updateVehicle(updatePayload);
+
+        return res.json({
+            success: true,
+            message: 'Owner backfilled on Fabric from database',
+            vin,
+            transactionId: updateResult.transactionId,
+            ownerEmail: ownerData.email
+        });
+    } catch (error) {
+        console.error('[Repair] backfill-owner-from-db error:', error);
+        return res.status(500).json({
+            success: false,
+            error: 'Internal server error',
+            message: error.message
+        });
+    }
+});
+
 // Update verification status on blockchain
 router.put('/vehicles/:vin/verification', authenticateToken, async (req, res) => {
     try {

@@ -362,22 +362,27 @@ class IntegrityService {
 
             return await dbModule.transaction(async (client) => {
                 // 1. Get owner ID from email (since blockchain stores email)
-                const userResult = await client.query(
-                    'SELECT id FROM users WHERE email = $1',
-                    [blockchainVehicle.ownerEmail]
-                );
+                let ownerId = null;
 
-                if (userResult.rows.length === 0) {
-                    console.error(`❌ Restoration failed: Owner ${blockchainVehicle.ownerEmail} not found in DB.`);
-                    return false;
+                if (blockchainVehicle.ownerEmail) {
+                    const userResult = await client.query(
+                        'SELECT id FROM users WHERE email = $1',
+                        [blockchainVehicle.ownerEmail]
+                    );
+
+                    if (userResult.rows.length === 0) {
+                        console.warn(`⚠️ Restoration: Owner ${blockchainVehicle.ownerEmail} not found in DB. Keeping existing owner_id.`);
+                    } else {
+                        ownerId = userResult.rows[0].id;
+                    }
+                } else {
+                    console.warn('⚠️ Restoration: Blockchain owner email missing. Keeping existing owner_id.');
                 }
-
-                const ownerId = userResult.rows[0].id;
 
                 // 2. Perform the restoration (Update DB to match Blockchain)
                 await client.query(
                     `UPDATE vehicles 
-                     SET owner_id = $1, 
+                     SET owner_id = COALESCE($1, owner_id), 
                          plate_number = $2, 
                          engine_number = $3, 
                          chassis_number = $4,

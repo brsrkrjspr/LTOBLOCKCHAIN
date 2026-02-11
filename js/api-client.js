@@ -450,6 +450,30 @@ class APIClient {
             if (response.status === 401) {
                 // Only redirect if auth is not disabled
                 if (!isAuthDisabled()) {
+                    // Try to refresh token using AuthManager
+                    if (typeof window !== 'undefined' && window.authManager) {
+                        try {
+                            await window.authManager.refreshAccessToken();
+                            const newToken = window.authManager.getAccessToken();
+                            if (newToken) {
+                                headers['Authorization'] = `Bearer ${newToken}`;
+                                const retryResponse = await fetch(url, requestOptions);
+                                clearTimeout(timeoutId);
+                                if (retryResponse.ok) {
+                                    return await retryResponse.json();
+                                }
+                            }
+                        } catch (refreshError) {
+                            if (typeof window !== 'undefined' && window.authManager) {
+                                window.authManager.logout();
+                            } else {
+                                this.clearAuth();
+                                window.location.href = 'login-signup.html?expired=true';
+                            }
+                            throw new Error('Session expired. Please login again.');
+                        }
+                    }
+
                     this.clearAuth();
                     window.location.href = 'login-signup.html?expired=true';
                     throw new Error('Session expired. Please login again.');

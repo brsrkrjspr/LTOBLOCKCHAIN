@@ -840,11 +840,13 @@ async function sendToInsurance(vehicleId, vehicle, allDocuments, requestedBy, ex
         }
 
         // Add to history
+        const insuranceAction = verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
+            ? 'INSURANCE_AUTO_VERIFIED_APPROVED'
             : verificationResult && verificationResult.automated && (verificationResult.status === 'REJECTED' || verificationResult.status === 'PENDING')
-            ? 'INSURANCE_AUTO_VERIFIED_PENDING'
-            : verificationResult && verificationResult.automated
                 ? 'INSURANCE_AUTO_VERIFIED_PENDING'
-                : 'INSURANCE_VERIFICATION_REQUESTED';
+                : verificationResult && verificationResult.automated
+                    ? 'INSURANCE_AUTO_VERIFIED_PENDING'
+                    : 'INSURANCE_VERIFICATION_REQUESTED';
         const insuranceDesc = verificationResult && verificationResult.automated && verificationResult.status === 'APPROVED'
             ? `Insurance auto-verified and approved. Score: ${verificationResult.score || 0}%`
             : verificationResult && verificationResult.automated && (verificationResult.status === 'REJECTED' || verificationResult.status === 'PENDING')

@@ -15,7 +15,7 @@ const { authorizeRole } = require('../middleware/authorize');
 const fs = require('fs');
 const path = require('path');
 const certificateNumberGenerator = require('../utils/certificateNumberGenerator');
-const fabricService = require('../services/fabricService');
+const fabricService = require('../services/optimizedFabricService');
 
 
 /**

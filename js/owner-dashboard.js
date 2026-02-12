@@ -1619,9 +1619,14 @@ function initializeKeyboardShortcuts() {
 }
 
 // Create blockchain proof section for vehicle cards
+function isValidFabricTransactionId(txId) {
+    return typeof txId === 'string' && /^[a-f0-9]{64}$/i.test(txId);
+}
+
 function createBlockchainProofSection(vehicle) {
-    const hasBlockchainTx = vehicle.blockchainTxId || vehicle.blockchain_tx_id;
-    const txId = hasBlockchainTx || 'Pending...';
+    const candidateTxId = vehicle.blockchainTxId || vehicle.blockchain_tx_id || null;
+    const hasBlockchainTx = isValidFabricTransactionId(candidateTxId);
+    const txId = hasBlockchainTx ? candidateTxId : 'Pending...';
     // Normalize status to uppercase for consistent comparison
     const normalizedStatus = (vehicle.status || '').toUpperCase();
     const isVerified = hasBlockchainTx && !['SUBMITTED', 'PENDING_BLOCKCHAIN'].includes(normalizedStatus);
@@ -1674,6 +1679,10 @@ function createBlockchainProofSection(vehicle) {
 
 // View blockchain transaction
 function viewBlockchainTransaction(txId) {
+    if (!isValidFabricTransactionId(txId)) {
+        alert('Invalid blockchain transaction ID format.');
+        return;
+    }
     window.open(`/verify/${txId}`, '_blank');
 }
 
@@ -1691,7 +1700,7 @@ function verifyOnBlockchain(vin) {
             if (response.success && response.vehicle) {
                 const vehicle = response.vehicle;
                 const txId = vehicle.blockchain_tx_id || vehicle.blockchainTxId;
-                if (txId) {
+                if (isValidFabricTransactionId(txId)) {
                     window.open(`/verify/${txId}`, '_blank');
                 } else {
                     alert('Blockchain transaction ID not found for this vehicle.');
@@ -1708,7 +1717,7 @@ function verifyOnBlockchain(vin) {
 
 // Render timeline item with blockchain icon support
 function renderTimelineItem(title, date, isCompleted, transactionId, action) {
-    const hasBlockchainTx = transactionId && !transactionId.includes('-'); // UUIDs contain hyphens
+    const hasBlockchainTx = isValidFabricTransactionId(transactionId);
     const isBlockchainAction = ['BLOCKCHAIN_REGISTERED', 'APPROVED', 'REGISTERED'].includes(action);
     const isBlockchainRecorded = hasBlockchainTx && isBlockchainAction;
 
@@ -1839,7 +1848,7 @@ function renderStatusHistorySection(historyEntries) {
 
 // Render history item with blockchain icons (for use in history/audit sections)
 function renderHistoryItem(historyEntry) {
-    const hasBlockchainTx = historyEntry.transaction_id && !historyEntry.transaction_id.includes('-');
+    const hasBlockchainTx = isValidFabricTransactionId(historyEntry.transaction_id);
     const isBlockchainAction = ['BLOCKCHAIN_REGISTERED', 'OWNERSHIP_TRANSFERRED', 'VERIFICATION_APPROVED'].includes(historyEntry.action);
 
     return `

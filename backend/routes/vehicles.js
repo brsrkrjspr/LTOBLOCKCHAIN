@@ -118,6 +118,10 @@ function createSafeBlockchainMetadata(blockchainResult, txStatus) {
     }
 }
 
+function isValidFabricTransactionId(txId) {
+    return typeof txId === 'string' && /^[a-f0-9]{64}$/i.test(txId);
+}
+
 // Get all vehicles (admin only)
 // STRICT: Allow admin, lto_admin for all vehicles; lto_officer for assigned vehicles only
 // NOTE: Filtering for lto_officer assigned vehicles should be implemented in the query logic
@@ -500,7 +504,7 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
 
         // Priority 1: BLOCKCHAIN_REGISTERED action (from initial registration or LTO approval)
         const blockchainRegistered = history.find(h =>
-            h.action === 'BLOCKCHAIN_REGISTERED' && h.transaction_id
+            h.action === 'BLOCKCHAIN_REGISTERED' && isValidFabricTransactionId(h.transaction_id)
         );
         if (blockchainRegistered) {
             transactionId = blockchainRegistered.transaction_id;
@@ -511,7 +515,7 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
         // Priority 2: CLEARANCE_APPROVED action (LTO approval with blockchain - for backward compatibility)
         if (!transactionId) {
             const clearanceApproved = history.find(h =>
-                h.action === 'CLEARANCE_APPROVED' && h.transaction_id && !h.transaction_id.includes('-')
+                h.action === 'CLEARANCE_APPROVED' && isValidFabricTransactionId(h.transaction_id)
             );
             if (clearanceApproved) {
                 transactionId = clearanceApproved.transaction_id;
@@ -542,7 +546,7 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
 
         // Priority 3: Any history entry with valid transaction_id (non-UUID)
         if (!transactionId) {
-            const anyTx = history.find(h => h.transaction_id && !h.transaction_id.includes('-'));
+            const anyTx = history.find(h => isValidFabricTransactionId(h.transaction_id));
             if (anyTx) {
                 transactionId = anyTx.transaction_id;
                 transactionSource = anyTx.action;
@@ -575,13 +579,14 @@ router.get('/:id/transaction-id', optionalAuth, async (req, res) => {
                     // Try to get transaction ID from vehicle data
                     // Chaincode may store it in different fields
                     const fabricVehicle = blockchainResult.vehicle;
-                    transactionId = fabricVehicle.lastTxId ||
+                    const fabricTxId = fabricVehicle.lastTxId ||
                         fabricVehicle.transactionId ||
                         fabricVehicle.blockchainTxId ||
                         null;
 
-                    // If we found a transaction ID, backfill to vehicle_history
-                    if (transactionId) {
+                    // If we found a valid Fabric transaction ID, backfill to vehicle_history
+                    if (isValidFabricTransactionId(fabricTxId)) {
+                        transactionId = fabricTxId;
                         const dbServices = require('../database/services');
                         await dbServices.addVehicleHistory({
                             vehicleId: vehicleId,
@@ -859,7 +864,7 @@ router.get('/:id/progress', authenticateToken, async (req, res) => {
 
         // Check Blockchain Registration
         const blockchainHistory = history.find(h =>
-            h.action === 'BLOCKCHAIN_REGISTERED' && h.transaction_id && !h.transaction_id.includes('-')
+            h.action === 'BLOCKCHAIN_REGISTERED' && isValidFabricTransactionId(h.transaction_id)
         );
         if (blockchainHistory) {
             progress.blockchainRegistration = {
@@ -2771,9 +2776,7 @@ router.put('/:vin/transfer', authenticateToken, authorizeRole(['vehicle_owner', 
 // This ensures the transaction ID from PostgreSQL actually exists on Fabric
 async function verifyBlockchainTransactionId(vehicle, userContext = null) {
     // Only verify if we have a valid transaction ID format
-    if (!vehicle.blockchain_tx_id ||
-        vehicle.blockchain_tx_id.includes('-') ||
-        vehicle.blockchain_tx_id.length < 40) {
+    if (!isValidFabricTransactionId(vehicle.blockchain_tx_id)) {
         vehicle.blockchain_tx_verified = null;
         vehicle.blockchain_tx_validation = null;
         return;
@@ -2819,10 +2822,8 @@ async function generateVehicleQRCode(vehicle) {
         let transactionId = null;
 
         // Priority 1: Check blockchain_tx_id field (if it's a real transaction ID, not UUID)
-        if (vehicle.blockchain_tx_id &&
-            !vehicle.blockchain_tx_id.includes('-') &&
-            vehicle.blockchain_tx_id.length >= 40) {
-            // Valid blockchain transaction ID (no hyphens, long enough)
+        if (isValidFabricTransactionId(vehicle.blockchain_tx_id)) {
+            // Valid Fabric transaction ID
             transactionId = vehicle.blockchain_tx_id;
         }
 
@@ -2830,19 +2831,13 @@ async function generateVehicleQRCode(vehicle) {
         if (!transactionId && vehicle.history && vehicle.history.length > 0) {
             const blockchainRegistered = vehicle.history.find(h =>
                 h.action === 'BLOCKCHAIN_REGISTERED' &&
-                h.transaction_id &&
-                !h.transaction_id.includes('-') &&
-                h.transaction_id.length >= 40
+                isValidFabricTransactionId(h.transaction_id)
             );
             if (blockchainRegistered) {
                 transactionId = blockchainRegistered.transaction_id;
             } else {
                 // Priority 3: Any history entry with valid transaction_id (non-UUID)
-                const anyTx = vehicle.history.find(h =>
-                    h.transaction_id &&
-                    !h.transaction_id.includes('-') &&
-                    h.transaction_id.length >= 40
-                );
+                const anyTx = vehicle.history.find(h => isValidFabricTransactionId(h.transaction_id));
                 if (anyTx) {
                     transactionId = anyTx.transaction_id;
                 }

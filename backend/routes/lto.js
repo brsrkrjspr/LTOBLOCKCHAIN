@@ -994,12 +994,8 @@ router.post('/approve-clearance', authenticateToken, authorizeRole(['admin', 'lt
         // PHASE 1 FIX: Validate blockchain transaction ID format
         // Fabric transaction IDs are 64-character hexadecimal strings (no hyphens)
         // UUIDs contain hyphens and are NOT blockchain transaction IDs
-        const isValidBlockchainTxId = blockchainTxId &&
-            typeof blockchainTxId === 'string' &&
-            blockchainTxId.length >= 40 &&
-            blockchainTxId.length <= 255 &&
-            !blockchainTxId.includes('-') &&
-            /^[0-9a-fA-F]+$/.test(blockchainTxId);
+        const isValidBlockchainTxId = typeof blockchainTxId === 'string' &&
+            /^[a-f0-9]{64}$/i.test(blockchainTxId);
 
         if (!isValidBlockchainTxId) {
             console.error('❌ CRITICAL: Invalid blockchain transaction ID format:', {

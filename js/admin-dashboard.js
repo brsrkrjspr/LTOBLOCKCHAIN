@@ -4436,9 +4436,14 @@ async function viewInspectionDocument(docType, applicationId) {
             if (documentToView) {
                 // Use existing DocumentModal if available
                 if (typeof DocumentModal !== 'undefined') {
-                    DocumentModal.show({
-                        name: documentToView.originalName || `${docType.toUpperCase()} Document`,
-                        url: documentToView.path
+                    DocumentModal.view({
+                        id: documentToView.id || documentToView.document_id,
+                        cid: documentToView.cid || documentToView.ipfs_cid,
+                        ipfs_cid: documentToView.ipfs_cid || documentToView.cid,
+                        url: documentToView.url || documentToView.path || documentToView.file_path,
+                        filename: documentToView.originalName || documentToView.original_name || `${docType.toUpperCase()} Document`,
+                        type: documentToView.documentType || documentToView.document_type || docType,
+                        document_type: documentToView.document_type || documentToView.documentType || docType
                     });
                 } else {
                     window.open(documentToView.path, '_blank');

@@ -223,6 +223,41 @@ const HPGDashboard = {
     }
 };
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function mapHPGDocumentForModal(doc, docTypeLabels = {}) {
+    const docId = doc?.id || doc?.document_id || null;
+    const normalizedId = docId ? String(docId) : null;
+    const docType = doc?.type || doc?.document_type || doc?.documentType || 'document';
+    const cid = doc?.cid || doc?.ipfs_cid || null;
+    const path = doc?.path || doc?.file_path || null;
+    const directUrl = typeof doc?.url === 'string' ? doc.url : null;
+
+    let url = null;
+    if (normalizedId && UUID_REGEX.test(normalizedId)) {
+        url = `/api/documents/${normalizedId}/view`;
+    } else if (cid) {
+        url = `/api/documents/ipfs/${encodeURIComponent(cid)}`;
+    } else if (directUrl) {
+        url = directUrl;
+    } else if (path) {
+        url = path;
+    }
+
+    return {
+        id: normalizedId,
+        filename: docTypeLabels[docType] || doc?.filename || doc?.original_name || 'Document',
+        type: docType,
+        document_type: docType,
+        url,
+        cid,
+        ipfs_cid: cid,
+        path,
+        file_path: path,
+        mime_type: doc?.mime_type || doc?.mimeType || 'application/octet-stream'
+    };
+}
+
 // HPG Requests Module
 const HPGRequests = {
     requests: [],
@@ -385,57 +420,46 @@ const HPGRequests = {
             alert('Request not found');
             return;
         }
-        
+
         if (request.documents && request.documents.length > 0) {
-            // Document type labels (HPG receives: hpg_clearance and owner_id)
             const docTypeLabels = {
                 'owner_id': 'Owner ID',
                 'ownerId': 'Owner ID',
                 'hpg_clearance': 'HPG Clearance',
                 'hpgClearance': 'HPG Clearance',
                 'pnp_hpg_clearance': 'HPG Clearance',
-                'registration_cert': 'OR/CR', // For transfer cases
+                'registration_cert': 'OR/CR',
                 'registrationCert': 'OR/CR',
                 'registration': 'OR/CR',
                 'or_cr': 'OR/CR'
             };
-            
-            // Prepare documents for DocumentModal
-            // #region agent log
+
             console.log('[HPG Debug] viewDocument - raw document data:', {
                 requestId,
                 docCount: request.documents.length,
-                documents: request.documents.map(d => ({ id: d.id, cid: d.cid, path: d.path, type: d.type, url: d.url }))
+                documents: request.documents.map(d => ({
+                    id: d.id || d.document_id,
+                    cid: d.cid || d.ipfs_cid,
+                    path: d.path || d.file_path,
+                    type: d.type || d.document_type,
+                    url: d.url
+                }))
             });
-            // #endregion
+
             const docs = request.documents.map(doc => {
-                // #region agent log
                 console.log('[HPG Debug] document mapping - before:', {
-                    hasId: !!doc.id,
-                    hasCid: !!doc.cid,
-                    hasPath: !!doc.path,
+                    hasId: !!(doc.id || doc.document_id),
+                    hasCid: !!(doc.cid || doc.ipfs_cid),
+                    hasPath: !!(doc.path || doc.file_path),
                     hasUrl: !!doc.url,
-                    id: doc.id,
-                    cid: doc.cid,
+                    id: doc.id || doc.document_id,
+                    cid: doc.cid || doc.ipfs_cid,
                     url: doc.url,
                     full_doc: JSON.stringify(doc)
                 });
-                // #endregion
-                // Construct the API URL for reliable backend access (works on all devices)
-                const url = `/api/documents/${doc.id}/view`;
-                
-                const mappedDoc = {
-                    id: doc.id,
-                    filename: docTypeLabels[doc.type] || doc.type || doc.filename || 'Document',
-                    type: doc.type,
-                    document_type: doc.type,
-                    url: url,  // ✅ Add this - provides universal fallback to backend API
-                    cid: doc.cid,  // Keep for IPFS-capable environments
-                    ipfs_cid: doc.cid,  // Also set as ipfs_cid for compatibility
-                    path: doc.path,
-                    mime_type: doc.mime_type || 'application/octet-stream'
-                };
-                
+
+                const mappedDoc = mapHPGDocumentForModal(doc, docTypeLabels);
+
                 console.log('[HPG Debug] document mapping - after single doc:', {
                     id: mappedDoc.id,
                     url: mappedDoc.url,
@@ -443,20 +467,17 @@ const HPGRequests = {
                     mime_type: mappedDoc.mime_type,
                     full: JSON.stringify(mappedDoc)
                 });
-                
+
                 return mappedDoc;
             });
-            // #region agent log
+
             console.log('[HPG Debug] document mapping - after:', {
                 docs: docs.map(d => ({ id: d.id, cid: d.cid, hasUrl: !!d.url }))
             });
-            // #endregion
-            
-            // Use DocumentModal if available
+
             if (typeof DocumentModal !== 'undefined') {
                 DocumentModal.viewMultiple(docs, 0);
             } else {
-                // Fallback to old modal
                 const modal = document.createElement('div');
                 modal.className = 'modal';
                 modal.style.cssText = 'display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;';
@@ -483,9 +504,13 @@ const HPGRequests = {
                 `;
                 document.body.appendChild(modal);
             }
-        } else if (request.documentCid) {
+        } else if (request.documentCid || request.document_cid) {
             if (typeof DocumentModal !== 'undefined') {
-                DocumentModal.view({ cid: request.documentCid, filename: 'Document' });
+                DocumentModal.view({
+                    cid: request.documentCid || request.document_cid,
+                    ipfs_cid: request.documentCid || request.document_cid,
+                    filename: 'Document'
+                });
             } else {
                 alert('Document viewer modal is not available. Please refresh the page.');
             }
@@ -493,7 +518,7 @@ const HPGRequests = {
             alert('No documents attached to this request');
         }
     },
-    
+
     viewDocumentFromModal: function(requestId, docIndex) {
         // Helper function to view documents from the fallback modal
         const request = this.requests.find(r => r.id === requestId);
@@ -501,7 +526,7 @@ const HPGRequests = {
             alert('No documents available');
             return;
         }
-        
+
         const docTypeLabels = {
             'owner_id': 'Owner ID',
             'ownerId': 'Owner ID',
@@ -512,19 +537,9 @@ const HPGRequests = {
             'hpg_clearance': 'HPG Clearance',
             'hpgClearance': 'HPG Clearance'
         };
-        
-        const docs = request.documents.map(doc => ({
-            id: doc.id,
-            filename: docTypeLabels[doc.type] || doc.type || doc.filename || 'Document',
-            type: doc.type,
-            document_type: doc.type,
-            url: `/api/documents/${doc.id}/view`,
-            cid: doc.cid,
-            ipfs_cid: doc.cid,
-            path: doc.path,
-            mime_type: doc.mime_type || 'application/octet-stream'
-        }));
-        
+
+        const docs = request.documents.map(doc => mapHPGDocumentForModal(doc, docTypeLabels));
+
         if (typeof DocumentModal !== 'undefined') {
             DocumentModal.viewMultiple(docs, docIndex || 0);
         } else {
@@ -1254,4 +1269,5 @@ window.filterHPGByStatus = function(status, btn) {
         HPGRequests.filterByStatus(status, btn);
     }
 };
+
 

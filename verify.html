@@ -302,8 +302,6 @@
         </div>
     </div>
 
-    <script src="/js/auth-utils.js"></script>
-    <script src="/js/api-client.js"></script>
     <script>
         (function initVerification() {
             const urlPath = window.location.pathname;
@@ -465,20 +463,21 @@
                 }
 
                 if (response.success && response.transaction) {
-                    displayTransaction(response.transaction, txId);
+                    const effectiveTxId = response.transaction.txId || txId;
+                    displayTransaction(response.transaction, effectiveTxId);
                     if (response.transaction.vehicleVin) {
-                        loadIntegrityCheck(response.transaction.vehicleVin, txId);
+                        loadIntegrityCheck(response.transaction.vehicleVin, effectiveTxId);
                     }
 
                     const urlParams = new URLSearchParams(window.location.search);
                     const viewMode = urlParams.get('view');
                     if (viewMode === 'certificate') {
                         try {
-                            const certResponse = await fetch(`/api/certificates/verify/${txId}`);
+                            const certResponse = await fetch(`/api/certificates/verify/${effectiveTxId}`);
                             if (certResponse.ok) {
                                 const certData = await certResponse.json();
                                 if (certData.success && certData.certificate?.available) {
-                                    displayCertificateDownload(certData.certificate, txId);
+                                    displayCertificateDownload(certData.certificate, effectiveTxId);
                                 }
                             }
                         } catch (certError) {

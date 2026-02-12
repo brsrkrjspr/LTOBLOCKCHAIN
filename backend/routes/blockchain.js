@@ -1172,23 +1172,90 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
             });
         }
 
-        // STRICT FABRIC: For non-UUID transaction IDs, MUST verify on Fabric
-        // Validate transaction ID format (should be 64-char hex for Fabric)
+        // STRICT FABRIC: For non-UUID transaction IDs, verify on Fabric.
+        // If identifier is not a 64-char Fabric txId, try resolving legacy IDs to VIN first.
+        let effectiveTxId = txId;
         const isValidFabricTxId = /^[a-f0-9]{64}$/i.test(txId);
         if (!isValidFabricTxId) {
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid transaction ID format',
-                message: 'Transaction ID must be a 64-character hexadecimal string (Fabric transaction ID format)',
-                providedFormat: txId.length < 50 ? 'short' : txId.includes('-') ? 'uuid' : 'unknown'
-            });
+            try {
+                // Legacy resolver path: old/short IDs might still be tied to a vehicle record.
+                const legacyLookup = await db.query(
+                    `SELECT v.vin, v.plate_number, v.status, vh.transaction_id as legacy_tx_id
+                     FROM vehicle_history vh
+                     JOIN vehicles v ON vh.vehicle_id = v.id
+                     WHERE vh.transaction_id = $1
+                     ORDER BY vh.performed_at DESC
+                     LIMIT 1`,
+                    [txId]
+                );
+
+                let vehicleForLegacy = legacyLookup.rows[0] || null;
+
+                if (!vehicleForLegacy) {
+                    const vehicleTxLookup = await db.query(
+                        `SELECT vin, plate_number, status, blockchain_tx_id as legacy_tx_id
+                         FROM vehicles
+                         WHERE blockchain_tx_id = $1
+                         ORDER BY last_updated DESC NULLS LAST
+                         LIMIT 1`,
+                        [txId]
+                    );
+                    vehicleForLegacy = vehicleTxLookup.rows[0] || null;
+                }
+
+                if (!vehicleForLegacy?.vin) {
+                    return res.status(400).json({
+                        success: false,
+                        error: 'Invalid transaction ID format',
+                        message: 'Transaction ID must be a 64-character hexadecimal string (Fabric transaction ID format)',
+                        providedFormat: txId.length < 50 ? 'short' : txId.includes('-') ? 'uuid' : 'unknown'
+                    });
+                }
+
+                // Resolve real Fabric txId from chaincode state for this VIN.
+                const blockchainResult = await fabricService.getVehicle(vehicleForLegacy.vin, req.user ? {
+                    role: req.user.role,
+                    email: req.user.email
+                } : null);
+
+                if (!blockchainResult?.success || !blockchainResult?.vehicle) {
+                    return res.status(404).json({
+                        success: false,
+                        error: 'Transaction not found on blockchain',
+                        message: `Legacy identifier ${txId} was found in database but vehicle ${vehicleForLegacy.vin} could not be loaded from Fabric.`
+                    });
+                }
+
+                const resolvedTxId = blockchainResult.vehicle.lastTxId ||
+                    blockchainResult.vehicle.transactionId ||
+                    blockchainResult.vehicle.blockchainTxId ||
+                    null;
+
+                if (!resolvedTxId || !/^[a-f0-9]{64}$/i.test(resolvedTxId)) {
+                    return res.status(404).json({
+                        success: false,
+                        error: 'Transaction resolution failed',
+                        message: `Legacy identifier ${txId} could not be resolved to a valid Fabric transaction ID.`
+                    });
+                }
+
+                effectiveTxId = resolvedTxId;
+            } catch (legacyResolveError) {
+                console.error(`❌ Legacy transaction ID resolve failed for ${txId}:`, legacyResolveError.message);
+                return res.status(400).json({
+                    success: false,
+                    error: 'Invalid transaction ID format',
+                    message: 'Transaction ID must be a 64-character hexadecimal string (Fabric transaction ID format)',
+                    providedFormat: txId.length < 50 ? 'short' : txId.includes('-') ? 'uuid' : 'unknown'
+                });
+            }
         }
 
         // STRICT FABRIC: Verify transaction exists on Fabric FIRST
         let transactionProof = null;
         try {
-            console.log(`🔍 STRICT FABRIC: Verifying transaction ${txId.substring(0, 20)}... on Fabric...`);
-            transactionProof = await fabricService.getTransactionProof(txId);
+            console.log(`🔍 STRICT FABRIC: Verifying transaction ${effectiveTxId.substring(0, 20)}... on Fabric...`);
+            transactionProof = await fabricService.getTransactionProof(effectiveTxId);
 
             if (!transactionProof) {
                 throw new Error('Transaction proof returned null');
@@ -1205,15 +1272,15 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                 });
             }
 
-            console.log(`✅ STRICT FABRIC: Transaction ${txId.substring(0, 20)}... verified on Fabric (Block ${transactionProof.block?.number})`);
+            console.log(`✅ STRICT FABRIC: Transaction ${effectiveTxId.substring(0, 20)}... verified on Fabric (Block ${transactionProof.block?.number})`);
         } catch (fabricError) {
-            console.error(`❌ STRICT FABRIC: Transaction ${txId.substring(0, 20)}... NOT FOUND on Fabric:`, fabricError.message);
+            console.error(`❌ STRICT FABRIC: Transaction ${effectiveTxId.substring(0, 20)}... NOT FOUND on Fabric:`, fabricError.message);
 
             // Even if found in database, reject if not on Fabric
             return res.status(404).json({
                 success: false,
                 error: 'Transaction not found on blockchain',
-                message: `Transaction ID ${txId} does not exist on Hyperledger Fabric ledger. This transaction may be invalid or the database record may be corrupted.`,
+                message: `Transaction ID ${effectiveTxId} does not exist on Hyperledger Fabric ledger. This transaction may be invalid or the database record may be corrupted.`,
                 fabricError: fabricError.message,
                 fabricVerified: false,
                 strictEnforcement: true
@@ -1230,7 +1297,7 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
                  WHERE vh.transaction_id = $1
                  ORDER BY vh.performed_at DESC
                  LIMIT 1`,
-                [txId]
+                [effectiveTxId]
             );
 
             if (historyResult.rows.length > 0) {
@@ -1245,7 +1312,8 @@ router.get('/transactions/:txId', optionalAuth, async (req, res) => {
         const response = {
             success: true,
             transaction: {
-                txId: txId,
+                txId: effectiveTxId,
+                providedTxId: effectiveTxId !== txId ? txId : undefined,
                 timestamp: transactionProof.timestamp || (dbTransaction ? dbTransaction.performed_at : null),
                 vehicleVin: dbTransaction?.vin || null,
                 vehiclePlate: dbTransaction?.plate_number || null,

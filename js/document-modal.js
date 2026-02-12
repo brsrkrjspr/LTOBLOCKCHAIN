@@ -1062,9 +1062,23 @@
     
     // Get authentication token
     function getAuthToken() {
-        return (typeof window !== 'undefined' && window.authManager) 
-            ? window.authManager.getAccessToken() 
-            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
+        const authManagerToken = (typeof window !== 'undefined' &&
+            window.authManager &&
+            typeof window.authManager.getAccessToken === 'function')
+            ? window.authManager.getAccessToken()
+            : null;
+
+        if (authManagerToken) {
+            return authManagerToken;
+        }
+
+        return localStorage.getItem('authToken') ||
+            localStorage.getItem('token') ||
+            localStorage.getItem('accessToken') ||
+            sessionStorage.getItem('authToken') ||
+            sessionStorage.getItem('token') ||
+            sessionStorage.getItem('accessToken') ||
+            null;
     }
     
     // Get document type label
@@ -2073,9 +2087,21 @@ window.viewDocument = function(docOrId, allDocs) {
 // Helper to view all documents for a vehicle
 window.viewVehicleDocuments = async function(vehicleId) {
     try {
-        const token = (typeof window !== 'undefined' && window.authManager) 
-            ? window.authManager.getAccessToken() 
-            : (localStorage.getItem('authToken') || localStorage.getItem('token'));
+        const token = (typeof window !== 'undefined' &&
+            window.AuthUtils &&
+            typeof window.AuthUtils.getToken === 'function')
+            ? window.AuthUtils.getToken()
+            : (localStorage.getItem('authToken') ||
+                localStorage.getItem('token') ||
+                localStorage.getItem('accessToken') ||
+                sessionStorage.getItem('authToken') ||
+                sessionStorage.getItem('token') ||
+                sessionStorage.getItem('accessToken'));
+
+        if (!token) {
+            throw new Error('Authentication required to view vehicle documents');
+        }
+
         const response = await fetch(`/api/vehicles/${vehicleId}/documents`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });

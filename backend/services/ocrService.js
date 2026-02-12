@@ -2022,9 +2022,57 @@ class OCRService {
                 }
 
                 // Engine Number
-                const enginePattern = /(?:Engine|Motor)\s*(?:Number|No\.?)?[\s:.]*([A-Z0-9\-]+)/i;
-                const engineMatches = text.match(enginePattern);
-                if (engineMatches) extracted.engineNumber = engineMatches[1].trim();
+                // Use strict patterns (must contain at least one digit) so labels like
+                // "Vehicle Type" are not captured when OCR line order is noisy.
+                let engineNumber = null;
+                const enginePatterns = [
+                    /(?:Engine|Motor)\s*(?:Number|No\.?)?\s*\|\s*([A-Z0-9-]*\d[A-Z0-9-]*)/i,
+                    /(?:Engine|Motor)\s*(?:Number|No\.?)?\s*[:=]\s*([A-Z0-9-]*\d[A-Z0-9-]*)/i,
+                    /(?:Engine|Motor)\s*(?:Number|No\.?)?\s*\n+\s*([A-Z0-9-]*\d[A-Z0-9-]*)/i,
+                    /(?:Engine|Motor)\s*(?:Number|No\.?)?[\s:.-]*([A-Z0-9-]*\d[A-Z0-9-]*)/i
+                ];
+
+                for (const pattern of enginePatterns) {
+                    const match = text.match(pattern);
+                    if (!match || !match[1]) continue;
+
+                    const candidate = match[1].trim();
+                    if (candidate.length >= 5 && /\d/.test(candidate) && /[A-Z]/i.test(candidate) && !/^(vehicle|type|number|no)$/i.test(candidate)) {
+                        engineNumber = candidate;
+                        break;
+                    }
+                }
+
+                // Line-by-line fallback for table layouts where value appears on next line.
+                if (!engineNumber) {
+                    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+                    for (let i = 0; i < lines.length; i++) {
+                        if (!/(?:Engine|Motor)\s*(?:Number|No\.?)?/i.test(lines[i])) continue;
+
+                        const inlineMatch = lines[i].match(/(?:Engine|Motor)\s*(?:Number|No\.?)?\s*[|:=-]?\s*([A-Z0-9-]*\d[A-Z0-9-]*)/i);
+                        if (inlineMatch && inlineMatch[1]) {
+                            const candidate = inlineMatch[1].trim();
+                            if (/\d/.test(candidate) && /[A-Z]/i.test(candidate)) {
+                                engineNumber = candidate;
+                                break;
+                            }
+                        }
+
+                        for (let lookahead = 1; lookahead <= 3 && i + lookahead < lines.length; lookahead++) {
+                            const nextLineMatch = lines[i + lookahead].match(/\b([A-Z0-9-]*\d[A-Z0-9-]*)\b/i);
+                            if (nextLineMatch && nextLineMatch[1]) {
+                                const candidate = nextLineMatch[1].trim();
+                                if (candidate.length >= 5 && /\d/.test(candidate) && /[A-Z]/i.test(candidate)) {
+                                    engineNumber = candidate;
+                                    break;
+                                }
+                            }
+                        }
+                        if (engineNumber) break;
+                    }
+                }
+
+                if (engineNumber) extracted.engineNumber = engineNumber;
 
                 // Chassis Number
                 const chassisPattern = /(?:Chassis|Frame)\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;

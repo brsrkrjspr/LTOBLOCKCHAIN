@@ -1389,10 +1389,6 @@ async function forwardTransferToHPG({ request, requestedBy, purpose, notes, auto
 
                 // Prepare documents array for auto-verification (HPG expects array)
                 const documentsForVerification = [hpgClearanceDoc];
-                if (orCrDoc && orCrDoc.document_id) {
-                    const orCrDocRecord = await db.getDocumentById(orCrDoc.document_id);
-                    if (orCrDocRecord) documentsForVerification.push(orCrDocRecord);
-                }
 
                 autoVerificationResult = await autoVerificationService.autoVerifyHPG(
                     request.vehicle_id,

@@ -633,10 +633,10 @@ class AutoVerificationService {
                 console.warn('[Auto-Verify] HPG document file not available locally. Skipping OCR and relying on hash-only authenticity.');
             }
 
-            // REMOVED CIRCULAR FALLBACKS: Only use OCR data to prevent false positives
-            // If OCR fails, we want lower confidence, not a fake match with the target vehicle
-            const engineNumber = ocrData.engineNumber || null;
-            const chassisNumber = ocrData.chassisNumber || ocrData.vin || null;
+            // OCR-first values; these may be backfilled from trusted sources
+            // (certificate data / vehicle metadata) after authenticity passes.
+            let engineNumber = ocrData.engineNumber || null;
+            let chassisNumber = ocrData.chassisNumber || ocrData.vin || null;
 
             // Calculate / obtain file hash
             console.log('🔐 [Auto-Verify HPG] Preparing file hash for authenticity check...');
@@ -714,6 +714,38 @@ class AutoVerificationService {
                 originalVehicleVin: authenticityCheck.originalVehicleVin
             }, null, 2));
             console.log('🔍 [Auto-Verify HPG] ==========================================');
+
+            // Trusted certificate fields (if authenticity is confirmed).
+            // Used to avoid OCR-only penalties for system-issued, untampered documents.
+            let trustedCertificateData = null;
+            let originalEngine = null;
+            let originalChassis = null;
+            if (authenticityCheck.authentic && authenticityCheck.certificateData) {
+                try {
+                    trustedCertificateData = typeof authenticityCheck.certificateData === 'string'
+                        ? JSON.parse(authenticityCheck.certificateData)
+                        : authenticityCheck.certificateData;
+
+                    originalEngine = trustedCertificateData.engineNumber || trustedCertificateData.engine_number || null;
+                    originalChassis =
+                        trustedCertificateData.chassisNumber ||
+                        trustedCertificateData.chassis_number ||
+                        trustedCertificateData.vin ||
+                        trustedCertificateData.vehicleVin ||
+                        null;
+                } catch (parseError) {
+                    console.warn('[Auto-Verify] Error parsing trusted certificate data for fallback:', parseError.message);
+                }
+            }
+
+            if (authenticityCheck.authentic) {
+                if (!engineNumber && originalEngine) engineNumber = originalEngine;
+                if (!chassisNumber && originalChassis) chassisNumber = originalChassis;
+                if (!engineNumber && vehicle.engine_number) engineNumber = vehicle.engine_number;
+                if (!chassisNumber && (vehicle.chassis_number || vehicle.vin)) {
+                    chassisNumber = vehicle.chassis_number || vehicle.vin;
+                }
+            }
 
             // Get original certificate for composite hash generation
             const originalCert = await certificateBlockchain.getOriginalCertificate(
@@ -801,19 +833,11 @@ class AutoVerificationService {
                 scoreBreakdown.hashUniqueness = 20;
             }
 
-            // Document completeness (15 points) - Reduced from 20
+            // Document completeness (15 points)
+            // Confidence in this module is certificate-legitimacy focused.
+            // Do not penalize based on owner/seller/buyer ID presence here.
             const hasHPGClearance = !!clearanceDoc;
-            const hasOwnerID = documents.some(d =>
-                d.document_type === 'owner_id' ||
-                d.document_type === 'ownerId' ||
-                d.type === 'owner_id' ||
-                d.type === 'ownerId'
-            );
-            if (hasHPGClearance && hasOwnerID) {
-                scoreBreakdown.documentCompleteness = 15;
-            } else if (hasHPGClearance) {
-                scoreBreakdown.documentCompleteness = 8;
-            }
+            if (hasHPGClearance) scoreBreakdown.documentCompleteness = 15;
 
             // Data match with vehicle record AND original certificate (5 points)
             // Compare extracted data with:
@@ -824,50 +848,42 @@ class AutoVerificationService {
             let engineMatchOriginal = false;
             let chassisMatchOriginal = false;
 
+            const normalizeIdValue = (value) => value
+                ? String(value).toUpperCase().replace(/[^A-Z0-9]/g, '').trim()
+                : '';
+            const idsMatch = (a, b) => {
+                const na = normalizeIdValue(a);
+                const nb = normalizeIdValue(b);
+                return !!na && !!nb && na === nb;
+            };
+
             // Match 1: Compare with vehicle record
-            engineMatch = engineNumber && vehicle.engine_number &&
-                engineNumber.toUpperCase().trim() === vehicle.engine_number.toUpperCase().trim();
-            chassisMatch = chassisNumber && vehicle.chassis_number &&
-                chassisNumber.toUpperCase().trim() === vehicle.chassis_number.toUpperCase().trim();
+            engineMatch = idsMatch(engineNumber, vehicle.engine_number);
+            chassisMatch = idsMatch(chassisNumber, vehicle.chassis_number);
 
-            // Match 2: Compare with original certificate's stored data (if certificate is authentic)
-            if (authenticityCheck.authentic && authenticityCheck.certificateData) {
-                try {
-                    const certData = typeof authenticityCheck.certificateData === 'string'
-                        ? JSON.parse(authenticityCheck.certificateData)
-                        : authenticityCheck.certificateData;
+            // Match 2: Compare with original certificate data (if available)
+            const hasOriginalEngine = !!originalEngine;
+            const hasOriginalChassis = !!originalChassis;
+            engineMatchOriginal = hasOriginalEngine ? idsMatch(engineNumber, originalEngine) : false;
+            chassisMatchOriginal = hasOriginalChassis ? idsMatch(chassisNumber, originalChassis) : false;
 
-                    // HPG certificates may store engine/chassis in certificate_data
-                    const originalEngine = certData.engineNumber || certData.engine_number;
-                    const originalChassis = certData.chassisNumber || certData.chassis_number;
-
-                    if (originalEngine && engineNumber) {
-                        engineMatchOriginal = engineNumber.toUpperCase().trim() === originalEngine.toUpperCase().trim();
-                    }
-                    if (originalChassis && chassisNumber) {
-                        chassisMatchOriginal = chassisNumber.toUpperCase().trim() === originalChassis.toUpperCase().trim();
-                    }
-                } catch (parseError) {
-                    console.warn('[Auto-Verify] Error parsing certificate_data:', parseError);
+            const vehicleScore = engineMatch && chassisMatch ? 5 : (engineMatch || chassisMatch ? 2 : 0);
+            let originalScore = 0;
+            if (authenticityCheck.authentic) {
+                // If a field is missing in original cert metadata, use vehicle-match fallback
+                // to prevent legacy metadata gaps from capping confidence.
+                const effectiveEngineMatch = hasOriginalEngine ? engineMatchOriginal : engineMatch;
+                const effectiveChassisMatch = hasOriginalChassis ? chassisMatchOriginal : chassisMatch;
+                if (effectiveEngineMatch && effectiveChassisMatch) {
+                    originalScore = 5;
+                } else if (effectiveEngineMatch || effectiveChassisMatch) {
+                    originalScore = 3;
                 }
             }
 
-            // Score based on matches (prioritize original certificate match if available)
-            if (authenticityCheck.authentic && (engineMatchOriginal || chassisMatchOriginal)) {
-                // Certificate is authentic - compare with original certificate data
-                if (engineMatchOriginal && chassisMatchOriginal) {
-                    scoreBreakdown.dataMatch = 5; // Perfect match with original certificate
-                } else if (engineMatchOriginal || chassisMatchOriginal) {
-                    scoreBreakdown.dataMatch = 3; // Partial match with original certificate
-                }
-            } else {
-                // Compare with vehicle record (fallback or when original cert data not available)
-                if (engineMatch && chassisMatch) {
-                    scoreBreakdown.dataMatch = 5;
-                } else if (engineMatch || chassisMatch) {
-                    scoreBreakdown.dataMatch = 2;
-                }
-            }
+            scoreBreakdown.dataMatch = authenticityCheck.authentic
+                ? Math.max(originalScore, vehicleScore)
+                : vehicleScore;
 
             // Log data comparison results
             console.log(`[Auto-Verify] Data match results:`, {
@@ -875,6 +891,8 @@ class AutoVerificationService {
                 chassisMatchVehicle: chassisMatch,
                 engineMatchOriginal: engineMatchOriginal,
                 chassisMatchOriginal: chassisMatchOriginal,
+                hasOriginalEngine,
+                hasOriginalChassis,
                 authenticityCheck: authenticityCheck.authentic
             });
 

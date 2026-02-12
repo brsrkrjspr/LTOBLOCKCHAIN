@@ -2074,10 +2074,53 @@ class OCRService {
 
                 if (engineNumber) extracted.engineNumber = engineNumber;
 
-                // Chassis Number
-                const chassisPattern = /(?:Chassis|Frame)\s*No\.?[\s:.]*([A-HJ-NPR-Z0-9]{10,17})/i;
-                const chassisMatches = text.match(chassisPattern);
-                if (chassisMatches) extracted.chassisNumber = chassisMatches[1].trim();
+                // Chassis / VIN
+                // Handle table/colon/newline formats from HPG certificates:
+                // "Chassis / VIN | XXXXX", "Chassis / VIN: XXXXX", or label+next-line value.
+                let chassisNumber = null;
+                const chassisPatterns = [
+                    /Chassis\s*\/\s*VIN\s*\|\s*([A-HJ-NPR-Z0-9]{10,17})/i,
+                    /Chassis\s*\/\s*VIN\s*[:=]\s*([A-HJ-NPR-Z0-9]{10,17})/i,
+                    /Chassis\s*\/\s*VIN\s*\n+\s*([A-HJ-NPR-Z0-9]{10,17})/i,
+                    /(?:Chassis|Frame)\s*(?:No\.?|Number)?\s*[:=]?\s*([A-HJ-NPR-Z0-9]{10,17})/i,
+                    /(?:VIN)\s*(?:No\.?|Number)?\s*[:=]?\s*([A-HJ-NPR-Z0-9]{10,17})/i
+                ];
+
+                for (const pattern of chassisPatterns) {
+                    const match = text.match(pattern);
+                    if (match && match[1]) {
+                        chassisNumber = match[1].trim();
+                        break;
+                    }
+                }
+
+                // Line-by-line fallback (look ahead up to 3 lines after the label).
+                if (!chassisNumber) {
+                    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+                    for (let i = 0; i < lines.length; i++) {
+                        if (!/(?:Chassis|VIN|Frame)/i.test(lines[i])) continue;
+
+                        const inlineMatch = lines[i].match(/(?:Chassis|VIN|Frame)\s*(?:\/\s*(?:VIN|Chassis))?\s*[|:=-]?\s*([A-HJ-NPR-Z0-9]{10,17})/i);
+                        if (inlineMatch && inlineMatch[1]) {
+                            chassisNumber = inlineMatch[1].trim();
+                            break;
+                        }
+
+                        for (let lookahead = 1; lookahead <= 3 && i + lookahead < lines.length; lookahead++) {
+                            const nextLineMatch = lines[i + lookahead].match(/\b([A-HJ-NPR-Z0-9]{10,17})\b/i);
+                            if (nextLineMatch && nextLineMatch[1]) {
+                                chassisNumber = nextLineMatch[1].trim();
+                                break;
+                            }
+                        }
+                        if (chassisNumber) break;
+                    }
+                }
+
+                if (chassisNumber) {
+                    extracted.chassisNumber = chassisNumber;
+                    if (!extracted.vin) extracted.vin = chassisNumber;
+                }
 
 
                 // MV File Number

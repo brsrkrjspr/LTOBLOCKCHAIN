@@ -682,11 +682,6 @@ function renderVehicleInfo(request) {
     const vehicleTypeEl = document.querySelector('[data-field="vehicle-type"]');
     const makeModelEl = document.querySelector('[data-field="make-model"]');
     const yearModelEl = document.querySelector('[data-field="year-model"]');
-    const orNumberEl = document.querySelector('[data-field="or-number"]');
-    const crNumberEl = document.querySelector('[data-field="cr-number"]');
-    const orCrNumberEl = document.querySelector('[data-field="or-cr-number"]'); // Backward compatibility
-    const orDocEl = document.querySelector('[data-field="or-doc"]');
-    const crDocEl = document.querySelector('[data-field="cr-doc"]');
 
     if (plateNumberEl) plateNumberEl.textContent = vehicle.plate_number || vehicle.plateNumber || 'N/A';
     if (engineNumberEl) engineNumberEl.textContent = vehicle.engine_number || vehicle.engineNumber || 'N/A';
@@ -694,81 +689,6 @@ function renderVehicleInfo(request) {
     if (vehicleTypeEl) vehicleTypeEl.textContent = vehicle.vehicle_type || vehicle.vehicleType || 'N/A';
     if (makeModelEl) makeModelEl.textContent = `${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'N/A';
     if (yearModelEl) yearModelEl.textContent = vehicle.year || 'N/A';
-
-    // Display OR/CR Number if available
-    // Display separate OR and CR numbers (new format)
-    const orNumber = vehicle.or_number || vehicle.orNumber;
-    const crNumber = vehicle.cr_number || vehicle.crNumber;
-    // Backward compatibility
-    const orCrNumber = vehicle.or_cr_number || vehicle.orCrNumber;
-
-    if (orNumberEl) {
-        if (orNumber) {
-            orNumberEl.innerHTML = `<strong style="color: #667eea; font-size: 1.1em;">OR: ${orNumber}</strong>`;
-        } else if (orCrNumber) {
-            orNumberEl.innerHTML = `<strong style="color: #667eea; font-size: 1.1em;">OR: ${orCrNumber.replace('ORCR-', 'OR-')}</strong>`;
-        } else {
-            orNumberEl.textContent = 'Not yet assigned';
-        }
-    }
-
-    if (crNumberEl) {
-        if (crNumber) {
-            crNumberEl.innerHTML = `<strong style="color: #27ae60; font-size: 1.1em;">CR: ${crNumber}</strong>`;
-        } else if (orCrNumber) {
-            crNumberEl.innerHTML = `<strong style="color: #27ae60; font-size: 1.1em;">CR: ${orCrNumber.replace('ORCR-', 'CR-')}</strong>`;
-        } else {
-            crNumberEl.textContent = 'Not yet assigned';
-        }
-    }
-
-    // Backward compatibility - update old field if it exists
-    if (orCrNumberEl) {
-        if (orNumber && crNumber) {
-            orCrNumberEl.innerHTML = `<strong style="color: #27ae60; font-size: 1.1em;">OR: ${orNumber} | CR: ${crNumber}</strong>`;
-        } else if (orCrNumber) {
-            orCrNumberEl.innerHTML = `<strong style="color: #27ae60; font-size: 1.1em;">${orCrNumber}</strong>`;
-        } else {
-            orCrNumberEl.textContent = 'Not yet assigned';
-        }
-    }
-
-    // Find OR/CR documents (real document_id, not transfer_documents.id)
-    const orDoc = (request.documents || []).find(doc =>
-        doc.document_type === 'OR' || doc.type === 'or' || doc.document_type === 'OR_CR' || doc.type === 'orCr' || doc.document_type === 'or_cr'
-    );
-    const crDoc = (request.documents || []).find(doc =>
-        doc.document_type === 'CR' || doc.type === 'cr' || doc.document_type === 'OR_CR' || doc.type === 'orCr' || doc.document_type === 'or_cr'
-    );
-
-    const orDocId = orDoc ? (orDoc.document_id || orDoc.id) : null;
-    const crDocId = crDoc ? (crDoc.document_id || crDoc.id) : null;
-
-    if (orDocEl && orDocId) {
-        orDocEl.innerHTML = `
-            <button class="btn-secondary btn-sm" onclick="viewDocument('${orDocId}')">
-                <i class="fas fa-eye"></i> View
-            </button>
-            <button class="btn-secondary btn-sm" onclick="downloadDocument('${orDocId}')">
-                <i class="fas fa-download"></i> Download
-            </button>
-        `;
-    } else if (orDocEl) {
-        orDocEl.innerHTML = '<span style="color: #7f8c8d;">No document uploaded</span>';
-    }
-
-    if (crDocEl && crDocId) {
-        crDocEl.innerHTML = `
-            <button class="btn-secondary btn-sm" onclick="viewDocument('${crDocId}')">
-                <i class="fas fa-eye"></i> View
-            </button>
-            <button class="btn-secondary btn-sm" onclick="downloadDocument('${crDocId}')">
-                <i class="fas fa-download"></i> Download
-            </button>
-        `;
-    } else if (crDocEl) {
-        crDocEl.innerHTML = '<span style="color: #7f8c8d;">No document uploaded</span>';
-    }
 }
 
 function renderDocuments(documentCategories) {

@@ -24,6 +24,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
 
     let newVehicle;
     let existingResubmitVehicle = null;
+    let reuseExistingByVin = false;
 
     // Normalize VIN to uppercase before transaction (VINs are standardized as uppercase)
     const normalizedVin = vehicle.vin ? vehicle.vin.toUpperCase().trim() : vehicle.vin;
@@ -63,6 +64,7 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
             } else {
                 existingResubmitVehicle = existingVehicle;
                 console.log(`⚠️ VIN ${normalizedVin} exists with status ${existingVehicle.status} - resubmitting (UPDATE)`);
+                reuseExistingByVin = true;
             }
         }
 
@@ -104,33 +106,71 @@ async function createVehicleWithDocumentsTransaction({ vehicle, ownerUser, regis
             }
         }
 
-        // 3. ALWAYS CREATE new vehicle record (even for resubmissions)
-        // This preserves rejected applications as separate records for audit trail
-        // If resubmitting, set previous_application_id to link to rejected predecessor
-        const vehicleValues = [
-            normalizedVin,
-            vehicle.plateNumber ? vehicle.plateNumber.trim() : null,
-            vehicle.make, vehicle.model, vehicle.year, vehicle.color,
-            vehicle.engineNumber, vehicle.chassisNumber,
-            vehicle.vehicleType || 'Car', vehicle.vehicleCategory,
-            parseInt(vehicle.passengerCapacity), parseFloat(vehicle.grossVehicleWeight), parseFloat(vehicle.netWeight),
-            vehicle.classification || 'Private', ownerUser.id, 'SUBMITTED', registrationData.notes, 'NEW_REG',
-            existingResubmitVehicle ? existingResubmitVehicle.id : null  // previous_application_id
-        ];
+        if (reuseExistingByVin && existingResubmitVehicle) {
+            const updateValues = [
+                vehicle.plateNumber ? vehicle.plateNumber.trim() : null,
+                vehicle.make, vehicle.model, vehicle.year, vehicle.color,
+                vehicle.engineNumber, vehicle.chassisNumber,
+                vehicle.vehicleType || 'Car', vehicle.vehicleCategory,
+                parseInt(vehicle.passengerCapacity), parseFloat(vehicle.grossVehicleWeight), parseFloat(vehicle.netWeight),
+                vehicle.classification || 'Private', ownerUser.id, 'SUBMITTED', registrationData.notes, 'NEW_REG',
+                existingResubmitVehicle.id
+            ];
 
-        const vehicleResult = await client.query(
-            `INSERT INTO vehicles (
-                vin, plate_number, make, model, year, color, engine_number, chassis_number,
-                vehicle_type, vehicle_category, passenger_capacity, gross_vehicle_weight, net_weight,
-                registration_type, owner_id, status, notes, origin_type, previous_application_id
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
-            RETURNING *`,
-            vehicleValues
-        );
-        newVehicle = vehicleResult.rows[0];
+            const vehicleResult = await client.query(
+                `UPDATE vehicles
+                 SET plate_number = $1,
+                     make = $2,
+                     model = $3,
+                     year = $4,
+                     color = $5,
+                     engine_number = $6,
+                     chassis_number = $7,
+                     vehicle_type = $8,
+                     vehicle_category = $9,
+                     passenger_capacity = $10,
+                     gross_vehicle_weight = $11,
+                     net_weight = $12,
+                     registration_type = $13,
+                     owner_id = $14,
+                     status = $15,
+                     notes = $16,
+                     origin_type = $17
+                 WHERE id = $18
+                 RETURNING *`,
+                updateValues
+            );
+            newVehicle = vehicleResult.rows[0];
+            console.log(`✅ Updated existing vehicle ${newVehicle.id} for resubmission (VIN match)`);
+        } else {
+            // 3. ALWAYS CREATE new vehicle record (even for resubmissions)
+            // This preserves rejected applications as separate records for audit trail
+            // If resubmitting, set previous_application_id to link to rejected predecessor
+            const vehicleValues = [
+                normalizedVin,
+                vehicle.plateNumber ? vehicle.plateNumber.trim() : null,
+                vehicle.make, vehicle.model, vehicle.year, vehicle.color,
+                vehicle.engineNumber, vehicle.chassisNumber,
+                vehicle.vehicleType || 'Car', vehicle.vehicleCategory,
+                parseInt(vehicle.passengerCapacity), parseFloat(vehicle.grossVehicleWeight), parseFloat(vehicle.netWeight),
+                vehicle.classification || 'Private', ownerUser.id, 'SUBMITTED', registrationData.notes, 'NEW_REG',
+                existingResubmitVehicle ? existingResubmitVehicle.id : null  // previous_application_id
+            ];
 
-        if (existingResubmitVehicle) {
-            console.log(`✅ Created new vehicle record ${newVehicle.id} as resubmission of rejected ${existingResubmitVehicle.id}`);
+            const vehicleResult = await client.query(
+                `INSERT INTO vehicles (
+                    vin, plate_number, make, model, year, color, engine_number, chassis_number,
+                    vehicle_type, vehicle_category, passenger_capacity, gross_vehicle_weight, net_weight,
+                    registration_type, owner_id, status, notes, origin_type, previous_application_id
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                RETURNING *`,
+                vehicleValues
+            );
+            newVehicle = vehicleResult.rows[0];
+
+            if (existingResubmitVehicle) {
+                console.log(`✅ Created new vehicle record ${newVehicle.id} as resubmission of rejected ${existingResubmitVehicle.id}`);
+            }
         }
 
         if (!newVehicle || !newVehicle.id) {

@@ -274,6 +274,44 @@
             grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 1rem;
         }
+
+        /* Keep document card actions from overflowing at intermediate widths */
+        .documents-grid .document-card {
+            min-width: 0;
+        }
+
+        .documents-grid .document-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            width: 100%;
+            min-width: 0;
+        }
+
+        .documents-grid .document-actions .btn-secondary,
+        .documents-grid .document-actions .btn-primary {
+            flex: 1 1 140px;
+            min-width: 0;
+            max-width: 100%;
+            white-space: normal;
+            word-break: break-word;
+            text-align: center;
+            line-height: 1.25;
+        }
+
+        .info-grid-2col .document-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            min-width: 0;
+        }
+
+        .info-grid-2col .document-actions .btn-sm {
+            flex: 1 1 120px;
+            min-width: 0;
+            white-space: normal;
+            text-align: center;
+        }
         
         .action-panel {
             position: sticky;
@@ -297,6 +335,7 @@
         .action-panel .btn-block {
             width: 100%;
             min-height: 46px;
+            height: auto;
             border-radius: 999px;
             font-size: 0.95rem;
             font-weight: 600;
@@ -304,6 +343,12 @@
             align-items: center;
             justify-content: center;
             gap: 0.5rem;
+            text-align: center;
+            white-space: normal;
+            word-break: break-word;
+            line-height: 1.25;
+            padding: 0.75rem 1rem;
+            max-width: 100%;
         }
 
         /* Modern gradients for Admin Actions buttons (scoped so other pages are unaffected) */
@@ -382,6 +427,13 @@
         .page-header h2 {
             margin: 0 0 0.25rem 0;
         }
+
+        .modal-footer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
         
         .status-badge-large {
             padding: 0.4rem 0.9rem;
@@ -413,6 +465,40 @@
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 0.75rem;
+            }
+
+            .action-panel .action-buttons {
+                display: flex;
+                flex-direction: column;
+                gap: 0.65rem;
+            }
+
+            .action-panel .action-buttons button,
+            .action-panel .btn-block {
+                width: 100% !important;
+                flex: 1 1 100% !important;
+                max-width: 100%;
+            }
+
+            .documents-grid .document-actions .btn-secondary,
+            .documents-grid .document-actions .btn-primary {
+                flex: 1 1 100%;
+            }
+
+            .info-grid-2col .document-actions .btn-sm {
+                flex: 1 1 100%;
+            }
+
+            .modal-footer button {
+                flex: 1 1 100%;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .action-panel .btn-block {
+                font-size: 0.86rem;
+                padding: 0.68rem 0.8rem;
             }
         }
     </style>

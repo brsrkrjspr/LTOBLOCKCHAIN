@@ -4,6 +4,10 @@
 const db = require('../database/db');
 const { VEHICLE_STATUS } = require('../config/statusConstants');
 
+function isValidFabricTxId(txId) {
+    return typeof txId === 'string' && /^[a-f0-9]{64}$/i.test(txId);
+}
+
 async function checkAndFixTransferredVehicleTxIds() {
     try {
         console.log('🔍 Checking transferred vehicles for blockchain transaction IDs...\n');
@@ -82,6 +86,12 @@ async function checkAndFixTransferredVehicleTxIds() {
             
             let foundTxId = vehicle.blockchain_tx_id;
             let source = 'vehicles table';
+
+            // Ignore legacy/non-Fabric IDs stored in vehicles table
+            if (foundTxId && !isValidFabricTxId(foundTxId)) {
+                foundTxId = null;
+                source = null;
+            }
             
             // If not in vehicles table, check vehicle_history
             if (!foundTxId) {
@@ -110,6 +120,10 @@ async function checkAndFixTransferredVehicleTxIds() {
                             // Metadata parse error - ignore
                         }
                     }
+
+                    if (foundTxId && !isValidFabricTxId(foundTxId)) {
+                        foundTxId = null;
+                    }
                     
                     if (foundTxId) {
                         source = 'vehicle_history';
@@ -137,6 +151,9 @@ async function checkAndFixTransferredVehicleTxIds() {
                                 ? JSON.parse(transfer.metadata) 
                                 : transfer.metadata;
                             foundTxId = metadata.blockchainTxId || metadata.blockchain_tx_id;
+                            if (foundTxId && !isValidFabricTxId(foundTxId)) {
+                                foundTxId = null;
+                            }
                             if (foundTxId) {
                                 source = 'transfer_requests metadata';
                             }
@@ -148,6 +165,23 @@ async function checkAndFixTransferredVehicleTxIds() {
             }
             
             if (foundTxId) {
+                const isValid = isValidFabricTxId(foundTxId);
+                if (!isValid) {
+                    console.log(`   Skipping non-Fabric TX ID: ${foundTxId} (from ${source})`);
+                    results.push({
+                        vehicleId: vehicle.id,
+                        vin: vehicle.vin,
+                        plateNumber: vehicle.plate_number,
+                        blockchainTxId: foundTxId,
+                        source: source,
+                        wasMissing: !vehicle.blockchain_tx_id,
+                        fixed: false,
+                        skipped: true,
+                        reason: 'invalid_format'
+                    });
+                    continue;
+                }
+
                 console.log(`   ✅ Found TX ID: ${foundTxId} (from ${source})`);
                 
                 // Update vehicles table if missing

@@ -4,6 +4,10 @@
 const db = require('../database/db');
 const path = require('path');
 
+function isValidFabricTxId(txId) {
+    return typeof txId === 'string' && /^[a-f0-9]{64}$/i.test(txId);
+}
+
 async function diagnoseTransferredVehicle() {
     try {
         console.log('🔍 Diagnosing transferred vehicle QR code issue...\n');
@@ -68,11 +72,11 @@ async function diagnoseTransferredVehicle() {
                 const txId = vehicle.blockchain_tx_id;
                 const hasHyphens = txId.includes('-');
                 const length = txId.length;
-                const isValidFormat = !hasHyphens && length >= 40;
+                const isValidFormat = isValidFabricTxId(txId);
                 
                 console.log(`   Format check:`);
                 console.log(`     - Has hyphens: ${hasHyphens} ${hasHyphens ? '❌ (Invalid - looks like UUID)' : '✅'}`);
-                console.log(`     - Length: ${length} ${length >= 40 ? '✅' : '❌ (Too short)'}`);
+                console.log(`     - Length: ${length} ${length === 64 ? '✅' : '❌ (Must be 64)'}`);
                 console.log(`     - Valid for QR: ${isValidFormat ? '✅' : '❌'}`);
                 
                 if (!isValidFormat) {
@@ -101,7 +105,7 @@ async function diagnoseTransferredVehicle() {
                     // Check format
                     const hasHyphens = txId.includes('-');
                     const length = txId.length;
-                    const isValidFormat = !hasHyphens && length >= 40;
+                    const isValidFormat = isValidFabricTxId(txId);
                     
                     if (isValidFormat) {
                         console.log(`   ✅ Format is valid - can be used for QR code`);
@@ -154,7 +158,7 @@ async function diagnoseTransferredVehicle() {
         const validTxId = transferredVehicles.rows.filter(v => {
             if (!v.blockchain_tx_id) return false;
             const txId = v.blockchain_tx_id;
-            return !txId.includes('-') && txId.length >= 40;
+            return isValidFabricTxId(txId);
         }).length;
         
         console.log(`   Vehicles with blockchain_tx_id: ${withTxId}`);

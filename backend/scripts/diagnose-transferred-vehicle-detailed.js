@@ -4,6 +4,10 @@
 const db = require('../database/db');
 const path = require('path');
 
+function isValidFabricTxId(txId) {
+    return typeof txId === 'string' && /^[a-f0-9]{64}$/i.test(txId);
+}
+
 async function diagnoseTransferredVehicleDetailed() {
     try {
         console.log('🔍 Detailed diagnosis of transferred vehicle QR code issue...\n');
@@ -63,7 +67,7 @@ async function diagnoseTransferredVehicleDetailed() {
                 
                 if (h.transaction_id) {
                     const txId = h.transaction_id;
-                    const isValid = !txId.includes('-') && txId.length >= 40;
+                    const isValid = isValidFabricTxId(txId);
                     console.log(`     Format: ${isValid ? '✅ Valid' : '❌ Invalid'} (length: ${txId.length}, has hyphens: ${txId.includes('-')})`);
                     
                     if (isValid && !v.blockchain_tx_id) {
@@ -113,7 +117,7 @@ async function diagnoseTransferredVehicleDetailed() {
                     if (meta.blockchainTxId || meta.blockchain_tx_id) {
                         const txId = meta.blockchainTxId || meta.blockchain_tx_id;
                         console.log(`     ✅ Found blockchainTxId in metadata: ${txId}`);
-                        const isValid = !txId.includes('-') && txId.length >= 40;
+                        const isValid = isValidFabricTxId(txId);
                         console.log(`     Format: ${isValid ? '✅ Valid' : '❌ Invalid'}`);
                         
                         if (isValid && !v.blockchain_tx_id) {
@@ -144,7 +148,7 @@ async function diagnoseTransferredVehicleDetailed() {
         // Summary and recommendations
         console.log(`\n\n📊 Summary & Recommendations:`);
         
-        const hasHistoryTxId = history.rows.some(h => h.transaction_id && !h.transaction_id.includes('-') && h.transaction_id.length >= 40);
+        const hasHistoryTxId = history.rows.some(h => isValidFabricTxId(h.transaction_id));
         const hasTransferTxId = transferRequest.rows.length > 0 && transferRequest.rows[0].metadata && 
             (() => {
                 try {
@@ -152,13 +156,13 @@ async function diagnoseTransferredVehicleDetailed() {
                         ? JSON.parse(transferRequest.rows[0].metadata) 
                         : transferRequest.rows[0].metadata;
                     const txId = meta.blockchainTxId || meta.blockchain_tx_id;
-                    return txId && !txId.includes('-') && txId.length >= 40;
+                    return isValidFabricTxId(txId);
                 } catch { return false; }
             })();
         
         if (v.blockchain_tx_id) {
             console.log(`   ✅ Vehicle has blockchain_tx_id: ${v.blockchain_tx_id}`);
-            const isValid = !v.blockchain_tx_id.includes('-') && v.blockchain_tx_id.length >= 40;
+            const isValid = isValidFabricTxId(v.blockchain_tx_id);
             if (isValid) {
                 console.log(`   ✅ Format is valid - QR code should work`);
             } else {

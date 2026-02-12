@@ -769,27 +769,6 @@ function renderDocuments(documentCategories) {
     // Render categorized documents
     let html = '';
 
-    // OR/CR Certificate Buttons (system-generated, not uploaded)
-    if (currentTransferRequest?.vehicle?.id || currentTransferRequest?.vehicle_id) {
-        const vehicleId = currentTransferRequest?.vehicle?.id || currentTransferRequest?.vehicle_id;
-        html += `
-            <div class="document-category-section" style="grid-column: 1 / -1; margin-bottom: 1.5rem;">
-                <h4 style="color: #6366f1; font-size: 1rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                    <i class="fas fa-certificate" style="color: #818cf8;"></i>
-                    Official Certificates (System Generated)
-                </h4>
-                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
-                    <button class="btn-secondary" onclick="viewGeneratedCertificate('${vehicleId}', 'or')" style="display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="fas fa-file-alt"></i> View OR (Official Receipt)
-                    </button>
-                    <button class="btn-secondary" onclick="viewGeneratedCertificate('${vehicleId}', 'cr')" style="display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="fas fa-file-alt"></i> View CR (Certificate of Registration)
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-
     // Vehicle Original Documents Section (historical docs from previous registration/transfer)
     if (normalizedVehicleDocuments.length > 0) {
         html += `

@@ -33,9 +33,9 @@ function initializeMyOwnership() {
     // Logout
     const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
     if (sidebarLogoutBtn) {
-        sidebarLogoutBtn.addEventListener('click', function (e) {
+        sidebarLogoutBtn.addEventListener('click', async function (e) {
             e.preventDefault();
-            if (confirm('Are you sure you want to logout?')) {
+            if (await (typeof window.showSweetConfirm === 'function' ? window.showSweetConfirm({ title: 'Logout?', text: 'Are you sure you want to logout?', confirmText: 'Yes, logout', cancelText: 'Stay logged in', icon: 'warning' }) : Promise.resolve(confirm('Are you sure you want to logout?')))) {
                 if (typeof AuthUtils !== 'undefined') {
                     AuthUtils.logout();
                 } else {

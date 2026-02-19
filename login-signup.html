@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login / Signup - LTO Blockchain Management System</title>
     <link rel="stylesheet" href="css/login-signup.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="css/sweetalert-theme.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 
@@ -287,8 +289,10 @@
             e.preventDefault();
             const email = document.getElementById('resetEmail').value;
             // TODO: Wire to backend API
-            if (typeof ToastNotification !== 'undefined') {
-                ToastNotification.show('Password reset functionality will be connected to backend API.', 'info');
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('Password reset functionality will be connected to backend API.', 'info');
+            } else if (typeof window.showSweetToast === 'function') {
+                window.showSweetToast('Password reset functionality will be connected to backend API.', 'info');
             } else {
                 alert('Password reset functionality will be connected to backend API.');
             }
@@ -391,6 +395,8 @@
             }
         });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="js/sweetalert-utils.js"></script>
     <script src="js/toast-notification.js"></script>
     <script src="js/login-signup.js"></script>
 </body>

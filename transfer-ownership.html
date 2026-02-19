@@ -6,6 +6,8 @@
     <title>Transfer of Ownership - LTO Management System</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="css/sweetalert-theme.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1793,6 +1795,8 @@
     <script src="js/utils.js"></script>
     <script src="js/mobile-nav.js"></script>
     <script src="js/document-upload-utils.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="js/sweetalert-utils.js"></script>
     <script>
         // DEBUG: Log immediately when script loads
         console.log('🚀 transfer-ownership.html script starting...');
@@ -2609,48 +2613,33 @@
             }
         }
 
-        function cancelTransfer() {
-            if (confirm('Are you sure you want to cancel? All entered data will be lost.')) {
+        async function cancelTransfer() {
+            const confirmed = typeof window.showSweetConfirm === 'function'
+                ? await window.showSweetConfirm({
+                    title: 'Cancel transfer?',
+                    text: 'All entered data will be lost.',
+                    confirmText: 'Yes, cancel',
+                    cancelText: 'Keep editing',
+                    icon: 'warning'
+                })
+                : confirm('Are you sure you want to cancel? All entered data will be lost.');
+
+            if (confirmed) {
                 window.location.href = 'owner-dashboard.html';
             }
         }
 
         function showNotification(message, type = 'info') {
-            const existing = document.querySelector('.transfer-notification-overlay');
-            if (existing) existing.remove();
-
-            const iconMap = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-            const displayType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
-
-            const el = document.createElement('div');
-            el.className = `transfer-notification-overlay ${displayType}`;
-            el.setAttribute('role', 'alert');
-            const msgEl = document.createElement('span');
-            msgEl.className = 'notif-message';
-            msgEl.textContent = message;
-            el.innerHTML = `<span class="notif-icon">${iconMap[displayType] || iconMap.info}</span>`;
-            el.appendChild(msgEl);
-            const closeBtn = document.createElement('button');
-            closeBtn.className = 'notif-close';
-            closeBtn.type = 'button';
-            closeBtn.setAttribute('aria-label', 'Dismiss');
-            closeBtn.textContent = '×';
-            closeBtn.onclick = () => {
-                el.classList.add('transfer-notification-fade-out');
-                setTimeout(() => el.remove(), 300);
-            };
-            el.appendChild(closeBtn);
-
-            document.body.appendChild(el);
-
-            setTimeout(() => {
-                if (el.parentElement && !el.classList.contains('transfer-notification-fade-out')) {
-                    el.classList.add('transfer-notification-fade-out');
-                    setTimeout(() => el.remove(), 300);
-                }
-            }, 5000);
+            if (typeof window.showSweetToast === 'function') {
+                window.showSweetToast(message, type, { timer: 5000 });
+                return;
+            }
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show(message, type, 5000);
+                return;
+            }
+            alert(message);
         }
-
         // DEBUG: Test function for file input
         function testFileInput() {
             console.log('🧪 Test button clicked');

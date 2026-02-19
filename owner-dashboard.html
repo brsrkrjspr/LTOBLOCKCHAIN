@@ -7,6 +7,8 @@
     <title>Owner Dashboard - LTO Blockchain</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="css/mobile.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <link rel="stylesheet" href="css/sweetalert-theme.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3750,6 +3752,8 @@
     <script src="js/error-tracker.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/toast-notification.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="js/sweetalert-utils.js"></script>
     <script src="js/document-modal.js"></script>
     <script src="js/mobile-nav.js"></script>
     <script src="js/certificate-generator.js?v=3.1"></script>
@@ -3999,12 +4003,25 @@
                 }, 250);
             });
 
+            const confirmLogout = async () => {
+                if (typeof window.showSweetConfirm === 'function') {
+                    return window.showSweetConfirm({
+                        title: 'Logout?',
+                        text: 'Are you sure you want to logout?',
+                        confirmText: 'Yes, logout',
+                        cancelText: 'Stay logged in',
+                        icon: 'warning'
+                    });
+                }
+                return confirm('Are you sure you want to logout?');
+            };
+
             // Handle sidebar logout button
             const sidebarLogoutBtn = document.getElementById('sidebarLogoutBtn');
             if (sidebarLogoutBtn) {
-                sidebarLogoutBtn.addEventListener('click', function (e) {
+                sidebarLogoutBtn.addEventListener('click', async function (e) {
                     e.preventDefault();
-                    if (confirm('Are you sure you want to logout?')) {
+                    if (await confirmLogout()) {
                         if (typeof window.authManager !== 'undefined') {
                             window.authManager.logout();
                         } else if (typeof AuthUtils !== 'undefined') {
@@ -4022,7 +4039,6 @@
                     }
                 });
             }
-
             // Profile dropdown + logout
             const profileMenu = document.getElementById('userProfileMenu');
             const profileDropdown = document.getElementById('profileDropdown');
@@ -4040,9 +4056,9 @@
             });
 
             if (profileLogoutBtn) {
-                profileLogoutBtn.addEventListener('click', function (e) {
+                profileLogoutBtn.addEventListener('click', async function (e) {
                     e.preventDefault();
-                    if (confirm('Are you sure you want to logout?')) {
+                    if (await confirmLogout()) {
                         if (typeof window.authManager !== 'undefined') {
                             window.authManager.logout();
                         } else if (typeof AuthUtils !== 'undefined') {

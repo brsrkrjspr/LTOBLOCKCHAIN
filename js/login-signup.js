@@ -89,47 +89,20 @@
 
     function showNotification(message, type = 'info') {
         try {
-            // Remove existing notifications
-            const existingNotification = document.querySelector('.auth-notification-overlay');
-            if (existingNotification) {
-                existingNotification.remove();
+            if (typeof window.showSweetToast === 'function') {
+                window.showSweetToast(message, type, { timer: 5000 });
+                return;
             }
-
-            // Map 'warning' to visual style (use info icon for simplicity)
-            const iconMap = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
-            const displayType = ['success', 'error', 'warning', 'info'].includes(type) ? type : 'info';
-
-            // Create overlay notification element (fixed position - does NOT affect modal layout)
-            const notification = document.createElement('div');
-            notification.className = `auth-notification-overlay auth-notification auth-notification-${displayType}`;
-            notification.setAttribute('role', 'alert');
-            notification.innerHTML = `
-                <div class="notification-content">
-                    <span class="notification-icon">${iconMap[displayType] || iconMap.info}</span>
-                    <span class="notification-message">${message}</span>
-                    <button class="notification-close" type="button" aria-label="Dismiss" onclick="this.closest('.auth-notification-overlay').remove()">×</button>
-                </div>
-            `;
-
-            // Always append to body - fixed overlay above modal, never inside auth-card
-            document.body.appendChild(notification);
-
-            // Trigger reflow for animation
-            notification.offsetHeight;
-
-            // Auto-remove notification after 5 seconds
-            setTimeout(() => {
-                if (notification.parentElement) {
-                    notification.classList.add('auth-notification-fade-out');
-                    setTimeout(() => notification.remove(), 300);
-                }
-            }, 5000);
+            if (typeof ToastNotification !== 'undefined') {
+                ToastNotification.show(message, type, 5000);
+                return;
+            }
+            alert(message);
         } catch (error) {
             console.error('Error in showNotification:', error);
             alert(message);
         }
     }
-
     // Make showNotification globally accessible
     window.showNotification = showNotification;
 
@@ -163,11 +136,20 @@
                     const existingEmail = existingSession.user.email;
                     if (existingEmail !== email) {
                         // Different account trying to login
-                        const confirmSwitch = confirm(
-                            `You are currently logged in as ${existingEmail}.\n\n` +
-                            `Do you want to logout and switch to ${email}?\n\n` +
-                            `Click OK to switch accounts, or Cancel to stay logged in.`
-                        );
+                        const confirmMessage = `You are currently logged in as ${existingEmail}. Do you want to logout and switch to ${email}?`;
+                        const confirmSwitch = typeof window.showSweetConfirm === 'function'
+                            ? await window.showSweetConfirm({
+                                title: 'Switch account?',
+                                text: confirmMessage,
+                                confirmText: 'Switch account',
+                                cancelText: 'Stay logged in',
+                                icon: 'warning'
+                            })
+                            : confirm(
+                                `You are currently logged in as ${existingEmail}.\n\n` +
+                                `Do you want to logout and switch to ${email}?\n\n` +
+                                `Click OK to switch accounts, or Cancel to stay logged in.`
+                            );
                         if (confirmSwitch) {
                             AuthUtils.forceLogout();
                             showNotification('Previous session cleared. Please login again.', 'info');

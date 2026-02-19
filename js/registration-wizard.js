@@ -55,6 +55,22 @@ let ocrDataSource = {}; // Track which document type provided each field (for co
 let premintedVehicleData = null;
 const PREMINTED_LOCK_FIELDS = ['make', 'model', 'year', 'color', 'engineNumber', 'chassisNumber', 'vin', 'plateNumber', 'vehicleType', 'fuelType'];
 
+function showWizardToast(message, type = 'info', duration) {
+    if (typeof window.showSweetToast === 'function') {
+        const options = {};
+        if (typeof duration === 'number') {
+            options.timer = duration;
+        }
+        window.showSweetToast(message, type, options);
+        return;
+    }
+    if (typeof ToastNotification !== 'undefined') {
+        ToastNotification.show(message, type, duration);
+        return;
+    }
+    alert(message);
+}
+
 /**
  * Store a non-empty OCR value and track its document source.
  * This powers conflict detection at submit time.
@@ -322,9 +338,7 @@ async function searchPremintedVehicle() {
             autoFillPremintedVehicle(premintedVehicleData);
 
             // Show success toast
-            if (typeof ToastNotification !== 'undefined') {
-                ToastNotification.show('Vehicle found! Details auto-filled.', 'success');
-            }
+            showWizardToast('Vehicle found! Details auto-filled.', 'success');
         } else {
             if (summaryDiv) summaryDiv.innerHTML = '<span style="color: #e74c3c;"><i class="fas fa-times-circle"></i> Vehicle not found. Please check the VIN.</span>';
             // Clear auto-filled fields if not found?
@@ -1328,7 +1342,7 @@ function initializeKeyboardShortcuts() {
     document.addEventListener('keydown', function (e) {
         if ((e.ctrlKey || e.metaKey) && e.key === 's') {
             e.preventDefault();
-            if (typeof ToastNotification !== 'undefined') ToastNotification.show('Form data is automatically saved as you type', 'info');
+            showWizardToast('Form data is automatically saved as you type', 'info');
         }
         if (e.key === 'Escape' && currentStep > 1) prevStep();
         if (e.key === 'Enter' && !e.shiftKey && !e.target.matches('textarea')) {
@@ -1351,7 +1365,7 @@ function initializeKeyboardShortcuts() {
 function restoreFormData() {
     const form = document.querySelector('.wizard-form');
     if (form && typeof FormPersistence !== 'undefined' && FormPersistence.restore('registration-wizard', form)) {
-        if (typeof ToastNotification !== 'undefined') ToastNotification.show('Previous form data restored', 'info', 3000);
+        showWizardToast('Previous form data restored', 'info', 3000);
     }
     setTimeout(() => {
         const carTypeSelect = document.getElementById('carType');
@@ -1945,8 +1959,8 @@ async function autoFillOwnerInfo() {
             addressField.classList.add('auto-filled');
             fieldsFilled++;
         }
-        if (fieldsFilled > 0 && typeof ToastNotification !== 'undefined') {
-            ToastNotification.show('Owner information has been auto-filled from your profile. Upload documents in Step 1 for more accurate auto-fill.', 'info');
+        if (fieldsFilled > 0) {
+            showWizardToast('Owner information has been auto-filled from your profile. Upload documents in Step 1 for more accurate auto-fill.', 'info');
         }
     } catch (error) {
         console.log('Auto-fill error (non-critical):', error);
@@ -1973,7 +1987,7 @@ function handleFileUpload(input) {
         if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
             showFieldError(input, 'Please upload a PDF, JPEG, or PNG file');
             input.classList.add('invalid');
-            ToastNotification.show('Invalid file type. Please upload PDF, JPEG, or PNG files only.', 'error');
+            showWizardToast('Invalid file type. Please upload PDF, JPEG, or PNG files only.', 'error');
             input.value = ''; // Clear the input
             return;
         }
@@ -1984,7 +1998,7 @@ function handleFileUpload(input) {
             const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
             showFieldError(input, `File size (${sizeMB}MB) exceeds maximum of 5MB`);
             input.classList.add('invalid');
-            ToastNotification.show(`File size (${sizeMB}MB) exceeds maximum of 5MB. Please choose a smaller file.`, 'error');
+            showWizardToast(`File size (${sizeMB}MB) exceeds maximum of 5MB. Please choose a smaller file.`, 'error');
             input.value = ''; // Clear the input
             return;
         }
@@ -2022,7 +2036,7 @@ function handleFileUpload(input) {
             label.style.color = '#000000';
         }
 
-        ToastNotification.show(`File "${file.name}" uploaded successfully`, 'success');
+        showWizardToast(`File "${file.name}" uploaded successfully`, 'success');
     }
 }
 
@@ -2225,7 +2239,7 @@ function updateReviewData() {
         const termsAgreement = document.getElementById('termsAgreement');
 
         if (!termsAgreement || !termsAgreement.checked) {
-            ToastNotification.show('Please agree to the terms and conditions before submitting', 'error');
+            showWizardToast('Please agree to the terms and conditions before submitting', 'error');
             return;
         }
 
@@ -2237,11 +2251,11 @@ function updateReviewData() {
 
         try {
             // 1. Upload documents first (backend /api/vehicles/register expects document IDs, not raw files)
-            if (typeof ToastNotification !== 'undefined') ToastNotification.show('Uploading documents...', 'info');
+            showWizardToast('Uploading documents...', 'info');
             const uploadResults = await uploadDocuments(undefined);
 
             // 2. Collect vehicle and owner data (matches backend POST /api/vehicles/register payload)
-            if (typeof ToastNotification !== 'undefined') ToastNotification.show('Submitting application...', 'info');
+            showWizardToast('Submitting application...', 'info');
             const applicationData = collectApplicationData();
 
             const registrationData = {
@@ -2261,9 +2275,7 @@ function updateReviewData() {
             const response = await apiClient.post('/api/vehicles/register', registrationData);
 
             if (response && response.success) {
-                if (typeof ToastNotification !== 'undefined') {
-                    ToastNotification.show('Application submitted successfully!', 'success');
-                }
+                showWizardToast('Application submitted successfully!', 'success');
                 setTimeout(() => {
                     window.location.href = 'owner-dashboard.html?submitted=true';
                 }, 1500);
@@ -2296,7 +2308,7 @@ function updateReviewData() {
         function restoreFormData() {
             const form = document.querySelector('.wizard-form');
             if (form && FormPersistence.restore('registration-wizard', form)) {
-                ToastNotification.show('Previous form data restored', 'info', 3000);
+                showWizardToast('Previous form data restored', 'info', 3000);
             }
 
             // Always check for car type value after restore (even if restore returned false)
@@ -2316,7 +2328,7 @@ function updateReviewData() {
                 // Ctrl+S or Cmd+S to save (prevent default and show message)
                 if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                     e.preventDefault();
-                    ToastNotification.show('Form data is automatically saved as you type', 'info');
+                    showWizardToast('Form data is automatically saved as you type', 'info');
                 }
 
                 // Escape to go back
@@ -2382,9 +2394,9 @@ function updateReviewData() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // Legacy notification function - now uses ToastNotification
+        // Legacy notification function - now uses SweetAlert toasts
         function showNotification(message, type = 'info') {
-            ToastNotification.show(message, type);
+            showWizardToast(message, type);
         }
 
         // Helper functions for API integration

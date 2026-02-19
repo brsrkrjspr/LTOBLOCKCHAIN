@@ -3,7 +3,7 @@
     --swal-primary: var(--navy-primary, var(--lto-blue, #1e40af));
     --swal-primary-dark: var(--navy-dark, var(--lto-blue-dark, #1e3a8a));
     --swal-accent: var(--navy-light, var(--lto-blue-light, #3b82f6));
-    --swal-success: #16a34a;
+    --swal-success: var(--blockchain-green, #16a34a);
     --swal-error: #dc2626;
     --swal-warning: #f59e0b;
     --swal-info: var(--swal-accent);
@@ -41,6 +41,7 @@
 .lto-swal-actions {
     margin-top: 1.5rem;
     gap: 0.75rem;
+    justify-content: flex-end;
 }
 
 .lto-swal-confirm,
@@ -105,6 +106,20 @@
 .lto-swal-popup .swal2-icon.swal2-info {
     border-color: var(--swal-info);
     color: var(--swal-info);
+}
+
+.lto-swal-popup .swal2-icon {
+    width: 4.5em;
+    height: 4.5em;
+    margin: 0.5em auto 0.75em;
+}
+
+.lto-swal-popup .swal2-icon.swal2-success .swal2-success-ring {
+    border: 0.25em solid rgba(22, 163, 74, 0.35);
+}
+
+.lto-swal-popup .swal2-icon.swal2-success [class^='swal2-success-line'] {
+    background-color: var(--swal-success);
 }
 
 .swal2-timer-progress-bar {

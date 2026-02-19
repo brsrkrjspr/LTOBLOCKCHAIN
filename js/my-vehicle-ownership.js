@@ -35,7 +35,32 @@ function initializeMyOwnership() {
     if (sidebarLogoutBtn) {
         sidebarLogoutBtn.addEventListener('click', async function (e) {
             e.preventDefault();
-            if (await (typeof window.showSweetConfirm === 'function' ? window.showSweetConfirm({ title: 'Logout?', text: 'Are you sure you want to logout?', confirmText: 'Yes, logout', cancelText: 'Stay logged in', icon: 'warning' }) : Promise.resolve(confirm('Are you sure you want to logout?')))) {
+            let confirmed = false;
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                const result = await window.Swal.fire({
+                    icon: 'warning',
+                    title: 'Logout?',
+                    text: 'Are you sure you want to logout?',
+                    position: 'center',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, logout',
+                    cancelButtonText: 'Stay logged in',
+                    reverseButtons: true,
+                    customClass: {
+                        popup: 'lto-swal-popup',
+                        title: 'lto-swal-title',
+                        htmlContainer: 'lto-swal-body',
+                        actions: 'lto-swal-actions',
+                        confirmButton: 'lto-swal-confirm',
+                        cancelButton: 'lto-swal-cancel'
+                    },
+                    buttonsStyling: false
+                });
+                confirmed = result.isConfirmed;
+            } else {
+                confirmed = confirm('Are you sure you want to logout?');
+            }
+            if (confirmed) {
                 if (typeof AuthUtils !== 'undefined') {
                     AuthUtils.logout();
                 } else {

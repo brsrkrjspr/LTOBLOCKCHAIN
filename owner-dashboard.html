@@ -3753,7 +3753,6 @@
     <script src="js/utils.js"></script>
     <script src="js/toast-notification.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="js/sweetalert-utils.js"></script>
     <script src="js/document-modal.js"></script>
     <script src="js/mobile-nav.js"></script>
     <script src="js/certificate-generator.js?v=3.1"></script>
@@ -4004,14 +4003,27 @@
             });
 
             const confirmLogout = async () => {
-                if (typeof window.showSweetConfirm === 'function') {
-                    return window.showSweetConfirm({
+                if (window.Swal && typeof window.Swal.fire === 'function') {
+                    const result = await window.Swal.fire({
+                        icon: 'warning',
                         title: 'Logout?',
                         text: 'Are you sure you want to logout?',
-                        confirmText: 'Yes, logout',
-                        cancelText: 'Stay logged in',
-                        icon: 'warning'
+                        position: 'center',
+                        showCancelButton: true,
+                        confirmButtonText: 'Yes, logout',
+                        cancelButtonText: 'Stay logged in',
+                        reverseButtons: true,
+                        customClass: {
+                            popup: 'lto-swal-popup',
+                            title: 'lto-swal-title',
+                            htmlContainer: 'lto-swal-body',
+                            actions: 'lto-swal-actions',
+                            confirmButton: 'lto-swal-confirm',
+                            cancelButton: 'lto-swal-cancel'
+                        },
+                        buttonsStyling: false
                     });
+                    return result.isConfirmed;
                 }
                 return confirm('Are you sure you want to logout?');
             };

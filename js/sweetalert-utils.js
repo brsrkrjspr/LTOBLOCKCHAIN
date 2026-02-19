@@ -63,11 +63,30 @@
         }
 
         const opts = options || {};
+        const icon = normalizeType(opts.icon || type);
+        const defaultTitles = {
+            success: 'Success!',
+            error: 'Error',
+            warning: 'Warning',
+            info: 'Notice'
+        };
+        const timer = typeof opts.timer === 'number' ? opts.timer : undefined;
+        const showConfirmButton = typeof opts.showConfirmButton === 'boolean'
+            ? opts.showConfirmButton
+            : !timer;
+        const backdrop = typeof opts.backdrop === 'boolean'
+            ? opts.backdrop
+            : !timer;
         return window.Swal.fire({
-            icon: normalizeType(opts.icon || type),
-            title: opts.title || 'Notification',
+            icon,
+            title: opts.title || defaultTitles[icon] || 'Notification',
             text: message,
             confirmButtonText: opts.confirmText || 'OK',
+            timer,
+            timerProgressBar: !!timer,
+            showConfirmButton,
+            backdrop,
+            position: 'center',
             customClass: baseClasses,
             buttonsStyling: false
         });

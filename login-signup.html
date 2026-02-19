@@ -289,10 +289,25 @@
             e.preventDefault();
             const email = document.getElementById('resetEmail').value;
             // TODO: Wire to backend API
-            if (typeof window.showNotification === 'function') {
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                window.Swal.fire({
+                    icon: 'info',
+                    title: 'Notice',
+                    text: 'Password reset functionality will be connected to backend API.',
+                    position: 'center',
+                    confirmButtonText: 'OK',
+                    customClass: {
+                        popup: 'lto-swal-popup',
+                        title: 'lto-swal-title',
+                        htmlContainer: 'lto-swal-body',
+                        actions: 'lto-swal-actions',
+                        confirmButton: 'lto-swal-confirm',
+                        cancelButton: 'lto-swal-cancel'
+                    },
+                    buttonsStyling: false
+                });
+            } else if (typeof window.showNotification === 'function') {
                 window.showNotification('Password reset functionality will be connected to backend API.', 'info');
-            } else if (typeof window.showSweetToast === 'function') {
-                window.showSweetToast('Password reset functionality will be connected to backend API.', 'info');
             } else {
                 alert('Password reset functionality will be connected to backend API.');
             }
@@ -396,7 +411,6 @@
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="js/sweetalert-utils.js"></script>
     <script src="js/toast-notification.js"></script>
     <script src="js/login-signup.js"></script>
 </body>

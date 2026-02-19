@@ -55,13 +55,46 @@ let ocrDataSource = {}; // Track which document type provided each field (for co
 let premintedVehicleData = null;
 const PREMINTED_LOCK_FIELDS = ['make', 'model', 'year', 'color', 'engineNumber', 'chassisNumber', 'vin', 'plateNumber', 'vehicleType', 'fuelType'];
 
+const swalClasses = {
+    popup: 'lto-swal-popup',
+    title: 'lto-swal-title',
+    htmlContainer: 'lto-swal-body',
+    actions: 'lto-swal-actions',
+    confirmButton: 'lto-swal-confirm',
+    cancelButton: 'lto-swal-cancel'
+};
+
+const swalTitles = {
+    success: 'Success!',
+    error: 'Error',
+    warning: 'Warning',
+    info: 'Notice'
+};
+
+function normalizeSwalType(type) {
+    const normalized = (type || '').toString().toLowerCase();
+    const map = { success: 'success', error: 'error', warning: 'warning', warn: 'warning', info: 'info' };
+    return map[normalized] || 'info';
+}
+
 function showWizardToast(message, type = 'info', duration) {
-    if (typeof window.showSweetToast === 'function') {
-        const options = {};
-        if (typeof duration === 'number') {
-            options.timer = duration;
-        }
-        window.showSweetToast(message, type, options);
+    if (window.Swal && typeof window.Swal.fire === 'function') {
+        const icon = normalizeSwalType(type);
+        const hasTimer = typeof duration === 'number';
+        window.Swal.fire({
+            icon,
+            title: swalTitles[icon] || 'Notification',
+            text: message,
+            position: 'center',
+            confirmButtonText: 'OK',
+            timer: hasTimer ? duration : undefined,
+            timerProgressBar: !!hasTimer,
+            showConfirmButton: !hasTimer,
+            backdrop: !hasTimer,
+            allowOutsideClick: hasTimer,
+            customClass: swalClasses,
+            buttonsStyling: false
+        });
         return;
     }
     if (typeof ToastNotification !== 'undefined') {

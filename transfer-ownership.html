@@ -1796,7 +1796,6 @@
     <script src="js/mobile-nav.js"></script>
     <script src="js/document-upload-utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="js/sweetalert-utils.js"></script>
     <script>
         // DEBUG: Log immediately when script loads
         console.log('🚀 transfer-ownership.html script starting...');
@@ -2614,15 +2613,31 @@
         }
 
         async function cancelTransfer() {
-            const confirmed = typeof window.showSweetConfirm === 'function'
-                ? await window.showSweetConfirm({
+            let confirmed = false;
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                const result = await window.Swal.fire({
+                    icon: 'warning',
                     title: 'Cancel transfer?',
                     text: 'All entered data will be lost.',
-                    confirmText: 'Yes, cancel',
-                    cancelText: 'Keep editing',
-                    icon: 'warning'
-                })
-                : confirm('Are you sure you want to cancel? All entered data will be lost.');
+                    position: 'center',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, cancel',
+                    cancelButtonText: 'Keep editing',
+                    reverseButtons: true,
+                    customClass: {
+                        popup: 'lto-swal-popup',
+                        title: 'lto-swal-title',
+                        htmlContainer: 'lto-swal-body',
+                        actions: 'lto-swal-actions',
+                        confirmButton: 'lto-swal-confirm',
+                        cancelButton: 'lto-swal-cancel'
+                    },
+                    buttonsStyling: false
+                });
+                confirmed = result.isConfirmed;
+            } else {
+                confirmed = confirm('Are you sure you want to cancel? All entered data will be lost.');
+            }
 
             if (confirmed) {
                 window.location.href = 'owner-dashboard.html';
@@ -2630,8 +2645,26 @@
         }
 
         function showNotification(message, type = 'info') {
-            if (typeof window.showSweetToast === 'function') {
-                window.showSweetToast(message, type, { timer: 5000 });
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                const iconMap = { success: 'success', error: 'error', warning: 'warning', info: 'info' };
+                const titleMap = { success: 'Success!', error: 'Error', warning: 'Warning', info: 'Notice' };
+                const icon = iconMap[(type || '').toString().toLowerCase()] || 'info';
+                window.Swal.fire({
+                    icon,
+                    title: titleMap[icon] || 'Notification',
+                    text: message,
+                    position: 'center',
+                    confirmButtonText: 'OK',
+                    customClass: {
+                        popup: 'lto-swal-popup',
+                        title: 'lto-swal-title',
+                        htmlContainer: 'lto-swal-body',
+                        actions: 'lto-swal-actions',
+                        confirmButton: 'lto-swal-confirm',
+                        cancelButton: 'lto-swal-cancel'
+                    },
+                    buttonsStyling: false
+                });
                 return;
             }
             if (typeof ToastNotification !== 'undefined') {

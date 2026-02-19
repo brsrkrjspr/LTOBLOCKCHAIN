@@ -87,17 +87,48 @@
     // NOTIFICATION SYSTEM (Must be defined early)
     // ============================================
 
+    const swalClasses = {
+        popup: 'lto-swal-popup',
+        title: 'lto-swal-title',
+        htmlContainer: 'lto-swal-body',
+        actions: 'lto-swal-actions',
+        confirmButton: 'lto-swal-confirm',
+        cancelButton: 'lto-swal-cancel'
+    };
+
+    const swalTitles = {
+        success: 'Success!',
+        error: 'Error',
+        warning: 'Warning',
+        info: 'Notice'
+    };
+
+    function normalizeSwalType(type) {
+        const normalized = (type || '').toString().toLowerCase();
+        const map = { success: 'success', error: 'error', warning: 'warning', warn: 'warning', info: 'info' };
+        return map[normalized] || 'info';
+    }
+
+    function fireSwalMessage(message, type = 'info', options = {}) {
+        if (window.Swal && typeof window.Swal.fire === 'function') {
+            const icon = normalizeSwalType(options.icon || type);
+            return window.Swal.fire({
+                icon,
+                title: options.title || swalTitles[icon] || 'Notification',
+                text: message,
+                position: 'center',
+                confirmButtonText: options.confirmText || 'OK',
+                customClass: swalClasses,
+                buttonsStyling: false
+            });
+        }
+        alert(message);
+        return Promise.resolve();
+    }
+
     function showNotification(message, type = 'info') {
         try {
-            if (typeof window.showSweetToast === 'function') {
-                window.showSweetToast(message, type, { timer: 5000 });
-                return;
-            }
-            if (typeof ToastNotification !== 'undefined') {
-                ToastNotification.show(message, type, 5000);
-                return;
-            }
-            alert(message);
+            fireSwalMessage(message, type);
         } catch (error) {
             console.error('Error in showNotification:', error);
             alert(message);
@@ -137,19 +168,28 @@
                     if (existingEmail !== email) {
                         // Different account trying to login
                         const confirmMessage = `You are currently logged in as ${existingEmail}. Do you want to logout and switch to ${email}?`;
-                        const confirmSwitch = typeof window.showSweetConfirm === 'function'
-                            ? await window.showSweetConfirm({
+                        let confirmSwitch = false;
+                        if (window.Swal && typeof window.Swal.fire === 'function') {
+                            const result = await window.Swal.fire({
+                                icon: 'warning',
                                 title: 'Switch account?',
                                 text: confirmMessage,
-                                confirmText: 'Switch account',
-                                cancelText: 'Stay logged in',
-                                icon: 'warning'
-                            })
-                            : confirm(
+                                position: 'center',
+                                showCancelButton: true,
+                                confirmButtonText: 'Switch account',
+                                cancelButtonText: 'Stay logged in',
+                                reverseButtons: true,
+                                customClass: swalClasses,
+                                buttonsStyling: false
+                            });
+                            confirmSwitch = result.isConfirmed;
+                        } else {
+                            confirmSwitch = confirm(
                                 `You are currently logged in as ${existingEmail}.\n\n` +
                                 `Do you want to logout and switch to ${email}?\n\n` +
                                 `Click OK to switch accounts, or Cancel to stay logged in.`
                             );
+                        }
                         if (confirmSwitch) {
                             AuthUtils.forceLogout();
                             showNotification('Previous session cleared. Please login again.', 'info');

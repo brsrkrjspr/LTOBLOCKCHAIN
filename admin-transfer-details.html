@@ -172,16 +172,31 @@
         .dashboard-main {
             background: #f8fafc;
             transition: margin-left 0.3s ease-in-out;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
         
         .dashboard-content {
             padding: 2rem;
             max-width: 100%;
+            flex: 1;
+            display: flex;
         }
         
         .dashboard-content .container {
             max-width: 100%;
             padding: 0;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        html,
+        body {
+            min-height: 100%;
+            background: #f8fafc;
         }
         
         /* Ensure all dashboard text is dark and readable on white background */
@@ -220,6 +235,11 @@
             grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr);
             gap: 1.5rem;
             align-items: flex-start;
+            flex: 1;
+        }
+
+        .details-main {
+            min-height: 100%;
         }
         
         .details-main .dashboard-card {
@@ -316,6 +336,9 @@
         .action-panel {
             position: sticky;
             top: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
         }
         
         .action-panel .dashboard-card {
@@ -325,10 +348,16 @@
             box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
             padding: 1.75rem 1.75rem 1.5rem;
         }
+
+        .action-panel .dashboard-card.side-card {
+            padding: 1.5rem 1.5rem 1.25rem;
+            border-radius: 14px;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
         
         .action-panel .action-buttons {
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 0.9rem;
         }
         
@@ -349,6 +378,105 @@
             line-height: 1.25;
             padding: 0.75rem 1rem;
             max-width: 100%;
+        }
+
+        .snapshot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 0.85rem 1rem;
+        }
+
+        .snapshot-item label {
+            display: block;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #64748b;
+            margin-bottom: 0.25rem;
+        }
+
+        .snapshot-item p {
+            margin: 0;
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .snapshot-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .snapshot-tag {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 0.25rem 0.7rem;
+            border-radius: 999px;
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        .snapshot-tag.info {
+            background: #e0f2fe;
+            color: #0369a1;
+        }
+
+        .snapshot-tag.warning {
+            background: #fff7ed;
+            color: #c2410c;
+        }
+
+        .checklist {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            display: grid;
+            gap: 0.6rem;
+        }
+
+        .checklist li {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            font-size: 0.9rem;
+            color: #1f2937;
+        }
+
+        .check-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: #cbd5f5;
+            flex-shrink: 0;
+        }
+
+        .check-dot.done {
+            background: #22c55e;
+        }
+
+        .check-dot.pending {
+            background: #f59e0b;
+        }
+
+        .timeline {
+            display: grid;
+            gap: 0.75rem;
+        }
+
+        .timeline-item {
+            padding: 0.65rem 0.75rem;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            background: #ffffff;
+            font-size: 0.85rem;
+            color: #475569;
+        }
+
+        .timeline-item strong {
+            display: block;
+            color: #0f172a;
+            margin-bottom: 0.25rem;
         }
 
         /* Modern gradients for Admin Actions buttons (scoped so other pages are unaffected) */
@@ -395,12 +523,17 @@
         
         /* Breadcrumb styling similar to dashboard sections */
         .breadcrumb {
-            display: flex;
+            display: inline-flex;
             align-items: center;
             gap: 0.5rem;
             font-size: 0.85rem;
             color: #64748b;
             margin-bottom: 1rem;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 999px;
+            padding: 0.5rem 1rem;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
         }
         
         .breadcrumb a {
@@ -422,6 +555,12 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 1.5rem;
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+            gap: 1rem;
         }
         
         .page-header h2 {
@@ -449,6 +588,7 @@
             
             .action-panel {
                 position: static;
+                gap: 1rem;
             }
             
             .dashboard-content {
@@ -468,8 +608,8 @@
             }
 
             .action-panel .action-buttons {
-                display: flex;
-                flex-direction: column;
+                display: grid;
+                grid-template-columns: 1fr;
                 gap: 0.65rem;
             }
 
@@ -826,6 +966,60 @@
                                     </button>
                                 </div>
                             </div>
+                            <div class="dashboard-card side-card">
+                                <h3><span class="card-icon">📌</span> Request Snapshot</h3>
+                                <div class="snapshot-grid">
+                                    <div class="snapshot-item">
+                                        <label>Request ID</label>
+                                        <p id="snapshotRequestId">—</p>
+                                    </div>
+                                    <div class="snapshot-item">
+                                        <label>Status</label>
+                                        <p id="snapshotStatus">Pending</p>
+                                    </div>
+                                    <div class="snapshot-item">
+                                        <label>Submitted</label>
+                                        <p id="snapshotSubmittedAt">—</p>
+                                    </div>
+                                    <div class="snapshot-item">
+                                        <label>Last Updated</label>
+                                        <p id="snapshotUpdatedAt">—</p>
+                                    </div>
+                                </div>
+                                <div class="snapshot-tags">
+                                    <span class="snapshot-tag info">Transfer</span>
+                                    <span class="snapshot-tag">Ownership</span>
+                                    <span class="snapshot-tag warning" id="snapshotStatusTag">Pending</span>
+                                </div>
+                            </div>
+                            <div class="dashboard-card side-card">
+                                <h3><span class="card-icon">✅</span> Verification Checklist</h3>
+                                <ul class="checklist">
+                                    <li><span class="check-dot pending"></span> Seller identity verified</li>
+                                    <li><span class="check-dot pending"></span> Buyer identity verified</li>
+                                    <li><span class="check-dot pending"></span> Vehicle details validated</li>
+                                    <li><span class="check-dot pending"></span> HPG clearance reviewed</li>
+                                    <li><span class="check-dot pending"></span> Insurance documents reviewed</li>
+                                </ul>
+                                <p class="hint" style="margin-top: 0.75rem;">Checklist updates as you review documents.</p>
+                            </div>
+                            <div class="dashboard-card side-card">
+                                <h3><span class="card-icon">🧭</span> Process Timeline</h3>
+                                <div class="timeline">
+                                    <div class="timeline-item">
+                                        <strong>Request Submitted</strong>
+                                        <span id="timelineSubmittedAt">Waiting for timestamp...</span>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <strong>Org Reviews</strong>
+                                        <span>HPG + Insurance clearance in progress</span>
+                                    </div>
+                                    <div class="timeline-item">
+                                        <strong>Admin Decision</strong>
+                                        <span>Approval or rejection pending</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -986,6 +1180,42 @@
                     }
                 });
             }
+
+            const syncSnapshot = function () {
+                const requestIdEl = document.getElementById('requestId');
+                const requestDateEl = document.getElementById('requestDate');
+                const lastUpdatedEl = document.getElementById('lastUpdated');
+                const statusEl = document.getElementById('requestStatus');
+
+                const snapshotRequestId = document.getElementById('snapshotRequestId');
+                const snapshotSubmittedAt = document.getElementById('snapshotSubmittedAt');
+                const snapshotUpdatedAt = document.getElementById('snapshotUpdatedAt');
+                const snapshotStatus = document.getElementById('snapshotStatus');
+                const snapshotStatusTag = document.getElementById('snapshotStatusTag');
+                const timelineSubmittedAt = document.getElementById('timelineSubmittedAt');
+
+                if (requestIdEl && snapshotRequestId) {
+                    snapshotRequestId.textContent = requestIdEl.textContent.trim();
+                }
+                if (requestDateEl && snapshotSubmittedAt) {
+                    snapshotSubmittedAt.textContent = requestDateEl.textContent.trim();
+                }
+                if (lastUpdatedEl && snapshotUpdatedAt) {
+                    snapshotUpdatedAt.textContent = lastUpdatedEl.textContent.trim();
+                }
+                if (requestDateEl && timelineSubmittedAt) {
+                    timelineSubmittedAt.textContent = requestDateEl.textContent.trim();
+                }
+                if (statusEl && snapshotStatus) {
+                    const statusText = statusEl.textContent.trim();
+                    snapshotStatus.textContent = statusText || 'Pending';
+                    if (snapshotStatusTag) snapshotStatusTag.textContent = statusText || 'Pending';
+                }
+            };
+
+            syncSnapshot();
+            setTimeout(syncSnapshot, 1200);
+            setTimeout(syncSnapshot, 2500);
         });
 
         function approveRequest() {

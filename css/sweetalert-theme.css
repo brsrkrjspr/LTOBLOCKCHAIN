@@ -1,12 +1,12 @@
 /* SweetAlert2 theme aligned with LTO TrustChain UI */
 :root {
-    --swal-primary: var(--navy-primary, var(--lto-blue, #1e40af));
-    --swal-primary-dark: var(--navy-dark, var(--lto-blue-dark, #1e3a8a));
-    --swal-accent: var(--navy-light, var(--lto-blue-light, #3b82f6));
-    --swal-success: var(--blockchain-green, #16a34a);
-    --swal-error: #dc2626;
-    --swal-warning: #f59e0b;
-    --swal-info: var(--swal-accent);
+    --swal-primary: var(--navy-primary, var(--hpg-navy, var(--insurance-blue, var(--lto-blue, #1e40af))));
+    --swal-primary-dark: var(--navy-dark, var(--hpg-navy-dark, var(--insurance-blue-dark, var(--lto-blue-dark, #1e3a8a))));
+    --swal-accent: var(--navy-light, var(--hpg-navy-light, var(--insurance-blue-light, var(--lto-blue-light, #3b82f6))));
+    --swal-success: var(--blockchain-green, var(--hpg-success, var(--insurance-success, #16a34a)));
+    --swal-error: var(--hpg-danger, var(--insurance-danger, #dc2626));
+    --swal-warning: var(--hpg-warning, var(--insurance-warning, #f59e0b));
+    --swal-info: var(--insurance-info, var(--swal-accent));
     --swal-bg: #ffffff;
     --swal-text: #0f172a;
     --swal-muted: #475569;

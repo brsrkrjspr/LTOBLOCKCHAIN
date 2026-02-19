@@ -1325,25 +1325,20 @@ function hideFieldError(field) {
  * Show error message at top of page (used by validation).
  */
 function showTopError(message) {
-    const existingError = document.querySelector('.top-error-message');
-    if (existingError) existingError.remove();
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'top-error-message';
-    errorDiv.innerHTML = `
-        <div class="error-content">
-            <div class="error-icon">⚠️</div>
-            <div class="error-text">
-                <h4>Please fix the following errors:</h4>
-                <p>${typeof message === 'string' ? message : (message || '')}</p>
-            </div>
-            <button class="error-close" onclick="this.parentElement.parentElement.remove()">×</button>
-        </div>
-    `;
-    const main = document.querySelector('main');
-    if (main) main.insertBefore(errorDiv, main.firstChild);
-    else document.body.insertBefore(errorDiv, document.body.firstChild);
-    setTimeout(() => { if (errorDiv.parentElement) errorDiv.remove(); }, 8000);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const htmlMessage = Array.isArray(message) ? message.join('<br>') : (message || '');
+    if (window.Swal && typeof window.Swal.fire === 'function') {
+        window.Swal.fire({
+            icon: 'error',
+            title: 'Please fix the following errors:',
+            html: htmlMessage,
+            position: 'center',
+            confirmButtonText: 'OK',
+            customClass: swalClasses,
+            buttonsStyling: false
+        });
+        return;
+    }
+    alert(`Please fix the following errors:\n\n${(htmlMessage || '').replace(/<br>/g, '\n')}`);
 }
 
 /**
@@ -2388,43 +2383,20 @@ function updateReviewData() {
         }
 
         function showTopError(message) {
-            // Remove existing error messages
-            const existingError = document.querySelector('.top-error-message');
-            if (existingError) {
-                existingError.remove();
+            const htmlMessage = Array.isArray(message) ? message.join('<br>') : (message || '');
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                window.Swal.fire({
+                    icon: 'error',
+                    title: 'Please fix the following errors:',
+                    html: htmlMessage,
+                    position: 'center',
+                    confirmButtonText: 'OK',
+                    customClass: swalClasses,
+                    buttonsStyling: false
+                });
+                return;
             }
-
-            // Create error message at the top
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'top-error-message';
-            errorDiv.innerHTML = `
-        <div class="error-content">
-            <div class="error-icon">⚠️</div>
-            <div class="error-text">
-                <h4>Please fix the following errors:</h4>
-                <p>${message}</p>
-            </div>
-            <button class="error-close" onclick="this.parentElement.parentElement.remove()">×</button>
-        </div>
-    `;
-
-            // Insert at the top of the page
-            const main = document.querySelector('main');
-            if (main) {
-                main.insertBefore(errorDiv, main.firstChild);
-            } else {
-                document.body.insertBefore(errorDiv, document.body.firstChild);
-            }
-
-            // Auto remove after 8 seconds
-            setTimeout(() => {
-                if (errorDiv.parentElement) {
-                    errorDiv.remove();
-                }
-            }, 8000);
-
-            // Scroll to top to show error
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            alert(`Please fix the following errors:\n\n${(htmlMessage || '').replace(/<br>/g, '\n')}`);
         }
 
         // Legacy notification function - now uses SweetAlert toasts

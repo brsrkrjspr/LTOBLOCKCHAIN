@@ -2351,6 +2351,24 @@
                 errorEl.textContent = message;
                 errorEl.classList.add('show');
             }
+            if (window.Swal && typeof window.Swal.fire === 'function') {
+                window.Swal.fire({
+                    icon: 'error',
+                    title: 'Please fix the following errors:',
+                    text: message,
+                    position: 'center',
+                    confirmButtonText: 'OK',
+                    customClass: {
+                        popup: 'lto-swal-popup',
+                        title: 'lto-swal-title',
+                        htmlContainer: 'lto-swal-body',
+                        actions: 'lto-swal-actions',
+                        confirmButton: 'lto-swal-confirm',
+                        cancelButton: 'lto-swal-cancel'
+                    },
+                    buttonsStyling: false
+                });
+            }
         }
 
         function clearWizardErrors() {

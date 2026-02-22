@@ -91,25 +91,21 @@
 .lto-swal-popup .swal2-icon.swal2-success {
     border-color: var(--swal-success);
     color: var(--swal-success);
-    background: var(--swal-success-soft);
-}
-
-.lto-swal-popup .swal2-icon.swal2-success .swal2-success-ring {
-    border: 0.22em solid rgba(22, 163, 74, 0.34);
-}
-
-.lto-swal-popup .swal2-icon.swal2-success [class^='swal2-success-line'] {
-    background-color: var(--swal-success);
+    background: var(--swal-success);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .lto-swal-popup .swal2-icon.swal2-error {
     border-color: var(--swal-error);
     color: var(--swal-error);
-    background: var(--swal-error-soft);
-}
-
-.lto-swal-popup .swal2-icon.swal2-error [class^='swal2-x-mark-line'] {
-    background-color: var(--swal-error);
+    background: var(--swal-error);
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .lto-swal-popup .swal2-icon.swal2-warning {
@@ -136,6 +132,29 @@
     font-weight: 700;
 }
 
+/* Replace fragile built-in success/error internals with stable glyph icons */
+.lto-swal-popup .swal2-icon.swal2-success [class*='swal2-success-'],
+.lto-swal-popup .swal2-icon.swal2-error [class*='swal2-x-mark'] {
+    display: none !important;
+}
+
+.lto-swal-popup .swal2-icon.swal2-success::before,
+.lto-swal-popup .swal2-icon.swal2-error::before {
+    color: #ffffff;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.lto-swal-popup .swal2-icon.swal2-success::before {
+    content: '\2713';
+    font-size: 2.2em;
+}
+
+.lto-swal-popup .swal2-icon.swal2-error::before {
+    content: '\2715';
+    font-size: 1.9em;
+}
+
 /* Toast look */
 .lto-swal-popup.swal2-toast {
     padding: 0.75rem 1rem;
@@ -160,6 +179,11 @@
 
 .lto-swal-popup.swal2-toast .swal2-icon .swal2-icon-content {
     font-size: 1.05em;
+}
+
+.lto-swal-popup.swal2-toast .swal2-icon.swal2-success::before,
+.lto-swal-popup.swal2-toast .swal2-icon.swal2-error::before {
+    font-size: 1em;
 }
 
 .lto-swal-popup.swal2-toast.lto-swal-toast-success {

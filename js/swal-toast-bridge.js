@@ -15,11 +15,12 @@
         cancelButton: 'lto-swal-cancel'
     };
 
-    const titles = {
-        success: 'Success!',
-        error: 'Error',
-        warning: 'Warning',
-        info: 'Notice'
+    const iconColor = {
+        success: '#16a34a',
+        error: '#dc2626',
+        warning: '#f59e0b',
+        info: '#2563eb',
+        question: '#2563eb'
     };
 
     function normalizeType(type) {
@@ -28,26 +29,44 @@
         return map[normalized] || 'info';
     }
 
+    function classConfig(type, isToast) {
+        return {
+            popup: isToast
+                ? `${classes.popup} lto-swal-toast lto-swal-toast-${type}`
+                : `${classes.popup} lto-swal-modal lto-swal-modal-${type}`,
+            title: isToast ? `${classes.title} lto-swal-toast-title` : classes.title,
+            htmlContainer: classes.htmlContainer,
+            actions: classes.actions,
+            confirmButton: classes.confirmButton,
+            cancelButton: classes.cancelButton
+        };
+    }
+
     function fireSwal(message, type = 'info', duration) {
         if (!hasSwal()) {
             alert(message);
             return Promise.resolve();
         }
         const icon = normalizeType(type);
-        const hasTimer = typeof duration === 'number';
+        const hasTimer = typeof duration === 'number' && duration > 0;
+        const timer = hasTimer ? duration : 5000;
+
         return window.Swal.fire({
+            toast: true,
+            position: 'top-end',
             icon,
-            title: titles[icon] || 'Notification',
-            text: message,
-            position: 'center',
-            confirmButtonText: 'OK',
-            timer: hasTimer ? duration : undefined,
-            timerProgressBar: !!hasTimer,
-            showConfirmButton: !hasTimer,
-            backdrop: !hasTimer,
-            allowOutsideClick: hasTimer,
-            customClass: classes,
-            buttonsStyling: false
+            iconColor: iconColor[icon],
+            title: message,
+            showConfirmButton: false,
+            timer,
+            timerProgressBar: true,
+            allowOutsideClick: true,
+            customClass: classConfig(icon, true),
+            buttonsStyling: false,
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', window.Swal.stopTimer);
+                toast.addEventListener('mouseleave', window.Swal.resumeTimer);
+            }
         });
     }
 
@@ -59,7 +78,8 @@
             return Promise.resolve(ok);
         }
         return window.Swal.fire({
-            icon: 'warning',
+            icon: 'question',
+            iconColor: iconColor.question,
             title: 'Confirm Action',
             text: message || 'Are you sure you want to proceed?',
             position: 'center',
@@ -67,7 +87,7 @@
             confirmButtonText: 'Confirm',
             cancelButtonText: 'Cancel',
             reverseButtons: true,
-            customClass: classes,
+            customClass: classConfig('question', false),
             buttonsStyling: false
         }).then((result) => {
             if (result.isConfirmed && typeof onConfirm === 'function') onConfirm();
@@ -86,5 +106,9 @@
 
     window.ToastNotification.confirm = function (message, onConfirm, onCancel) {
         return fireConfirm(message, onConfirm, onCancel);
+    };
+
+    window.showToastNotification = function (message, type, duration) {
+        return fireSwal(message, type, duration);
     };
 })();

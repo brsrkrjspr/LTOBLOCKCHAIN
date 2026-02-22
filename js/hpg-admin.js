@@ -875,66 +875,37 @@ const HPGVerification = {
     
     
     showAutoFillNotification: function() {
-        // Remove existing notification if any
-        const existing = document.getElementById('hpgAutoFillNotification');
-        if (existing) existing.remove();
-        
         const hasData = this.requestData?.plateNumber || this.requestData?.engineNumber;
         const hasDocuments = this.requestData?.documents && this.requestData.documents.length > 0;
         
         if (!hasData && !hasDocuments) return;
-        
-        const notification = document.createElement('div');
-        notification.id = 'hpgAutoFillNotification';
-        notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
-            color: white;
-            padding: 1rem 1.5rem;
-            border-radius: 10px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            z-index: 10000;
-            animation: slideInRight 0.3s ease-out;
-            max-width: 400px;
-        `;
-        
-        let message = '<strong>🚔 HPG Clearance Verification</strong><br>';
-        message += `Vehicle: ${this.requestData.plateNumber || 'N/A'}<br>`;
+
+        const vehicleLabel = this.requestData.plateNumber || this.requestData.engineNumber || 'N/A';
+        let message = `HPG clearance data loaded for vehicle ${vehicleLabel}.`;
         if (hasDocuments) {
-            message += `<span style="color: #27ae60;">✓ ${this.requestData.documents.length} document(s) loaded (OR/CR & Owner ID)</span>`;
+            message += ` ${this.requestData.documents.length} document(s) loaded (OR/CR and Owner ID).`;
         }
-        
-        notification.innerHTML = `
-            <div style="display: flex; gap: 1rem; align-items: flex-start;">
-                <div style="flex: 1;">${message}</div>
-                <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 24px; height: 24px; border-radius: 50%; cursor: pointer;">×</button>
-            </div>
-        `;
-        
-        // Add animation
-        if (!document.getElementById('hpgAutoFillStyles')) {
-            const style = document.createElement('style');
-            style.id = 'hpgAutoFillStyles';
-            style.textContent = `
-                @keyframes slideInRight {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-            `;
-            document.head.appendChild(style);
+
+        if (typeof ToastNotification !== 'undefined' && typeof ToastNotification.show === 'function') {
+            ToastNotification.show(message, 'info', 5500);
+            return;
         }
-        
-        document.body.appendChild(notification);
-        
-        // Auto-remove after 5 seconds
-        setTimeout(() => {
-            if (notification.parentElement) {
-                notification.style.animation = 'slideInRight 0.3s ease-out reverse';
-                setTimeout(() => notification.remove(), 300);
-            }
-        }, 5000);
+
+        if (window.Swal && typeof window.Swal.fire === 'function') {
+            window.Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'info',
+                iconColor: '#2563eb',
+                title: message,
+                showConfirmButton: false,
+                timer: 5500,
+                timerProgressBar: true
+            });
+            return;
+        }
+
+        alert(message);
     },
 
     approveVerification: async function() {
